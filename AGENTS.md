@@ -1,0 +1,28 @@
+# NotProton pessoal — regras dos agentes
+
+@/Users/elvisoliveira/.codex/RTK.md
+
+Comunicação em português brasileiro. Projeto: Cities: Skylines II pelo Steam nativo do Mac, com Sikarugir 11.0 e sem dependência de CrossOver.
+
+## Fonte de verdade
+
+- Leia `HANDOFF.md`, a especificação e o plano em `docs/superpowers/` antes de trabalhar.
+- Repositório pessoal: `ElvisBaggio/notproton`; `upstream` é o projeto original. Nunca enviar trabalho pessoal ao upstream sem pedido explícito.
+- GitHub Project: https://github.com/users/ElvisBaggio/projects/8. Cards e dependências são o contrato de execução.
+- No início, `git pull --ff-only` na branch com tracking. Trabalho em branch própria; main só com trabalho concluído. Nunca `push --force`.
+
+## Modelos e propriedade
+
+- Astra (`gpt-6-astra`) planeja, coordena e revisa; não implementa.
+- Implementação padrão: Sol 6.1 (`gpt-6.1-sol`); Luna 6 (`gpt-6-luna`) somente nos cards atribuídos a ele.
+- Claude Code é alternativa autorizada pelo usuário: usar `sonnet` ou `opus` conforme o card, registrar o modelo efetivo. Detalhes em `docs/AGENT_EXECUTION.md`.
+- Uma execução por card/território. Você não está sozinho no repositório: preserve mudanças alheias e não edite arquivos de outro responsável em paralelo.
+- Não iniciar implementação/probes até a revisão do plano. Publicar o board não libera seus gates.
+
+## Evidência e encerramento
+
+- Preservar wrapper, biblioteca e saves; alterações somente em cópias e prefixos isolados. Manter validação de origem, hashes, arquitetura e bytes de patches.
+- Binários de terceiros, backups, dados de conta e logs privados ficam em `scratch/` ignorado; nunca commitar segredos.
+- Não declarar runtime funcionando por build/processo/hash. Cumprir a prova exigida no card, incluindo save/reabertura e rollback quando aplicável.
+- Encerrar com revisão, checks, `HANDOFF.md` (Agente: codex ou claude), commit `[codex] ...`/`[claude] ...`, push e sincronização issue/Project.
+- Se `.codegraph/` existir, usar CodeGraph antes de buscar código; sem índice, usar `rg`.
