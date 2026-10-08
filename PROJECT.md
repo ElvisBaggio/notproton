@@ -41,3 +41,9 @@ O plano usa subagentes por card e revisão independente. Após sua revisão por 
 T01/T02 podem ocorrer em paralelo em territórios distintos. T03–T12 são sequenciais pelo acoplamento das interfaces. Ao fechar cada card, incluir evidência, commit, checks e sincronizar Status; o épico só fecha depois de seus filhos e gate.
 
 Nenhuma implementação começou. Runtime, save/reabertura e rollback continuam não executados.
+
+## Retomada e manutenção 1.1.1 — 2026-10-08
+
+Autor: codex. Branch `codex/sikarugir-ubisoft-1.1.1`. T01/T02 retomados por Sol 6.1 com evidências; T01 bloqueado por fonte/patchset e T02 parcial. Nenhum gate runtime encerrado.
+
+[M01 / #18](https://github.com/ElvisBaggio/notproton/issues/18): `upstream_update` / `gpt-6.1-sol`, revisão independente Astra. Backport do patch agregado 1.1.1 e versão; teste de contrato host e checks bridge/route passaram. Build PE e descoberta no Ubisoft Connect continuam pendentes. Não confundir esta manutenção com conclusão de T03/T08 ou integração Sikarugir funcional.
