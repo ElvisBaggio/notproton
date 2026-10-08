@@ -10,6 +10,7 @@ Atualizado: 2026-10-08 · Agente: codex · Máquina: mac
 - Branch de documentação: `codex/sikarugir-cities2-design`; `origin` aponta ao repositório pessoal privado https://github.com/ElvisBaggio/notproton e `upstream` ao projeto original.
 - Especificação: `docs/superpowers/specs/2026-10-08-sikarugir-cities2-design.md`.
 - Project: https://github.com/users/ElvisBaggio/projects/8. Épicos #1–#4 e cards #5–#16; índice em `PROJECT.md`.
+- Revisão do plano: PR draft https://github.com/ElvisBaggio/notproton/pull/17. Readback confirmou 16 itens Todo, 12 relações pai/filho e 14 dependências nativas, todos com papéis/modelos preenchidos.
 - Papéis e modelos nos cards e em `docs/AGENT_EXECUTION.md`; `CLAUDE.md` importa `AGENTS.md`.
 - Apenas investigação somente leitura e documentação. Nenhuma implementação ou teste de runtime foi executado.
 

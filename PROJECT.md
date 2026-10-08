@@ -4,6 +4,7 @@ Atualizado: 2026-10-08 · Autor: codex
 
 - [Repositório privado](https://github.com/ElvisBaggio/notproton)
 - [Project e cards](https://github.com/users/ElvisBaggio/projects/8)
+- [PR de revisão do plano](https://github.com/ElvisBaggio/notproton/pull/17)
 - [Especificação](docs/superpowers/specs/2026-10-08-sikarugir-cities2-design.md)
 - [Plano de implementação](docs/superpowers/plans/2026-10-08-sikarugir-cities2-implementation.md)
 - [Política de agentes e alternativa Claude Code](docs/AGENT_EXECUTION.md)
@@ -32,6 +33,8 @@ Atualizado: 2026-10-08 · Autor: codex
 ## Execução e estado
 
 Estado inicial: 4 épicos e 12 cards em Todo, com Prontidão = Aguarda revisão do plano. Os cards têm relação nativa de sub-issue com o épico e bloqueadores nativos entre tarefas.
+
+Readback em 2026-10-08 confirmou os 16 itens, 12 relações pai/filho, 14 bloqueadores nativos, todos os campos de responsabilidade e igualdade dos documentos locais/remotos. Distribuição: 4 épicos coordenados por Astra, 11 cards Sol 6.1 e 1 card Luna 6; cada card contém alternativa Claude Code.
 
 O plano usa subagentes por card e revisão independente. Após sua revisão por Elvis, liberar T01/T02; os demais só avançam após dependências e gates. Modelos indicados não são contas GitHub nem representam agentes já executando.
 
