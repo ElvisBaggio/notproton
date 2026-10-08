@@ -2,7 +2,7 @@
 
 Data: 2026-10-08 · Autor: codex · Planejamento e revisão: Astra
 
-Estado: desenho aprovado em conversa; especificação escrita aguardando revisão de Elvis. Este documento não autoriza implementação.
+Estado: especificação aprovada por Elvis em 2026-10-08 ao solicitar avanço e publicação do planejamento no GitHub. Plano escrito e execução ainda dependem de revisão. A publicação de repositório, épicos e cards está autorizada.
 
 ## 1. Resultado esperado
 
@@ -15,7 +15,8 @@ Sucesso significa: selecionar o motor no Steam nativo, instalar ou reconhecer um
 ## 2. Restrições e responsabilidades
 
 - Astra: especificação, plano, decisões de arquitetura e revisão dos resultados.
-- Toda implementação, incluindo scripts de prova, patches, testes e ferramentas auxiliares, deve ser executada por **Sol 6.1 (`gpt-6.1-sol`) ou Luna 6 (`gpt-6-luna`)**. Não substituir por Sol 6, Luna 5.6 ou implementação pelo Astra.
+- Implementação padrão, incluindo scripts de prova, patches, testes e ferramentas auxiliares: **Sol 6.1 (`gpt-6.1-sol`) ou Luna 6 (`gpt-6-luna`)**. Não substituir por Sol 6, Luna 5.6 ou implementação pelo Astra.
+- Exceção autorizada por Elvis em 2026-10-08: modelos do **Claude Code** podem executar cards como alternativa explicitamente selecionada. Cada card indica `sonnet` ou `opus`; registrar a versão efetiva ao iniciar. A política e os papéis estão em `docs/AGENT_EXECUTION.md`. Não é fallback automático nem execução simultânea no mesmo território.
 - Sol 6.1 assume a integração Wine/Steam, patches binários e validação principal. Luna 6 pode receber tarefas pequenas, com arquivos e critérios de aceitação definidos.
 - Separar propriedade dos arquivos quando houver agentes em paralelo; nenhum agente deve reverter trabalho alheio.
 - Preservar o wrapper Sikarugir atual, sua engine, prefixo, biblioteca e saves. As alterações experimentais ocorrem em cópias.
@@ -159,6 +160,6 @@ Manter um registro curto de versão do Steam, build do jogo, engine, hashes e re
 
 ## 10. Próxima etapa e limites desta entrega
 
-Após revisão e aprovação explícita deste arquivo por Elvis, usar a skill `writing-plans` para produzir o plano de implementação, com tarefas, arquivos, testes, critérios de parada e delegação aos modelos permitidos. A execução só começa após revisão do plano e escolha do método de execução.
+Com esta especificação aprovada, usar a skill `writing-plans` para produzir o plano de implementação, com tarefas, arquivos, testes, critérios de parada e delegação aos modelos permitidos. A execução só começa após revisão do plano e escolha do método de execução.
 
-Este registro não inclui produto implementado, prova de viabilidade executada, dependências instaladas nem alterações nas instalações de Steam, NotProton e Sikarugir. Publicação de fork remoto também fica para a etapa apropriada; o checkout e os documentos são locais.
+Este registro não inclui produto implementado, prova de viabilidade executada, dependências instaladas nem alterações nas instalações de Steam, NotProton e Sikarugir. Elvis autorizou posteriormente a publicação dos documentos, épicos e cards no repositório pessoal privado `ElvisBaggio/notproton` e no Project associado.
