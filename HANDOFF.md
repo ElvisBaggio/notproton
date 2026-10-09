@@ -38,7 +38,7 @@ Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
 
 1. T03: compilar ponte/shim contra a base `wine-11.0` verificada (engine-lock schemaVersion 2, `abiCheck=PASS`), com `lsteamclient.so` no `x86_64-unix` da cópia isolada da engine. T01 e T02 concluídos.
 2. T04: derivar pins do binário Sikarugir e adaptar `resolve.py` em x86_64; mapear a lista de `apply_binary_patches` da Sikarugir.
-3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10.
+3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10. D1: candidatos em `docs/evidence/d1-game-candidates.md` (claude, 2026-10-09; principal Banana 2923300, reserva Halls of Torment: Prelude 2316660); aguarda decisão de Elvis.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
 Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-sol` ou `gpt-6-luna`, incluindo scripts de prova e testes. Pedido posterior de Elvis autoriza **Claude Code como alternativa**, com aliases `sonnet`/`opus` definidos por card e modelo efetivo registrado ao iniciar. Não trocar cliente/modelo automaticamente nem editar o mesmo território em paralelo.
