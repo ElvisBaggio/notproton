@@ -33,6 +33,10 @@ Descartados por critério:
 - **Principal: Banana (2923300).** Gratuito, sem macOS, com conquistas e Steam Cloud (dois sinais claros de `SteamAPI_Init` e de estado em Cloud), pequeno e sem anti-cheat conhecido. Ressalva: o jogo depende de rede e de drops de itens da conta; é pouco jogo, então T12 prova persistência por progresso/configuração, não por save elaborado.
 - **Reserva: Halls of Torment: Prelude (2316660).** Gratuito, sem macOS, com Steam Cloud, e save de jogo real (progresso de run/meta), o que facilita a prova de save/reabertura do T12. Sem conquistas listadas, o sinal de API é só Cloud. Se Elvis aceitar pagar R$ 19,99, a versão completa (2218750) traz conquistas.
 
+## Decisão
+
+**Elvis escolheu Halls of Torment: Prelude (AppID 2316660) em 2026-10-09**, por provar melhor save/reabertura em T12. Banana (2923300) fica como reserva. Registrado por claude (Opus 5.5).
+
 ## 4. Verificações pendentes (para T11, antes de instalar)
 
 1. Confirmar ausência de depot macOS em SteamDB ou `steamcmd +app_info_print`.

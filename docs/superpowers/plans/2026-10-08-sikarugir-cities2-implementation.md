@@ -112,7 +112,7 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 ### Decisões de Elvis após inventário
 
-**D1 — Jogo-base para T05/T11:** selecionar somente depois de T02. Deve ser pequeno, ter versão somente Windows (sem depot/build macOS), inicializar a API Steam, oferecer save ou configuração persistente identificável e ter conta/Cloud conhecidos. Registrar AppID/build e evidência de elegibilidade antes de T05. Não usar Cities II como jogo-base.
+**D1 — Jogo-base para T05/T11:** selecionar somente depois de T02. Deve ser pequeno, ter versão somente Windows (sem depot/build macOS), inicializar a API Steam, oferecer save ou configuração persistente identificável e ter conta/Cloud conhecidos. Registrar AppID/build e evidência de elegibilidade antes de T05. Não usar Cities II como jogo-base. **Decisão de Elvis (2026-10-09): Halls of Torment: Prelude, AppID 2316660** (gratuito, só Windows na loja, Steam Cloud, save real); reserva Banana 2923300. Candidatos e verificações pendentes em `docs/evidence/d1-game-candidates.md` (depot macOS no SteamDB/steamcmd, caminho do save, resgate na conta, `SteamAPI_Init` real em T05).
 
 **D2 — Proveniência da engine (revisada em 2026-10-09):** Elvis escolheu a opção (c) do F2: aceitar ABI verificada no binário contra o upstream `wine-11.0` (`db11d0fe6a169c457e23d007e20404643d067aa8`) em vez de exigir a fonte exata. O pedido ao mantenedor (https://github.com/Sikarugir-App/Sikarugir/issues/288) continua aberto, reforçado pela obrigação LGPL de fornecer a fonte correspondente; se chegar, substitui a verificação. Não trocar de engine implicitamente nem pular a comparação de ABI.
 
@@ -133,7 +133,7 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 - Criar bridge/tests/sikarugir-buildcheck.sh e docs/evidence/bridge-build.md.
 - Artefatos locais sob scratch/sikarugir/bridge/; não versionar binários de terceiros.
 
-**Interfaces / entrega:** Consumir engine-lock.json de T01. Reutilizar WINE_URL/WINE_TAG/WINE_COMMIT/WINE_SRC/WINE_BUILD já existentes; introduzir alvo make bridge-sikarugir para x86_64/Rosetta, com partes i386 apenas quando requeridas. Saída é árvore bridge compatível com os consumidores existentes, isolada da bridge CrossOver.
+**Interfaces / entrega:** Consumir engine-lock.json de T01. Reutilizar WINE_URL/WINE_TAG/WINE_COMMIT/WINE_SRC/WINE_BUILD já existentes; introduzir alvo make bridge-sikarugir para x86_64/Rosetta, com partes i386 apenas quando requeridas. Saída é árvore bridge compatível com os consumidores existentes, isolada da bridge CrossOver. **Decisão de Elvis (2026-10-09), após BLOCKED de `dcc8a73`:** o Wine 11.0 não tem `WINE_EXTERNAL` nem `CXX_PE_LIBS`, que só o `steam.exe` (C++) exige. Então `lsteamclient` (Unix e PE) segue compilada na árvore `wine-11.0` verificada, registrando só ela no configure; o `steam.exe` é compilado **fora** da árvore Wine com o llvm-mingw validado em T01, runtime C++ do llvm-mingw ligada estaticamente, importando apenas DLLs Win32 do sistema. Não portar `WINE_EXTERNAL`/`CXX_PE_LIBS` para 11.0 nem trocar para 11.15.
 
 - [ ] **Passo 1:** Escrever check de parâmetros que exige `baseSource.commit` (ou `sourceCommit` quando `provenanceMode=maintainer-source`) fixado e `abiCheck.status=PASS`, rejeita árvore divergente e impede fallback silencioso para Wine 11.15/arm64; executar e confirmar falha antes da mudança.
 - [ ] **Passo 2:** Adaptar o build mínimo mantendo o caminho CrossOver atual; construir lsteamclient e steam.exe contra a base validada.
