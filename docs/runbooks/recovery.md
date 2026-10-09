@@ -1,27 +1,36 @@
 # Recuperação de alterações isoladas
 
-Data: 2026-10-08 · Agente: codex · Executor: gpt-6.1-sol.
+Data: 2026-10-09 · Agente: codex · Executor: gpt-6.1-sol · Cliente: Codex.
 
 ## Pré-condições de implantação
 
-Este procedimento não autoriza deploy nem encerra T02. Fechar Steam, conferir processos e revalidar build suportado, hashes, espaço e Steam Cloud antes de qualquer implantação. Resolver localização do jogo e preservar todos os saves antes de teste de jogo. Não tratar backups antigos do NotProton como cópias do estado atual.
+Este procedimento não autoriza deploy nem encerra T02. Antes de T10, fechar Steam e confirmar processos encerrados; revalidar build efetivo, perfil exato suportado, hashes, assinatura e espaço. **T02 está BLOCKED pela ausência de perfil validado para 1791415817.** O perfil mais alto existente, 1790904859, não substitui essa prova. Não alterar o canal `publicbeta` nem bloquear updates para contornar o gate.
 
-## Ordem
+O app/suporte NotProton **1.1.0** e a injeção preexistente no plist externo do Steam são o estado anterior observado; a fonte **1.1.1** não foi implantada. A recuperação deve preservar esse estado, inclusive ferramentas/configurações alheias. Não tratar backups antigos como cópias do estado atual.
 
-1. Criar manifesto local privado dos **arquivos exatos realmente tocados**, incluindo existência anterior, hash, modo e alvo de link. Incluir executáveis/payloads, plists, configurações e metadados de assinatura afetados pela operação revisada.
-2. Copiar os itens existentes para backup privado independente ou clone APFS. Não usar hard links. Para links, preservar o link sem seguir o alvo. Marcar arquivos antes inexistentes explicitamente. Conferir conteúdo, modo e links de cada backup antes de prosseguir.
-3. Preservar wrapper, prefixo, biblioteca, saves e ferramentas alheias. Implantar apenas o artefato experimental no destino aprovado; não substituir o app original ou remover a pasta de suporte inteira.
-4. Em rollback, encerrar os processos da integração. Restaurar somente cada item do manifesto a partir da cópia conferida; remover somente arquivos criados pela operação que antes não existiam. Não apagar diretórios compartilhados.
-5. Comparar hashes, modos, links, configurações e assinatura operacional com a referência. Conferir abertura do Steam original e do wrapper pela UI antes de declarar recuperação funcional. Saves e Steam Cloud requerem readback separado; não sincronizar conflitos automaticamente.
+O jogo-base será escolhido após T02. Antes de T11, conferir seu AppID/build, prefixo/biblioteca isolados, espaço e estado local/remoto do Steam Cloud. A localização/build/Cloud do Cities II é opcional para a integração base; antes de eventual teste desse jogo, resolver essas informações e preservar seus dados específicos.
 
-## Ensaio executado
+## Manifesto e ordem de recuperação
 
-**PASS**, exclusivamente em `scratch/sikarugir/recovery-*`: arquivo alterado recuperou conteúdo SHA-256 e modo 0640; link recuperou alvo original; arquivo antes inexistente desapareceu; arquivo alheio permaneceu. Backup foi independente via `copy2`, sem hard links. Asserts verificaram cada pós-condição; resultado permanece no scratch local.
+1. Usar manifesto privado schemaVersion=1 com `steamClientBuild`, `steamSupportEvidence`, `wrapperState`, `diskFreeBytes` e `touchedFiles[{path,existed,sha256,mode,symlinkTarget,backupPath}]`. Antes de T10, preencher **todos os destinos realmente tocados**, incluindo payloads/executáveis, plists interno/externo, registros de ferramentas, configs, hashes/metadados de assinatura e ferramentas afetadas. `touchedFiles=[]` em T02 significa zero alteração viva; `wrapperState.preservationCandidates` é inventário, não backup de deploy.
+2. Capturar imediatamente antes da alteração o estado do destino e seu backup privado independente ou clone APFS. Não usar hard links. Copiar symlinks sem seguir o alvo. Marcar destinos antes inexistentes. Conferir hash/modo/link e independência de cada backup. `backupPath=null` não atende ao gate de backup de um arquivo existente que será alterado.
+3. Preservar wrapper, engine, prefixo, biblioteca, saves e ferramentas alheias. Implantar somente nos destinos aprovados, com identidade/diretório exclusivo da integração experimental. Não usar a remoção global de Uninstall para desfazer esta integração.
+4. Em rollback, encerrar os processos da integração. Restaurar somente os itens existentes do manifesto a partir de backups conferidos; remover somente itens criados pela operação, marcados como antes inexistentes. Não apagar diretórios compartilhados nem remover a pasta de suporte inteira.
+5. Comparar hashes, modos, links, configurações e estado anterior dos registros/ferramentas. Verificar a assinatura operacional dos apps: copiar metadados de assinatura isoladamente não comprova validade. Uma alteração que não permita recompor o estado assinado precisa de retorno Valve revisado antes do deploy; a função SteamRepair substitui bundle e limpa configurações, então não é rollback automático do fork.
+6. Conferir abertura do Steam original e do wrapper pela UI no gate funcional autorizado. Preservar versões local/remota de saves antes de qualquer conflito Cloud, sem resolver sincronização automaticamente. Só declarar recuperação funcional após esses checks; hashes ou processo não bastam.
 
-**Não executado:** backup da instalação real, rollback de Steam/NotProton, validação de assinatura operacional e abertura dos apps. O ensaio comprova as pós-condições básicas de arquivo; não comprova recuperação do aplicativo instalado.
+## Ensaio atual — 2026-10-09
 
-## Preservação local de saves — T02, 2026-10-09
+**PASS**, exclusivamente em diretório privado descartável `/private/tmp/notproton-t02-*/recovery`, indicado no manifesto local. Foram simulados arquivo alterado, symlink alterado e arquivo criado pela operação. Asserts compararam estado antes/depois: conteúdo/SHA-256 e modo **0640** restaurados, symlink com alvo original, arquivo antes inexistente removido e arquivo alheio preservado. Backup via `copy2`, sem hard link, com inode independente conferido. Nenhuma restauração sobre app, biblioteca, prefixo ou save real.
 
-Cópia independente de dois `.cok` e dois `.cid` em `scratch/sikarugir/save-backup-20261009` (diretório 0700; conta/path completo somente no manifesto 0600). Conferidos SHA-256, modo e inode distinto para cada original/cópia; total de 77.406.562 bytes. Originais não alterados. Isso protege os arquivos locais encontrados, mas não comprova que constituem todo o estado do jogo nem inclui dados remotos do Steam Cloud.
+O ensaio histórico de 2026-10-08 em `scratch/sikarugir/recovery-*` também passou; ele é evidência histórica distinta. O ensaio atual confirma somente pós-condições de arquivos sintéticos. **NOT RUN:** backup de toda instalação atual, rollback vivo, assinatura operacional restaurada, UI/reabertura dos apps, Steam Cloud e persistência de jogo.
 
-O backup da instalação real continua NOT RUN: candidatos `touchedFiles` conservam `backupPath=null`. Não restaurar saves sobre o prefixo atual nem sincronizar Cloud usando este procedimento sem resolver o estado local/remoto. Antes de T10, parar enquanto Steam 1791415817 não tiver compatibilidade comprovada e localização/build/Cloud permanecerem desconhecidos.
+## Preservação local de saves — histórico e readback atual
+
+As quatro cópias históricas em `scratch/sikarugir/save-backup-20261009` foram revalidadas em 2026-10-09: dois `.cok` e dois `.cid`, **77.406.562 bytes**, SHA-256/modos iguais aos originais e inodes distintos. Paths de conta permanecem no manifesto local 0600; nenhum save foi modificado, restaurado ou novamente copiado. O resultado não comprova todo o estado do jogo nem inclui dados remotos Cloud.
+
+O manifesto atualizado preserva integralmente o inventário anterior em `historicalEvidence`; `referenceGame` mantém os campos Cities II opcionais. Não restaurar saves sobre o prefixo atual nem sincronizar Cloud a partir deste ensaio. Instalação viva, UI e jogo seguem pendentes dos gates respectivos.
+
+## Pedido de revisão
+
+Claude Code **Opus 5.5**: revisar o manifesto schemaVersion=1, limites do sigcheck/parser, bloqueio do perfil Steam exato, proteção do estado preexistente e ordem de recuperação. Registrar o modelo efetivo usado; manter T02 In Progress/BLOCKED até cumprir o aceite. O pedido será publicado na issue #6 com o commit da tarefa.
