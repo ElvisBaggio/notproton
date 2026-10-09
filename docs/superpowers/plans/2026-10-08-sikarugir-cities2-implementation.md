@@ -53,33 +53,35 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 **Resultado:** Identificar engine, fonte, estado do Steam/NotProton/wrapper e restauração antes de desenvolver.
 
-**Gate do épico:** T01 e T02 concluídos com evidências; fonte identificada e restauração ensaiada.
+**Gate do épico:** T01 e T02 concluídos com evidências; base da engine fixada com ABI verificada no binário e restauração ensaiada.
 
-### T01: Fixar origem, fonte e identidade da engine Sikarugir 11.0
+### T01: Fixar identidade da engine Sikarugir 11.0 e verificar ABI pelo binário
 
-**Executor:** `engine_audit` / `gpt-6.1-sol`. **Alternativa:** Claude Code `opus`, no mesmo papel. **Revisor:** Astra; execução física com Elvis quando exigida.
+**Executor:** `engine_audit` / `gpt-6.1-sol`. **Alternativa:** Claude Code `opus` (ou `sonnet` quando Elvis designar), no mesmo papel. **Revisor:** Astra; revisão Claude Code Opus 5.5.
 
-**Dependências:** revisão do plano; sem predecessor técnico.
+**Dependências:** revisão do plano; sem predecessor técnico. **Replanejado em 2026-10-09 por decisão de Elvis (D2-c):** a fonte exata do mantenedor deixa de ser pré-requisito; o gate passa a ser ABI verificada no binário.
 
 **Files:**
-- Criar docs/evidence/engine-baseline.md; scratch/sikarugir/engine-lock.json (local, ignorado).
+- Atualizar docs/evidence/engine-baseline.md; scratch/sikarugir/engine-lock.json (local, ignorado).
+- Criar ntdll-patch/tests/abi_compare.py (ou script equivalente mínimo) com check executável; árvores Wine e builds somente em scratch/.
 - Ler o wrapper, pacote WS12WineSikarugir11.0.tar.xz e bridge/setup-wine-tree.sh; não modificar a engine.
 
-**Interfaces / entrega:** Produzir engine-lock.json com schemaVersion=1, runnerID=sikarugir-11.0-r0, sourceURL, sourceCommit, sourcePatches, version, architecture, loaderRelativePath, files[{path,sha256}], toolchain. Valores de proveniência só podem vir de evidência; bin/wine é candidato, não presumir que o wrapper e o loader interno sejam intercambiáveis.
+**Interfaces / entrega:** engine-lock.json com schemaVersion=2, runnerID=sikarugir-11.0-r0, `provenanceMode` (`binary-abi-verified` ou `maintainer-source`), `baseSource{url,tag,commit}` (candidato upstream `wine-11.0`, `db11d0fe6a169c457e23d007e20404643d067aa8`), `abiCheck{status,reportPath,comparedSurfaces,divergences[]}`, sourceURL/sourceCommit/sourcePatches (null enquanto o mantenedor não responder), version, architecture, loaderRelativePath, files[{path,sha256}], toolchain. T03 consome `baseSource` somente com `abiCheck.status=PASS`.
 
-- [ ] **Passo 1:** Comparar pacote original e engine instalada e registrar diferenças, sem extrair sobre o wrapper.
-- [ ] **Passo 2:** Identificar fonte exata e patches da distribuição; confirmar arquitetura real do loader e Rosetta disponível.
-- [ ] **Passo 3:** Conferir Clang/SDK, Swift >=6.2, CMake, mingw-w64, bison, flex, Python/Capstone; listar ausências sem instalação global automática.
-- [ ] **Passo 4:** Salvar lock local e relatório sanitizado com referências de origem. Se a fonte correspondente não puder ser identificada, manter `sourceCommit/sourcePatches=null`, registrar BLOCKED e aguardar o manifesto solicitado ao mantenedor; não inferir a fonte pelo tag Wine 11.0 nem avançar T03.
-- [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
+- [x] **Passo 1:** Comparar pacote original e engine instalada (hashes dos cinco arquivos e `version` já validados em `40e8c58`).
+- [ ] **Passo 2:** Preparar toolchain sem instalação global automática: mingw-w64 (llvm-mingw) e bison recente em prefixo local de scratch/, ou instalação aprovada por Elvis. Registrar versões no lock.
+- [ ] **Passo 3:** Compilar `ntdll.so` (x86_64-unix) e `ntdll.dll` (x86_64-windows, i386-windows) do upstream `wine-11.0` em scratch/, com opções próximas às documentadas pelo Gcenx (registrar as usadas; não afirmar que são as da engine).
+- [ ] **Passo 4:** Comparar build upstream × pacote Sikarugir nas superfícies que a ponte, o shim e os patches consomem: (a) exports PE e símbolos Unix exportados; (b) tabela de syscalls (nome e número dos stubs Nt*/Zw* em ntdll.dll); (c) tabela de unix calls (`__wine_unix_call_funcs` e equivalentes: quantidade e ordem); (d) funções-alvo dos hooks de T04 (prólogos/bytes e tamanho, normalizando relocações); (e) diff de strings/símbolos para listar personalizações Sikarugir. Toda divergência é registrada e classificada como irrelevante ou bloqueante para a ponte, com justificativa.
+- [ ] **Passo 5:** Salvar lock e relatório. Se houver divergência bloqueante não explicada, `abiCheck.status=BLOCKED` e T03 não começa.
+- [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project; pedido de revisão Opus 5.5.
 
-**Testes e asserts:** Verificação de dados: cada files[].path existe dentro da cópia, SHA-256 calculado coincide, sourceCommit resolve na fonte e version é wine sikarugir 11.0 (revision 0). Não usar apenas o nome do tarball como prova.
+**Testes e asserts:** cada files[].path existe e o SHA-256 coincide; version é `wine sikarugir 11.0 (revision 0)`; `baseSource.commit` resolve no repositório indicado; `abi_compare.py` falha (exit não zero) quando alimentado com um par de binários de versões diferentes (ex.: ntdll 11.15 da bridge existente × Sikarugir) e passa para o par upstream 11.0 × Sikarugir somente se as superfícies (a)–(d) coincidirem.
 
-**Verificação:** Ler novamente engine-lock.json, comparar hashes com os arquivos originais e registrar a resolução do commit. Resultado esperado: origem rastreável e conjunto coerente; caso contrário card bloqueado, não Done.
+**Verificação:** reler engine-lock.json, reexecutar o comparador e conferir que o relatório lista superfícies, contagens e divergências. Resultado esperado: ABI das superfícies consumidas verificada ou card BLOCKED, nunca Done por inferência.
 
-**Aceite:** Origem e fonte rastreáveis; patchset identificado. Hashes de loader e ntdll registrados, arquitetura comprovada. Nenhum arquivo do wrapper alterado; relatório sem dados de conta.
+**Aceite:** Identidade e hashes da engine registrados; base upstream fixada por commit; ABI das superfícies (a)–(d) idêntica ou com divergências justificadas como irrelevantes; personalizações Sikarugir listadas. Nenhum arquivo do wrapper alterado. Risco residual (patch Sikarugir fora das superfícies comparadas) registrado; T05 é a prova real que o cobre.
 
-**Parar se:** Fonte ausente, pacote divergente sem explicação ou arquitetura incompatível.
+**Parar se:** Pacote divergente sem explicação, arquitetura incompatível, divergência bloqueante nas superfícies (a)–(d) ou impossibilidade de compilar o upstream 11.0. Pedido ao mantenedor (#288) continua aberto; se a fonte chegar, `provenanceMode=maintainer-source` substitui a verificação e T03 recompila contra ela.
 
 ### T02: Inventariar Steam e preparar restauração verificável
 
@@ -112,7 +114,7 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 **D1 — Jogo-base para T05/T11:** selecionar somente depois de T02. Deve ser pequeno, ter versão somente Windows (sem depot/build macOS), inicializar a API Steam, oferecer save ou configuração persistente identificável e ter conta/Cloud conhecidos. Registrar AppID/build e evidência de elegibilidade antes de T05. Não usar Cities II como jogo-base.
 
-**D2 — Proveniência da engine:** solicitar ao mantenedor o commit Wine exato, patches ordenados com hashes e opções/toolchain para o asset oficial `WS12WineSikarugir11.0.tar.xz`, SHA-256 `dcb3de3acab2eaf37591768dc7f6f6c20fa8e6b69c88ddd61e63798c02befcf9`. Pedido público: https://github.com/Sikarugir-App/Sikarugir/issues/288. Até a resposta, T01 fica BLOCKED e T03 não começa; não aceitar ABI inferida do binário nem trocar de engine implicitamente.
+**D2 — Proveniência da engine (revisada em 2026-10-09):** Elvis escolheu a opção (c) do F2: aceitar ABI verificada no binário contra o upstream `wine-11.0` (`db11d0fe6a169c457e23d007e20404643d067aa8`) em vez de exigir a fonte exata. O pedido ao mantenedor (https://github.com/Sikarugir-App/Sikarugir/issues/288) continua aberto, reforçado pela obrigação LGPL de fornecer a fonte correspondente; se chegar, substitui a verificação. Não trocar de engine implicitamente nem pular a comparação de ABI.
 
 ## E2 — Viabilidade da ponte Wine–Steam
 
@@ -120,7 +122,7 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 **Gate do épico:** T03–T05 concluídos e Astra aceita prova real; build ou menu não bastam.
 
-### T03: Compilar a ponte e o shim para a fonte exata do Sikarugir
+### T03: Compilar a ponte e o shim para a base verificada do Sikarugir
 
 **Executor:** `wine_bridge` / `gpt-6.1-sol`. **Alternativa:** Claude Code `opus`, no mesmo papel. **Revisor:** Astra; execução física com Elvis quando exigida.
 
@@ -133,8 +135,8 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 **Interfaces / entrega:** Consumir engine-lock.json de T01. Reutilizar WINE_URL/WINE_TAG/WINE_COMMIT/WINE_SRC/WINE_BUILD já existentes; introduzir alvo make bridge-sikarugir para x86_64/Rosetta, com partes i386 apenas quando requeridas. Saída é árvore bridge compatível com os consumidores existentes, isolada da bridge CrossOver.
 
-- [ ] **Passo 1:** Escrever check de parâmetros que exige sourceCommit fixado, rejeita árvore divergente e impede fallback silencioso para Wine 11.15/arm64; executar e confirmar falha antes da mudança.
-- [ ] **Passo 2:** Adaptar o build mínimo mantendo o caminho CrossOver atual; construir lsteamclient e steam.exe contra a fonte validada.
+- [ ] **Passo 1:** Escrever check de parâmetros que exige `baseSource.commit` (ou `sourceCommit` quando `provenanceMode=maintainer-source`) fixado e `abiCheck.status=PASS`, rejeita árvore divergente e impede fallback silencioso para Wine 11.15/arm64; executar e confirmar falha antes da mudança.
+- [ ] **Passo 2:** Adaptar o build mínimo mantendo o caminho CrossOver atual; construir lsteamclient e steam.exe contra a base validada.
 - [ ] **Passo 3:** Conferir dependências com file/otool e ausência de caminhos CrossOver obrigatórios no runner Sikarugir.
 - [ ] **Passo 4:** Executar check, compilar novamente a partir da configuração registrada e documentar arquiteturas e hashes.
 - [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
@@ -143,9 +145,9 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 **Verificação:** rtk proxy sh bridge/tests/sikarugir-buildcheck.sh; rtk make bridge-sikarugir. Esperado: checks PASS e build completo com manifesto local de arquitetura/hash; compilação sozinha não libera integração.
 
-**Aceite:** Ponte reproduzível para fonte fixada. Saída isolada e arquiteturas conferidas. Check negativo de commit passa; nenhuma troca de motor implícita.
+**Aceite:** Ponte reproduzível para a base fixada. Saída isolada e arquiteturas conferidas. Check negativo de commit passa; nenhuma troca de motor implícita.
 
-**Parar se:** Fonte sem interfaces exigidas pela ponte, mistura de arquiteturas ou dependência irredutível do CrossOver.
+**Parar se:** Base sem interfaces exigidas pela ponte, mistura de arquiteturas ou dependência irredutível do CrossOver.
 
 ### T04: Resolver e validar os patches ntdll específicos da engine
 

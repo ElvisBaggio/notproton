@@ -52,7 +52,7 @@ Hashes observados no motor, úteis como referência inicial de integridade:
 | `lib/wine/x86_64-windows/ntdll.dll` | `da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676` |
 | `lib/wine/i386-windows/ntdll.dll` | `e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589` |
 
-Esses hashes identificam os arquivos presentes; não atestam origem limpa nem compatibilidade. A origem e a fonte correspondente da engine devem ser verificadas antes de gerar patches.
+Esses hashes identificam os arquivos presentes; não atestam origem limpa nem compatibilidade. Antes de gerar patches, a engine deve ter base fixada e ABI verificada no binário (decisão D2-c de 2026-10-09); a fonte exata do mantenedor, se chegar, substitui essa verificação.
 
 ## 4. Abordagem escolhida e alternativas
 
@@ -92,7 +92,7 @@ A integração deve reutilizar os modelos existentes onde couber, sem generaliza
 
 O upstream liga a parte Unix do `lsteamclient` ao `ntdll.so` da árvore de compilação e usa interfaces internas do Wine. Seu preparo de build fixa Wine 11.15; o motor observado é 11.0. Compatibilidade binária entre ambos não está demonstrada.
 
-Identificar a fonte correspondente ao Sikarugir 11.0, construir os componentes necessários contra ela e resolver os hooks sobre seus binários exatos. Não reutilizar offsets ou blobs do CrossOver por semelhança de nomes. Não substituir a ntdll do Sikarugir pela do Wine 11.15.
+Fixar como base o upstream `wine-11.0` (`db11d0fe`), verificar no binário que a ABI consumida pela ponte (exports, syscalls, unix calls e funções-alvo dos hooks) coincide com a do Sikarugir 11.0, construir os componentes necessários contra essa base e resolver os hooks sobre seus binários exatos. Não reutilizar offsets ou blobs do CrossOver por semelhança de nomes. Não substituir a ntdll do Sikarugir pela do Wine 11.15.
 
 Trabalhar inicialmente no caminho x86_64/Rosetta. Validar também arquitetura, dependências dinâmicas, assinatura e entitlements exigidos pelo carregamento; não copiar cegamente as suposições de assinatura do runner CrossOver.
 
@@ -108,7 +108,7 @@ Em teste opcional posterior do Cities II, localizar e identificar build/configur
 
 ### Marco 1 — Viabilidade da ponte
 
-Pré-condições: origem/fonte da engine identificada; binários conferidos; ferramentas de build disponíveis; teste realizado fora do prefixo original.
+Pré-condições: base da engine fixada com ABI verificada no binário; binários conferidos; ferramentas de build disponíveis; teste realizado fora do prefixo original.
 
 Evidências exigidas:
 
@@ -117,7 +117,7 @@ Evidências exigidas:
 3. Inicialização de prefixo descartável sem incompatibilidade loader/server ou erro de chamadas Unix.
 4. Um executável Windows mínimo inicializa a API Steam e recebe o contexto esperado de usuário autenticado e AppID pelo cliente nativo, sem exigir o cliente Windows. Usar conta e jogo legitimamente disponíveis, sem armazenar credenciais nem falsificar autenticação.
 
-Interromper e voltar à decisão de arquitetura se a fonte correspondente não for identificável, os hooks não puderem ser resolvidos com validação, ou a comunicação real com o Steam falhar. Não compensar removendo verificações. Trocar a versão do motor exige nova decisão, não atualização automática.
+Interromper e voltar à decisão de arquitetura se a ABI do Sikarugir divergir da base nas superfícies consumidas sem justificativa, os hooks não puderem ser resolvidos com validação, ou a comunicação real com o Steam falhar. Não compensar removendo verificações. Trocar a versão do motor exige nova decisão, não atualização automática.
 
 ### Marco 2 — Inicialização pelo Steam nativo
 

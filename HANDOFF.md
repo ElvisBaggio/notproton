@@ -1,6 +1,6 @@
 # Handoff
 
-Atualizado: 2026-10-09 · Agente: codex · Máquina: mac
+Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
 
 ## Estado
 
@@ -9,8 +9,8 @@ Atualizado: 2026-10-09 · Agente: codex · Máquina: mac
 - Claude Code Sonnet 5.5 concluiu a revisão do reescopo em `8462af8`, recomendando **aprovar com ajustes F1–F8**. Findings em `docs/reviews/claude-scope-review-findings.md`.
 - Decisões de Elvis: F1 gerar perfil de assinatura para o build Steam atual; F2 pedir ao mantenedor o manifesto da engine; F4 escolher o jogo depois do inventário T02. Pedido público ao mantenedor: https://github.com/Sikarugir-App/Sikarugir/issues/288.
 - Ajustes F1–F8 aplicados ao plano/spec e aos cards #5, #6, #9, #11, #12 e #15; prontidão dos outros itens reflete dependências, sem rótulo de revisão pendente. Requisição de revisão Opus 5.5 foi deixada na PR #21 e nos cards concluídos.
-- T01: branch `codex/t01-engine-provenance`, commit `40e8c58`; hashes/versão/arquiteturas revalidados; **BLOCKED** sem fonte/patchset do mantenedor. Issue #5 mantém In Progress e prontidão bloqueada; pedido público ao mantenedor permanece sem resposta em https://github.com/Sikarugir-App/Sikarugir/issues/288.
-- T02: branch `codex/t02-steam-baseline`, commit `a073897`; schema/readback atualizados e ensaio descartável PASS; **BLOCKED** sem perfil Steam exato para build `1791415817`. `sigcheck.py` confirma nomes, não anchors ou build. Issue #6 mantém In Progress e prontidão bloqueada.
+- **T01 replanejado (2026-10-09, decisão de Elvis D2-c):** a fonte exata do mantenedor deixa de ser gate. Novo aceite: base upstream `wine-11.0` (`db11d0fe`) com ABI verificada no binário (exports, syscalls, unix calls, funções-alvo dos hooks) contra a ntdll do Sikarugir; lock vai a schemaVersion=2 com `provenanceMode`, `baseSource` e `abiCheck`. Pedido #288 segue aberto (reforçar com LGPL); se a fonte chegar, substitui a verificação. Trabalho anterior: branch `codex/t01-engine-provenance`, commit `40e8c58` (hashes/versão/arquiteturas revalidados; passo 1 concluído). Issue #5 volta a pronta para execução com o novo aceite.
+- T02: branch `codex/t02-steam-baseline`, commit `a073897`; schema/readback atualizados e ensaio descartável PASS; bloqueio restante é o perfil Steam exato para build `1791415817`. **Em execução por Claude Code `sonnet`** (subagente) na branch `claude/t02-steam-profile`, derivada de `a073897`; não editar `codex/t02-steam-baseline` em paralelo. `sigcheck.py` confirma nomes, não anchors ou build. Issue #6 mantém In Progress e prontidão bloqueada.
 - T01/T02 não foram integrados à branch de reescopo; commits estão publicados em branches próprios aguardando revisão Opus 5.5. T03–T12 continuam bloqueados por proveniência/perfil e dependências.
 - #18 permanece aberto/não Done e não demonstra integração/runtime.
 - Especificação e plano: `docs/superpowers/specs/2026-10-08-sikarugir-cities2-design.md` e `docs/superpowers/plans/2026-10-08-sikarugir-cities2-implementation.md`. Project: https://github.com/users/ElvisBaggio/projects/8. Papéis e modelos: `docs/AGENT_EXECUTION.md`.
@@ -18,7 +18,7 @@ Atualizado: 2026-10-09 · Agente: codex · Máquina: mac
 
 ## Próximo passo
 
-1. Aguardar resposta ao pedido de proveniência #288 e resolver um perfil de assinaturas exato para Steam `1791415817`; manter T01/T02 BLOCKED até as respectivas evidências passarem.
+1. T01: executar o card replanejado (toolchain local mingw-w64/bison em scratch, build upstream 11.0, comparador de ABI). T02: concluir o perfil `1791415817` em `claude/t02-steam-profile`. Nenhum dos dois fecha por evidência estática parcial.
 2. Revisar os commits/solicitações Opus 5.5 nos cards #5 e #6 antes de integrá-los; não fechar nenhum gate por evidência estática.
 3. Só depois da proveniência e do perfil Steam aprovados, retomar T03–T05 em sequência; escolher AppID conforme D1 depois do inventário. Em seguida T06–T09 e T10.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.

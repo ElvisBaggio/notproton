@@ -2,7 +2,7 @@
 
 @/Users/elvisoliveira/.codex/RTK.md
 
-Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8; os ajustes documentais e cards aplicáveis estão sincronizados. T01 e T02 foram retomados em worktrees paralelos e permanecem BLOCKED: fonte/patchset e perfil Steam exato pendentes. T03 não inicia sem T01 concluído.
+Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8; os ajustes documentais e cards aplicáveis estão sincronizados. Em 2026-10-09 Elvis replanejou T01 (D2-c): o gate passa a ser ABI verificada no binário contra o upstream `wine-11.0`, sem depender do mantenedor (#288 segue aberto). T02 está com Claude Code Sonnet gerando o perfil Steam 1791415817 na branch `claude/t02-steam-profile`. T03 não inicia sem T01 concluído.
 
 ## Fonte de verdade
 
