@@ -1,6 +1,60 @@
 # Inventário somente leitura — T02
 
 Data: 2026-10-09 · Agente: codex · Executor: gpt-6.1-sol · Cliente: Codex.
+Branch: `codex/t02-steam-baseline` · Base documental: `b09836e`.
+
+## Resultado atual: BLOCKED por perfil Steam ausente
+
+O schema atual foi preenchido, o inventário foi revalidado e o ensaio de recuperação passou. T02 permanece **In Progress / BLOCKED** porque não há perfil exato validado para o build observado **1791415817**. A localização/build/Cloud do Cities II é referência opcional histórica e não bloqueia o inventário base. Nenhum jogo-base foi selecionado; isso ocorrerá após T02, pelos critérios D1 do plano.
+
+| Critério | Readback atual | Estado |
+|---|---|---|
+| Steam nativo | Última linha `Client version`, em 2026-10-08 13:47:01: **1791415817** | Evidência de log; runtime NOT RUN |
+| Perfil exato | Fonte e suporte instalado contêm somente **1788400362, 1789086785, 1790904859** | **BLOCKED**; nenhum perfil 1791415817 gerado/validado |
+| NotProton | App instalado e suporte **1.1.0**; fonte `dylib/version.h` **1.1.1** | Readback PASS; não houve implantação |
+| Injeção preexistente | Plist externo declara o `notproton.dylib` do Steam.app; plist interno não declara `DYLD_INSERT_LIBRARIES` | Estado anterior preservado; não comprova funcionamento |
+| Updates | Marcador `package/beta` = **publicbeta**; os dois `steam.cfg` previstos por UpdateBlock estão ausentes | Nenhum bloqueio de updates nesses arquivos; política não alterada |
+| Wrapper | `wine sikarugir 11.0 (revision 0)`; programa Steam Windows; D3DMETAL=0, DXVK=0, WINEESYNC=1, WINEMSYNC=1 | Configuração declarada; renderer/runtime NOT RUN |
+| Biblioteca nativa | Configuração lista somente raiz padrão, zero AppIDs e zero `appmanifest_*.acf` nessa raiz | Inventário local; não prova catálogo/ownership da conta |
+| Biblioteca do wrapper | Configuração lista AppIDs **228980, 460930, 949230, 1705180**; só manifesto 228980 presente na raiz C:; alvo antigo S: continua ausente | Entradas não comprovam instalações utilizáveis |
+| Preservação | **26** candidatos registrados; hashes/modos/links monitorados; quatro saves e backups independentes correspondem | PASS de readback, sem afirmar cobertura de todo o estado do jogo |
+| Saves encontrados | Duas cópias `.cok` e duas `.cid`, **77.406.562 bytes**; hashes, modos e inodes distintos conferidos | PASS; Cloud e save/reabertura NOT RUN |
+| Espaço | **413.696.000.000 bytes**, aproximadamente 413,7 GB livres, via `shutil.disk_usage` | Snapshot; revalidar antes de T10/T11 |
+| Recuperação | Diretório descartável em `/private/tmp`; conteúdo/hash, modo 0640, alvo de link, remoção de arquivo novo e arquivo alheio preservado | PASS; rollback de instalação viva NOT RUN |
+
+## Perfil Steam e limites dos checks
+
+`python3 dylib/tests/sigcheck.py` passou para os três perfis: **18 assinaturas por perfil, todas referenciadas**. Esse script compara nomes com os consumidores C; não resolve anchors, não verifica bytes e não vincula o perfil ao binário/build ativo.
+
+| Build do perfil | SHA-256 na fonte e no suporte instalado |
+|---|---|
+| 1788400362 | `e845128f9c9df505c571c1675ba92d333c4d7245f44981bee31cfcc9ee4a0e35` |
+| 1789086785 | `1b2cbc2e91e5f52311dbfdba5839ffe331240968dc796c7f1e78226515422499` |
+| 1790904859 | `bba3d3bee778323592e71353f02f2edd44955458da1b5900b4b2d81de643102b` |
+
+Um harness descartável reutilizou `np_load_profile`/`np_free_profile`, `sigdb.c`, `file.c`, `log.c` e cJSON, compilado com ASan/UBSan. **40 fixtures** foram verificadas somente no parser: 37 carregadas e três rejeitadas (`empty_file`, `not_json`, `truncated`), sem crash/diagnóstico de sanitizer. Os três rejeitados correspondem ao status 2 de `EXPECTED`; os demais são apenas carregamentos, não os veredictos completos do anchorcheck. Asserts verificaram módulo preenchido e liberação da estrutura.
+
+`make sigdb-fixtures` e `anchorcheck` completos são **NOT RUN**: carregam bibliotecas Steam por `dlopen`, que pode executar construtores. Não há gerador de perfil no repositório; preencher build/endereço/bytes a partir de perfil antigo seria inferência. A geração/validação exata requer análise específica dos binários e fica pendente para uma etapa com escopo apropriado. Nenhum perfil foi renomeado/copiado como se fosse do build atual, nenhuma biblioteca Steam foi carregada e nenhum hook/injeção foi instalado nesta execução.
+
+## Manifesto local e preservação
+
+`scratch/sikarugir/system-baseline.json`, **schemaVersion=1**, modo **0600**, diretório **0700**, contém `steamClientBuild`, `steamSupportEvidence`, `wrapperState`, `diskFreeBytes` e `touchedFiles`. `referenceGame` preserva a referência opcional Cities II. A evidência anterior completa fica em `historicalEvidence`; os backups antigos mantêm suas referências originais, sem mudar nem recriar os saves.
+
+`touchedFiles=[]` registra que T02 não alterou arquivos de instalações vivas. O inventário de candidatos de preservação está em `wrapperState.preservationCandidates`, com existência/hash/modo/link e `backupPath=null`; não confundir candidatos com backup completo de deploy. T10 terá de gerar o manifesto dos destinos realmente tocados e conferir seus backups imediatamente antes da alteração.
+
+Logs do parser/sigcheck, harness e ensaio ficam no diretório temporário privado indicado pelo manifesto. Não são artefatos versionados nem garantia de retenção permanente. SHA-256 do log de parser: `ab189f8b434c314291cc1a0070e8cede9008f81e1bfff232eb4ae844c6610795`; SHA-256 do log sigcheck: `b97167dfe296f575b9e357b95682281aadc081335260ef2274bf217959a145bd`.
+
+Não foram repetidas as buscas globais de jogos, nem acessadas áreas antes negadas. Nenhum Steam, Wine, wrapper ou jogo foi iniciado; nenhum update, biblioteca, save ou instalação foi modificado. A cobertura de preservação é dos candidatos monitorados, não de toda a árvore de arquivos.
+
+## Próximo passo e revisão
+
+1. Gerar e validar um perfil exato para **1791415817**, incluindo todos os anchors/bytes necessários, em escopo apropriado; repetir o readback se Steam atualizar. Não fixar ou desabilitar updates para contornar o gate.
+2. Solicitar revisão independente a **Claude Code Opus 5.5**, conforme pedido de Elvis; o revisor registra modelo efetivo e separa parser/nome de suporte real do cliente. T02 não fica Done por esses checks estáticos.
+3. Após conclusão de T02, selecionar jogo-base segundo D1 e validar AppID/build/Cloud nas tarefas respectivas. T03 continua dependente da fonte/patchset em T01.
+
+## Evidência histórica anterior aos ajustes F1–F8
+
+As seções abaixo preservam os inventários e buscas anteriores. Seus critérios antigos de localização/build/Cloud do Cities II não são os critérios atuais de conclusão de T02; o resultado atual está acima.
 
 ## Estado observado
 
