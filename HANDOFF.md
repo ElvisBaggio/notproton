@@ -8,7 +8,7 @@ Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
 
 **Próximo passo.** Revisão Claude Code Opus 5.5 aprovada (issue #6); `anchorcheck` real PASS em 2026-10-09 (18/18, 8/8 vptrs); **integrado a `codex/game-agnostic-scope`** (merge desta branch). T05/T10 passam a ter perfil para o build ativo; se o Steam atualizar, regerar com `sigstatic --emit` + `sigprofile.py`.
 
-**Bloqueios.** Bloqueio do perfil removido. T02 com aceite cumprido (perfil validado estático + `anchorcheck` real, revisão aprovada). Perfil ainda não implantado e loader/hooks não exercitados — isso é T07/T10. T01 replanejado (D2-c, ABI verificada no binário) e em execução em `claude/t01-abi-check`; T03 depende dele.
+**Bloqueios.** Bloqueio do perfil removido. T02 com aceite cumprido (perfil validado estático + `anchorcheck` real, revisão aprovada). Perfil ainda não implantado e loader/hooks não exercitados — isso é T07/T10. T01 concluído e integrado (ABI D2-c PASS); T03 liberado.
 
 ## Estado (registro do reescopo, agente codex)
 
@@ -19,16 +19,26 @@ Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
 - Ajustes F1–F8 aplicados ao plano/spec e aos cards #5, #6, #9, #11, #12 e #15; prontidão dos outros itens reflete dependências, sem rótulo de revisão pendente. Requisição de revisão Opus 5.5 foi deixada na PR #21 e nos cards concluídos.
 - **T01 replanejado (2026-10-09, decisão de Elvis D2-c):** a fonte exata do mantenedor deixa de ser gate. Novo aceite: base upstream `wine-11.0` (`db11d0fe`) com ABI verificada no binário (exports, syscalls, unix calls, funções-alvo dos hooks) contra a ntdll do Sikarugir; lock vai a schemaVersion=2 com `provenanceMode`, `baseSource` e `abiCheck`. Pedido #288 segue aberto (reforçar com LGPL); se a fonte chegar, substitui a verificação. Trabalho anterior: branch `codex/t01-engine-provenance`, commit `40e8c58` (hashes/versão/arquiteturas revalidados; passo 1 concluído). Issue #5 volta a pronta para execução com o novo aceite.
 - T02: **aceite cumprido e integrado** a esta branch (`codex/t02-steam-baseline` `a073897` + `claude/t02-steam-profile` `ab259ab`). Perfil `1791415817` validado estaticamente e por `anchorcheck` real; revisão Opus 5.5 aprovada. Implantação do perfil e loader/hooks ficam em T07/T10.
-- T01 ainda não integrado (em execução em `claude/t01-abi-check`). T03–T12 continuam bloqueados por T01 e dependências.
+- T01: **aceite D2-c cumprido e integrado** a esta branch (`claude/t01-abi-check` `3829312`). ABI PASS nas superfícies (a)–(d); revisão Opus 5.5 aprovada (issue #5). T03 liberado; T04–T12 seguem dependências.
 - #18 permanece aberto/não Done e não demonstra integração/runtime.
 - Especificação e plano: `docs/superpowers/specs/2026-10-08-sikarugir-cities2-design.md` e `docs/superpowers/plans/2026-10-08-sikarugir-cities2-implementation.md`. Project: https://github.com/users/ElvisBaggio/projects/8. Papéis e modelos: `docs/AGENT_EXECUTION.md`.
 - NotProton instalado continua 1.1.0; a fonte local é 1.1.1. Nada foi implantado no Steam. Gates de API real, jogo Windows, sessão persistente e rollback seguem NOT RUN.
 
+## T01 — verificação de ABI pelo binário (D2-c), 2026-10-09
+
+- Branch `claude/t01-abi-check` (base `origin/codex/t01-engine-provenance`). Executor: Claude Code, modelo efetivo `claude-opus-5-5`.
+- `abiCheck.status=PASS` para upstream `wine-11.0` (`db11d0fe6a169c457e23d007e20404643d067aa8`) × Sikarugir 11.0 r0 nas superfícies (a)–(d). Houve 11 divergências, todas irrelevantes com evidência e nenhuma bloqueante. O negativo com a ntdll 11.x do CrossOver falha como esperado (25 divergências, exit 1). Detalhes em `docs/evidence/engine-baseline.md` (seção D2-c) e em `docs/evidence/engine-abi-report.md`.
+- Entregas: `ntdll-patch/tests/abi_compare.py`, que usa só stdlib, `nm` e `llvm-objdump`; `ntdll-patch/tests/abi_justifications-sikarugir-11.0-r0.json`, preso aos hashes do par; `scratch/sikarugir/engine-lock.json` local, com schemaVersion 2 e `provenanceMode=binary-abi-verified`. A toolchain (llvm-mingw 20260826/20261006, bison 3.8.2, m4 1.4.19) e os builds ficam só em `scratch/` deste worktree, sem instalação global.
+- Atenção para T03: lsteamclient.so tem de resolver `@rpath/ntdll.so` para a ntdll da cópia da engine, ou seja, ficar no mesmo `x86_64-unix`.
+- Atenção para T04: build_module da Sikarugir contém `apply_binary_patches`, e os pins têm de vir do binário Sikarugir. `resolve.py` falha em x86_64 tanto no upstream 11.0 quanto na Sikarugir ("load_path slot rewritten"); em i386 resolve.
+- Risco residual: personalizações fora das superfícies comparadas (HideWineExports, hacks por processo Steam, msync, Rosetta, D3DMetal). Só T05 cobre isso. Nenhum runtime foi executado.
+- Revisão Claude Code Opus 5.5 aprovada e integrado em `codex/game-agnostic-scope` (plano D2-c já presente nesta linha). Reproduzidos: PASS/negativos/controle; teste de mutação confirma que a superfície (b) acusa syscall alterado. Atenção T05: `apply_binary_patches` da Sikarugir altera módulos no carregamento (inclui alvo CEF); verificar que não toca lsteamclient/steam.exe. O pedido #288 segue aberto.
+
 ## Próximo passo
 
-1. T01: executar o card replanejado (toolchain local mingw-w64/bison em scratch, build upstream 11.0, comparador de ABI). T02 concluído. T01 não fecha por evidência estática parcial.
-2. Revisar o resultado do T01 (Opus 5.5) antes de integrá-lo; não fechar nenhum gate por evidência estática.
-3. Só depois da proveniência e do perfil Steam aprovados, retomar T03–T05 em sequência; escolher AppID conforme D1 depois do inventário. Em seguida T06–T09 e T10.
+1. T03: compilar ponte/shim contra a base `wine-11.0` verificada (engine-lock schemaVersion 2, `abiCheck=PASS`), com `lsteamclient.so` no `x86_64-unix` da cópia isolada da engine. T01 e T02 concluídos.
+2. T04: derivar pins do binário Sikarugir e adaptar `resolve.py` em x86_64; mapear a lista de `apply_binary_patches` da Sikarugir.
+3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
 Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-sol` ou `gpt-6-luna`, incluindo scripts de prova e testes. Pedido posterior de Elvis autoriza **Claude Code como alternativa**, com aliases `sonnet`/`opus` definidos por card e modelo efetivo registrado ao iniciar. Não trocar cliente/modelo automaticamente nem editar o mesmo território em paralelo.

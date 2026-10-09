@@ -69,3 +69,93 @@ Esses resultados são negativos dentro das superfícies públicas consultadas, s
 **Opções para destravar:** (1) obter do mantenedor o commit/arquivo de fonte, série ordenada de patches com hashes e opções/toolchain usados para o asset `WS12WineSikarugir11.0.tar.xz`, identificado pelo SHA-256 acima; (2) localizar esse manifesto em uma publicação oficial ainda não encontrada; (3) se a fonte permanecer indisponível, retornar ao planejamento para aprovação explícita de outra engine com fonte demonstrável. A opção 3 muda a versão fixada e invalida os hashes/hooks planejados; não foi aplicada. Uma compilação a partir do tag upstream 11.0 ou do Portfile candidato não satisfaz o aceite de T01.
 
 **Readback:** `engine-lock.json` mantém `status=blocked-source-provenance` e `sourceURL/sourceCommit/sourcePatches=null`. As faltas de mingw/Capstone e bison antigo já registradas continuam sem instalação neste card; não há build correspondente ou prova de ABI. Wrapper, prefixos, biblioteca e runtime vivo preservados.
+
+
+## Retomada após revisão F1–F8 — 2026-10-09
+
+Executor: `t01_engine_provenance` · Cliente: Codex · Modelo efetivo: `gpt-6.1-sol` · Branch: `codex/t01-engine-provenance` · Base: `b09836e`.
+
+**Resultado: BLOCKED — aguardando manifesto do mantenedor.** A revisão Sonnet 5.5 e a incorporação de F1–F8 liberam esta auditoria; não substituem a comprovação de fonte, patchset e opções da build. O [pedido público autorizado por Elvis](https://github.com/Sikarugir-App/Sikarugir/issues/288) está aberto e sem comentários na consulta desta rodada. As afirmações anteriores sobre ausência de contato descrevem as rodadas históricas anteriores a esse pedido.
+
+### Readback desta rodada
+
+- A API da [release oficial v1.0](https://github.com/Sikarugir-App/Engines/releases/tag/v1.0) ainda informa o asset com 167224628 bytes e digest `sha256:dcb3de3acab2eaf37591768dc7f6f6c20fa8e6b69c88ddd61e63798c02befcf9`.
+- Os cinco arquivos da tabela e `version` foram relidos no wrapper e na extração histórica `package-reference/wswine.bundle`; todos os hashes coincidem com os valores publicados. Cada caminho foi resolvido e conferido dentro de sua raiz antes da leitura. Loader, wineserver e ntdll Unix são Mach-O x86_64; ntdll Windows são PE32+ x86-64 e PE32 i386. `otool -L bin/wine` continua listando libSystem.
+- O pacote `.tar.xz` original não foi localizado na busca limitada ao nome exato em Downloads e scratch do projeto; não foi baixado nem relido nesta rodada. A comparação atual cobre a extração histórica e os cinco arquivos instalados, sem afirmar integridade de todo o pacote, wrapper ou prefixo.
+- Clang 21.0.0, Swift 6.4, SDK 27.0, CMake 4.4.4, Python 3.14.8 e flex 2.6.4 confirmados. `i686-w64-mingw32-gcc` e `x86_64-w64-mingw32-gcc` ausentes do PATH; Capstone ausente nesse Python; bison 2.3 continua antigo para o script existente. Nenhuma dependência foi instalada.
+- Receipt Rosetta presente. A execução x86_64 PASS permanece evidência histórica; nenhum novo probe Rosetta, execução Wine, build ou teste de ABI foi realizado.
+- O lock local do worktree foi salvo com modo `0600`, relido e comparado com sua estrutura em memória. Conserva schemaVersion=1, runnerID `sikarugir-11.0-r0`, status `blocked-source-provenance` e `sourceURL/sourceCommit/sourcePatches=null`; registra esta revalidação e seus limites. Não é consumível por T03.
+
+A resolução de `sourceCommit` segue **BLOCKED**, pois o mantenedor ainda não forneceu commit exato, patches ordenados e opções/toolchain explicitamente vinculados ao digest do asset. T01 permanece aberto/não Done; T03 não deve iniciar. Nenhum binário ou arquivo do wrapper, engine, prefixo, biblioteca ou saves foi escrito por esta execução.
+
+### Pedido de revisão ao Claude Code Opus 5.5
+
+Revisar esta evidência e o lock local, com foco na distinção entre identidade binária e proveniência, limites da comparação, campos de fonte nulos e bloqueio de T03. Registrar cliente e modelo efetivo do revisor antes da revisão; Opus 5.5 é o modelo solicitado, ainda não executado. A revisão deste relatório não encerra o gate de proveniência ou de runtime.
+
+
+## Verificação de ABI pelo binário (D2-c) — 2026-10-09
+
+Executor: Claude Code · modelo efetivo `claude-opus-5-5` (alias `opus`) · Branch: `claude/t01-abi-check` (base `origin/codex/t01-engine-provenance`, `40e8c58`). Card replanejado lido de `origin/codex/game-agnostic-scope` (`eaf350c`, seção T01/D2); a cópia do plano nesta branch ainda é anterior ao replanejamento.
+
+**Resultado: `abiCheck.status=PASS` nas superfícies (a)–(d), com 11 divergências, todas classificadas como irrelevantes com evidência; nenhuma bloqueante.** Isso não é prova de runtime: Wine não foi executado, nenhum prefixo, wrapper, Steam ou save foi escrito. `sourceURL/sourceCommit/sourcePatches` seguem `null`; o pedido #288 continua aberto.
+
+### Método
+
+1. **Identidade.** Os cinco hashes e `version` foram relidos no wrapper e na extração `package-reference` (todos MATCH). Cópias somente leitura das três ntdll foram feitas para `scratch/abi/sikarugir/`.
+2. **Toolchain local, sem instalação global.** Tudo foi instalado em `scratch/toolchain/` a partir de releases oficiais com hash conferido:
+
+   | Ferramenta | Versão | SHA-256 do download |
+   |---|---|---|
+   | llvm-mingw (build principal) | 20260826, clang 23.1.0 | `48bedd161f14ae25a3646cb750b57ee3188e97e34bd3c52240c1810aa74d6a7f` |
+   | llvm-mingw (controle + llvm-objdump) | 20261006, clang 23.1.3 | `a7a19b11048e89372637d26279cdb7c430ed3cf8c1e224310421312bf986ebf6` |
+   | GNU bison | 3.8.2 | `9bba0214ccf7f1079c5d59210045227bcf619519840ebfa80cd3849cff5a5bf2` |
+   | GNU m4 (o m4 do sistema foi recusado pelo bison) | 1.4.19 | `63aede5c6d33b6d9b13511cd0be2cac046f2e70fd0a07aa9573a04a82783af96` |
+   | capstone (venv em scratch, só para `resolve.py` em leitura) | 5.0.9 | `fc269c5082e17d7f9f265cd6980e2fdc6ab572df913951d76db0357e06b8001d` |
+
+   O hash do llvm-mingw 20260826 coincide com o `checksums` do Portfile `cross/llvm-mingw` de Gcenx/macports-wine, que era a versão do Portfile quando o asset foi publicado. Isso aproxima o codegen, mas **não demonstra** que foi o compilador da Sikarugir. Também foram usados Apple clang 21.0.0, SDK 27.0 e flex 2.6.4 do sistema.
+3. **Fonte upstream.** `git clone --depth 1 --branch wine-11.0 https://gitlab.winehq.org/wine/wine.git` resolveu o tag anotado `ce295733…` para o commit `db11d0fe6a169c457e23d007e20404643d067aa8` ("Release 11.0."), conferido por `rev-parse`.
+4. **Build em scratch.** Host aarch64 com `--host=x86_64-apple-darwin`, `CC="clang -arch x86_64"`, `MACOSX_DEPLOYMENT_TARGET=14.0` (o minos da ntdll.so Sikarugir) e `--with-mingw=<llvm-mingw>/bin/clang`, além de `--disable-tests --enable-archs=i386,x86_64` e `--without-*` para bibliotecas que a ntdll não usa (lista completa em `toolchain.configure` do lock). As opções seguem de perto as publicadas em Gcenx/macOS_Wine_builds, **sem afirmar que são as da Sikarugir**. Alvos compilados: `dlls/ntdll/ntdll.so`, `x86_64-windows/ntdll.dll` e `i386-windows/ntdll.dll`. Um reconfigure + make repetido produziu os mesmos hashes (`d6648b19…`, `7a1f47f2…` e `7149c2b6…`). Para comparar, as PE passaram por `llvm-strip --strip-all` e a ntdll.so por `strip -x`, como no pacote. Um segundo build com llvm-mingw 20261006 serviu de controle.
+5. **Comparador** `ntdll-patch/tests/abi_compare.py`: usa só stdlib, mais `nm` e `llvm-objdump`. Ele cobre (a) exports PE (nome, ordinal e forwarder) e exports Unix, com install name, dependências e LC_RPATH; (b) números de syscall dos stubs Nt*/Zw*; (c) a tabela interna de unix calls (pares de arrays de ponteiros de função com entrada compartilhada, validado contra o símbolo `_unix_call_wow64_funcs` do build upstream), os nomes de lookup da unixlib e os imediatos dos wrappers PE; (d) disassembly normalizado e tamanho de LdrGetDllHandle, LdrLoadDll, NtProtectVirtualMemory, NtOpenFile, NtReadFile, NtClose, build_module e alloc_module, com endereços, relocações e operandos RIP mascarados; (e) diff de strings, apenas informativo. O exit é 1 se houver divergência em (a)–(d) sem entrada `irrelevante` com id exato. O arquivo `ntdll-patch/tests/abi_justifications-sikarugir-11.0-r0.json` fica preso aos hashes do par; se o par for outro, o exit é 2.
+
+### Checks executados
+
+| Par | Justificativas | Resultado |
+|---|---|---|
+| ntdll do CrossOver instalado (string `wine-11.0-8726-g2e2f5fca349`, hashes `cx26` pinados em `resolve.py`) × Sikarugir | não | **FAIL**, exit 1, 25 divergências: export `__wine_rpc_NtReadFile`, ordinais deslocados, 3 exports Unix e LdrLoadDll/LdrGetDllHandle diferentes |
+| mesmo par | sim | exit 2: justificativas recusadas porque os hashes não correspondem |
+| upstream 11.0 × Sikarugir | não | FAIL, exit 1 (11 divergências) |
+| upstream 11.0 × Sikarugir | sim | **PASS**, exit 0, 11 divergências e 0 falhando |
+| upstream 11.0 (llvm-mingw 20261006) × Sikarugir | não | mesmos 11 ids: o resultado independe da versão do llvm-mingw testada |
+
+Não havia build 11.15 da bridge (`scratch/wine-build-dual` ausente). Por isso, o negativo usou a ntdll 11.x do CrossOver, a que a bridge existente usa.
+
+Contagens: exports PE 1461 (upstream) e 1462 (Sikarugir) em x86_64, 1483 e 1484 em i386; syscalls 516 em x86_64 e 528 em i386, todas com o mesmo número; exports Unix 287 e 287; tabela de unix calls com 8 entradas no upstream e 9 na Sikarugir, com entrada compartilhada no índice 7 nos dois.
+
+### Divergências e classificação
+
+| Id | Classe | Justificativa resumida |
+|---|---|---|
+| `a:pe-export:{x86_64,i386}:+__wine_unix_call` | irrelevante | Export aditivo. Nenhum export upstream falta e nenhum ordinal comum muda. |
+| `a:unix-linkage:id` | irrelevante | O install name próprio é `ntdll.so` na Sikarugir e `@rpath/ntdll.so` no upstream. A `win32u.so` da própria Sikarugir depende de `@rpath/ntdll.so` com LC_RPATH `@loader_path/`, que é o mesmo esquema que lsteamclient.so terá. **Condição T03:** instalar lsteamclient.so no `x86_64-unix` da cópia isolada da engine e conferir com otool. |
+| `c:unix-table:count` (8→9) | irrelevante | A 9ª entrada é acrescentada no fim e o índice 7 é compartilhado nos dois. Os imediatos PE (`wine_server_call`=3, `fd_to_handle`=4, `handle_to_fd`=5, `__wine_dbg_write`=2) coincidem. É contrato interno do par ntdll Sikarugir, que não é substituído. |
+| `c:func:x86_64:wine_server_call`, `c:func:i386:wine_server_{fd_to_handle,handle_to_fd}` | irrelevante | Codegen (`jmp *%rax` em vez de `jmp *mem`; `movl` escalares em vez de `movups`), com imediatos iguais. |
+| `d:func:{x86_64,i386}:alloc_module` | irrelevante | Só slots de pilha e alinhamento mudam. Deslocamentos de campos e imediatos são idênticos, incluindo DllBase/Flags de WINE_MODREF usados pelo payload (`0x30`/`0x68` em x86_64, `0x18`/`0x34` em i386). |
+| `d:func:{x86_64,i386}:build_module` | irrelevante para T03; **atenção T04** | Há uma **personalização Sikarugir confirmada**: `apply_binary_patches` (strings "Found matching %s, applying patch", "CEF cmd_line_args_disabled …") é referenciado apenas por build_module, e `perform_relocations` aparece inlinado. Nenhum deslocamento de campo upstream some. `resolve.py`, em modo leitura, acha em i386 o mesmo padrão de hook em upstream e Sikarugir (`8b4514a801`, wm `edi`); só muda `load_path`, ebp-0x3c no upstream e ebp-0x40 na Sikarugir. Em x86_64, falha **igualmente** nos dois com "load_path slot rewritten". A adaptação do resolvedor é trabalho de T04, que deve derivar pins do binário Sikarugir e nunca do upstream. |
+
+### Personalizações Sikarugir observadas (e)
+
+A lista vem só das strings, sem afirmar o comportamento:
+
+- caminho de build `/Users/gcenx/Documents/GitHub/wine-private/...`, banner `wine-sikarugir %s is a testing version containing experimental patches.` e identificador `ntdll-55554944ced185cda520382ba0109adbb7cd70f8`, que não resolve como commit em wine/wine nem em Gcenx/wine;
+- msync (`WINEMSYNC`), hacks Rosetta (`ROSETTA_X87_PATH`, emulação XGETBV/NOP, debug registers) e D3DMetal (`CX_APPLEGPTK_LIBD3DSHARED_PATH`, regiões de código não nativo);
+- `WINEDLLPATH_{DXVK,DXMT,D3DMETAL,D9VK,CNCD}` e `WINENCPU`;
+- `HideWineExports` e `apply_binary_patches`;
+- listas de processos de launchers: Steam (`steamwebhelper.exe`, `gameoverlayui*.exe`), Epic, EA, Ubisoft, GOG, Battle.net e Rockstar.
+
+### Risco residual
+
+As personalizações acima ficam fora das superfícies comparadas. As mais próximas do fluxo são HideWineExports (lookups de exports Wine), os hacks por nome de processo Steam e o patcher binário em build_module. Só T05, com a API Steam real pelo motor isolado, as cobre. O PASS vale para os binários de hash fixado; qualquer outra engine invalida as justificativas, e o comparador recusa. O lock schemaVersion=2 em `scratch/sikarugir/engine-lock.json` (local, ignorado, modo 0600) foi relido, e os cinco hashes foram reconferidos contra wrapper e extração. A cópia schemaVersion=1 no checkout principal não foi alterada. Relatório integral: [engine-abi-report.md](engine-abi-report.md).
+
+### Pedido de revisão ao Claude Code Opus 5.5
+
+Revisar o comparador, as justificativas, em especial build_module/T04 e a linkage `ntdll.so`, os checks negativos e o lock. O revisor deve registrar cliente e modelo efetivo. A revisão não encerra gates de runtime.

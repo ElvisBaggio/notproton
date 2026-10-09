@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "author": "claude (Claude Code, modelo opus / claude-opus-5-5)",
+  "date": "2026-10-09",
+  "pair": "A = Wine upstream wine-11.0 (db11d0fe6a169c457e23d007e20404643d067aa8) compilado em scratch com llvm-mingw 20260826, MACOSX_DEPLOYMENT_TARGET=14.0, PE com llvm-strip --strip-all e ntdll.so com strip -x; B = Sikarugir 11.0 r0 (WS12WineSikarugir11.0.tar.xz) instalado no wrapper",
+  "consumer": "T03 compila lsteamclient (dll+so) e steam.exe contra a arvore upstream 11.0 e os executa sobre a ntdll Sikarugir; T04 deriva pins de hook do binario Sikarugir, nunca do upstream",
+  "files": {
+    "A": {
+      "lib/wine/x86_64-unix/ntdll.so": "9895b498bd43401f8455d71a61b5f6178c6b7ced61e8b5b367d108353b309092",
+      "lib/wine/x86_64-windows/ntdll.dll": "ed357b207673b5229d81f2a623f929a4d2ce91e966f6016520f5126cf0fc24b9",
+      "lib/wine/i386-windows/ntdll.dll": "a3823f22e21a1577cae87498c79a328ba6d237b82dc55744d41d13458d2e912b"
+    },
+    "B": {
+      "lib/wine/x86_64-unix/ntdll.so": "c9948aab11b674b182c8dd41e212cb0be10568adeb47a28721151561456f5b6c",
+      "lib/wine/x86_64-windows/ntdll.dll": "da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676",
+      "lib/wine/i386-windows/ntdll.dll": "e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589"
+    }
+  },
+  "entries": [
+    {
+      "id": "a:pe-export:x86_64:+__wine_unix_call",
+      "classification": "irrelevante",
+      "reason": "Export adicional so na Sikarugir. Nenhum export upstream falta e nenhum ordinal/forwarder comum muda (sem divergencias a:pe-export-attr), entao todo import por nome de lsteamclient.dll/steam.exe compilados contra 11.0 resolve. Os componentes usam __wine_unix_call_dispatcher/__wine_unixlib_handle (presentes e iguais), nao __wine_unix_call."
+    },
+    {
+      "id": "a:pe-export:i386:+__wine_unix_call",
+      "classification": "irrelevante",
+      "reason": "Mesmo caso do x86_64: superconjunto aditivo, ordinais comuns iguais."
+    },
+    {
+      "id": "a:unix-linkage:id",
+      "classification": "irrelevante",
+      "reason": "Muda so o install name proprio da ntdll.so (upstream @rpath/ntdll.so, Sikarugir ntdll.so). Os dependentes nao usam esse id: win32u.so da propria Sikarugir referencia @rpath/ntdll.so com LC_RPATH @loader_path/ (otool -L/-l, leitura do wrapper), igual ao que lsteamclient.so tera ao linkar contra a arvore upstream. Exports Unix (nm -gU) identicos e LC_RPATH @loader_path/ igual. Condicao para T03: instalar lsteamclient.so no mesmo diretorio x86_64-unix da copia isolada da engine (ou rpath equivalente) e conferir com otool."
+    },
+    {
+      "id": "c:unix-table:count",
+      "classification": "irrelevante",
+      "reason": "Tabela interna de unix calls da propria ntdll: Sikarugir tem 9 entradas, upstream 8; o indice compartilhado (system_time_precise) e 7 nos dois, logo a 9a entrada foi acrescentada no fim sem deslocar 0-7. Tamanhos por indice 0-7 coerentes (16,16,32,~300-384,192,96,~300,~150) e os imediatos dos wrappers PE (wine_server_call=3, fd_to_handle=4, handle_to_fd=5, __wine_dbg_write=2) coincidem. Contrato e interno ao par ntdll.dll/ntdll.so Sikarugir, que nao e substituido. Os nomes de lookup da unixlib dos modulos (__wine_unix_call_funcs, __wine_unix_call_wow64_funcs) sao iguais."
+    },
+    {
+      "id": "c:func:x86_64:wine_server_call",
+      "classification": "irrelevante",
+      "reason": "Diferenca de codegen: Sikarugir carrega __wine_unix_call_dispatcher em rax e faz jmp *%rax; upstream faz jmp *mem. Mesmo codigo de unix call ($0x3), mesmos operandos de dados. Wrapper interno a ntdll Sikarugir, nao reimplementado pela ponte."
+    },
+    {
+      "id": "c:func:i386:wine_server_fd_to_handle",
+      "classification": "irrelevante",
+      "reason": "Codegen: upstream copia os 16 bytes de argumentos com movups (SSE), Sikarugir com quatro movl; mesmo codigo de unix call e mesma sequencia de chamada. Interno a ntdll Sikarugir."
+    },
+    {
+      "id": "c:func:i386:wine_server_handle_to_fd",
+      "classification": "irrelevante",
+      "reason": "Mesmo padrao de codegen de wine_server_fd_to_handle; imediatos iguais."
+    },
+    {
+      "id": "d:func:x86_64:alloc_module",
+      "classification": "irrelevante",
+      "reason": "Diferenca apenas de alocacao de slots de pilha/alinhamento; o conjunto de deslocamentos de campos (bases nao-pilha) e de imediatos e identico (28 e 27 comuns, nenhum exclusivo), incluindo as escritas em 0x30 (DllBase) e 0x68 (Flags) de WINE_MODREF que detour.c usa. Pins de T04 sao derivados do binario Sikarugir."
+    },
+    {
+      "id": "d:func:i386:alloc_module",
+      "classification": "irrelevante",
+      "reason": "Mesmo tamanho (1093 bytes); unica diferenca e preenchimento/alinhamento. Deslocamentos de campos e imediatos identicos, incluindo os usados por detour32.c (DllBase 0x18, Flags 0x34 em WINE_MODREF i386)."
+    },
+    {
+      "id": "d:func:x86_64:build_module",
+      "classification": "irrelevante",
+      "reason": "Personalizacao Sikarugir confirmada: build_module inclui apply_binary_patches (strings 'Found matching %s, applying patch', 'CEF cmd_line_args_disabled ...' referenciadas so por build_module) e perform_relocations inlinado. Todos os deslocamentos de campos upstream aparecem na Sikarugir (nenhum exclusivo de A). Irrelevante para o que T03 consome do upstream (headers, exports, layout); NAO autoriza reutilizar offsets/bytes do upstream: T04 deve resolver o sitio no binario Sikarugir. resolve.py (leitura) falha em x86_64 tanto no upstream 11.0 quanto na Sikarugir ('load_path slot rewritten'), logo a adaptacao do resolvedor e trabalho de T04 independente desta divergencia."
+    },
+    {
+      "id": "d:func:i386:build_module",
+      "classification": "irrelevante",
+      "reason": "Mesma personalizacao (apply_binary_patches) que no x86_64. resolve.py (leitura) localiza o mesmo padrao de hook em upstream e Sikarugir: insn 'mov eax,[ebp+0x14]; test al,1', stolen 8b4514a801, wm edi; muda so o slot load_path (ebp-0x3c upstream, ebp-0x40 Sikarugir), que T04 deriva do binario real."
+    }
+  ]
+}
