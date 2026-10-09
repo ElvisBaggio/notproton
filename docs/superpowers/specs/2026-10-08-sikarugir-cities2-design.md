@@ -1,16 +1,18 @@
-# NotProton com Sikarugir para Cities: Skylines II
+# NotProton com Sikarugir para jogos Windows pelo Steam nativo
 
 Data: 2026-10-08 · Autor: codex · Planejamento e revisão: Astra
 
-Estado: especificação aprovada por Elvis em 2026-10-08 ao solicitar avanço e publicação do planejamento no GitHub. Plano revisado por Astra e execução incremental autorizada por Elvis; T01/T02 liberados, demais cards dependem de seus predecessores e gates. A publicação de repositório, épicos e cards está autorizada.
+Estado: reescopo autorizado por Elvis em 2026-10-09. Todos os cards aguardam revisão do plano novo; implementação e probes suspensos. A aprovação de 2026-10-08 refere-se ao escopo anterior e fica preservada como histórico, sem liberar os gates novos.
 
 ## 1. Resultado esperado
 
-Permitir que Elvis instale e execute Cities: Skylines II (Steam AppID 949230) pelo Steam nativo do macOS, usando uma cópia isolada do motor Wine do Sikarugir e sem depender de uma instalação ou licença do CrossOver.
+Permitir instalar versões Windows de jogos e iniciá-las pelo botão Jogar do Steam nativo do macOS, usando uma cópia isolada do motor Sikarugir 11.0 (revision 0), sem instalação ou licença CrossOver.
 
-O uso é pessoal, em um único Mac e com uma versão fixada do motor. Elvis confirma que consegue abrir o jogo pelo Sikarugir. Isso é referência de execução, não evidência de que a integração proposta funciona nem confirmação de persistência de saves.
+A integração é agnóstica ao jogo, com engine inicial fixada e um único Mac pessoal. Não é agnóstica a engines nem garante que todos os jogos funcionem. A base será demonstrada com jogo Windows simples legitimamente disponível, instalado do zero em biblioteca de teste isolada. Registrar AppID e build selecionados em vez de fixar AppID 949230.
 
-Sucesso significa: selecionar o motor no Steam nativo, instalar ou reconhecer uma instalação Windows válida do jogo, clicar em Jogar, carregar uma cidade, jogar, salvar, encerrar e reabrir o mesmo save. A abertura do menu, compilação bem-sucedida ou presença de processos não encerram a validação.
+Sucesso: selecionar a ferramenta, instalar a versão Windows pelo Steam nativo, iniciar gameplay real, jogar >=15 minutos, encerrar jogo e Steam e reabrir para verificar estado persistente. Se o jogo suporta saves, usar slot de teste; caso contrário verificar dados pertinentes/configuração persistente identificável. Menu, build ou processo não encerram a validação. Steam original e wrapper permanecem utilizáveis e rollback é demonstrado.
+
+Cities: Skylines II é teste opcional posterior. Sua pasta, build, Steam Cloud e patches não bloqueiam E1/T02/T05/T10 ou a entrega base; preservar saves existentes e evidências, sem reutilizá-los no teste inicial. O relato de Elvis de que o jogo abre no Steam Windows/Sikarugir permanece uma referência histórica, sem provar a nova integração.
 
 ## 2. Restrições e responsabilidades
 
@@ -40,7 +42,7 @@ Inspeção somente leitura realizada em 2026-10-08; revalidar antes de implement
 
 O estado instalado do NotProton não demonstra que o Steam está corretamente modificado ou que existe um runner funcional. Não executar instalação sobre esse estado sem inventário.
 
-Os flags gráficos encontrados não bastam para afirmar qual renderizador é carregado pelo jogo. A configuração efetiva, os DLL overrides e eventuais correções do Cities devem ser identificados antes de copiá-los para o novo ambiente.
+Os flags gráficos encontrados não bastam para afirmar qual renderizador é carregado pelo jogo. A configuração efetiva, os DLL overrides e eventuais correções do Cities devem ser identificados antes de qualquer teste opcional posterior do Cities II; não são pré-condição da base.
 
 Hashes observados no motor, úteis como referência inicial de integridade:
 
@@ -54,11 +56,11 @@ Esses hashes identificam os arquivos presentes; não atestam origem limpa nem co
 
 ## 4. Abordagem escolhida e alternativas
 
-Escolha aprovada: fork mínimo do NotProton com suporte explícito a uma única engine Sikarugir. Preservar as partes existentes da integração com Steam e modificar apenas as dependências concretas do CrossOver necessárias a esse motor.
+Abordagem mantida para revisão: fork mínimo do NotProton com suporte explícito a uma única engine Sikarugir. Preservar as partes existentes da integração com Steam e modificar apenas as dependências concretas do CrossOver necessárias a esse motor.
 
-Um adaptador externo foi considerado, mas continuaria exigindo resolver a ponte e dependeria de detalhes internos do NotProton. Um sistema genérico de múltiplos motores foi descartado do primeiro escopo por não ajudar a provar a execução do Cities II.
+Um adaptador externo foi considerado, mas continuaria exigindo resolver a ponte e dependeria de detalhes internos do NotProton. Um sistema genérico de múltiplos motores foi descartado do primeiro escopo por não ajudar a provar a integração com a engine fixada.
 
-Não construir um framework de plugins, gerenciador de engines, novo launcher ou instalador público. Não adicionar suporte FEX, ARM Windows, outros jogos ou uma matriz de versões. Componentes de 32 bits só entram quando exigidos pelo caminho escolhido ou pelos auxiliares do jogo.
+Não construir um framework de plugins, gerenciador de engines, novo launcher ou instalador público. Não adicionar suporte FEX, ARM Windows ou uma matriz de versões. Não criar lógica específica de AppID para a integração base. Componentes de 32 bits só entram quando exigidos pelo caminho escolhido ou pelos auxiliares do jogo.
 
 ## 5. Arquitetura e fluxo
 
@@ -68,8 +70,8 @@ Steam nativo do macOS
   → opção de compatibilidade Sikarugir 11.0
   → launcher do fork com caminhos e ambiente do motor selecionado
   → cópia isolada do Wine + ponte lsteamclient adaptada
-  → ambiente Windows exclusivo do Cities: Skylines II
-  → jogo e saves da nova integração
+  → prefixo Windows exclusivo do jogo selecionado
+  → jogo e estado persistente da nova integração
 ```
 
 ### 5.1 Integração com Steam
@@ -96,11 +98,11 @@ Trabalhar inicialmente no caminho x86_64/Rosetta. Validar também arquitetura, d
 
 ### 5.4 Ambiente do jogo
 
-Criar um prefixo exclusivo para esta integração. Primeiro localizar a instalação atual e identificar build, configuração efetiva, saves e correções locais. Não aplicar patches históricos do Cities a uma build diferente.
+Criar prefixo e biblioteca de teste exclusivos. Selecionar jogo Windows simples legitimamente disponível e registrar AppID, build, renderer e dependências observadas. Instalar a versão Windows do zero via Steam nativo; não reutilizar biblioteca, prefixo ou saves do Cities II.
 
-Preferir instalação gerenciada pelo Steam nativo em uma biblioteca de teste separada. Reutilização de arquivos existentes só será permitida por cópia independente ou clone APFS, quando compatível e com espaço validado; não usar hard links que permitam alterar a biblioteca original.
+T02 inventaria Steam, NotProton e wrapper, prepara rollback geral e protege dados existentes. Seu schema não exige campos de jogo; `referenceGame` é opcional. Localização/build/Cloud do Cities II não bloqueiam o inventário. T11 verifica espaço e Cloud do jogo selecionado antes de tocá-lo; não sobrescrever versões locais/remotas nem resolver conflitos automaticamente.
 
-Importar apenas configurações e saves necessários, por cópia. Registrar o estado de Steam Cloud e qualquer possível conflito antes da validação de saves; não sobrescrever silenciosamente versões locais ou remotas.
+Em teste opcional posterior do Cities II, localizar e identificar build/configuração/saves antes de copiar, validar patches contra a build exata e usar cópia independente/clone APFS, nunca hard link. Evidências históricas permanecem em seus arquivos originais.
 
 ## 6. Marcos e provas de aceitação
 
@@ -119,11 +121,11 @@ Interromper e voltar à decisão de arquitetura se a fonte correspondente não f
 
 ### Marco 2 — Inicialização pelo Steam nativo
 
-A ferramenta aparece na seleção de compatibilidade, o Steam instala ou reconhece os arquivos Windows em biblioteca isolada e o botão Jogar inicia o Cities II pelo motor escolhido. A interface volta ao estado correto após encerrar o jogo. Logs permitem distinguir falha na ponte, no Wine e no jogo.
+A ferramenta aparece na seleção de compatibilidade, o Steam instala do zero os arquivos Windows do jogo simples selecionado em biblioteca isolada e o botão Jogar inicia esse jogo pelo motor escolhido. A interface volta ao estado correto após encerrar o jogo. Logs permitem distinguir falha na ponte, no Wine e no jogo.
 
 ### Marco 3 — Sessão de jogo e persistência
 
-Carregar uma cidade de teste, realizar uma alteração identificável, jogar por pelo menos 15 minutos, salvar em slot de teste, encerrar jogo e Steam, reabrir pelo Steam nativo e verificar a alteração persistida. Registrar configurações gráficas e falhas observadas, sem prometer ganho de desempenho sobre o wrapper.
+Entrar em gameplay real do jogo selecionado, realizar ação identificável e jogar pelo menos 15 minutos. Salvar em slot separado quando suportado; caso contrário registrar alteração pertinente de dados/configuração persistente. Encerrar jogo e Steam, reabrir pelo Steam nativo e comprovar o estado identificado. Registrar renderer e falhas, sem prometer desempenho ou compatibilidade de outros jogos.
 
 Verificar que o wrapper original continua utilizável e executar o procedimento de retorno ao estado anterior da integração. Uma restauração descrita, mas não testada, deve continuar marcada como pendente.
 
@@ -160,6 +162,6 @@ Manter um registro curto de versão do Steam, build do jogo, engine, hashes e re
 
 ## 10. Próxima etapa e limites desta entrega
 
-Com esta especificação aprovada, usar a skill `writing-plans` para produzir o plano de implementação, com tarefas, arquivos, testes, critérios de parada e delegação aos modelos permitidos. Revisão e execução por subagentes autorizadas; a sequência permanece sujeita aos gates de fonte, ABI, API real, jogo e persistência.
+O plano efetivo está no arquivo relacionado; os nomes históricos dos documentos são preservados. Revisão pendente por Claude Code Opus, com recado em `docs/reviews/claude-opus-scope-review.md`. Não iniciar Claude automaticamente, implementação ou probes. Após revisão aprovada, manter os gates de fonte/patchset, ABI real, API Steam, suporte/assinatura do cliente, instalação Windows, persistência e rollback.
 
 Este registro não inclui produto implementado, prova de viabilidade executada, dependências instaladas nem alterações nas instalações de Steam, NotProton e Sikarugir. Elvis autorizou posteriormente a publicação dos documentos, épicos e cards no repositório pessoal privado `ElvisBaggio/notproton` e no Project associado.

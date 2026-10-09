@@ -24,3 +24,7 @@ Os nomes de subagente nos cards são papéis de execução, não contas GitHub n
 Exemplo de início manual, após liberação do card: `claude --model sonnet` (ou `opus`, conforme o card). Instrução inicial: “Atue como o subagente indicado na issue; leia AGENTS.md, HANDOFF.md, a especificação e o plano. Execute somente esse card, preservando os territórios dos outros agentes. Registre o modelo efetivo e os checks.”
 
 O arquivo CLAUDE.md importa AGENTS.md. Não é necessário lançar Claude nem enviar conteúdo a ele para preparar esta opção; nenhuma sessão Claude foi iniciada nesta publicação.
+
+## Reescopo de 2026-10-09 — revisão pendente
+
+Executores, modelos, alternativas e territórios dos cards permanecem. Todos aguardam revisão do plano novo; nenhuma implementação/probe liberada. Claude Code Opus é o destinatário do [recado de revisão](reviews/claude-opus-scope-review.md), também apontado em HANDOFF.md e AGENTS.md. Preparar o recado não inicia Claude nem muda a escolha de cliente dos cards. `cities_integration` mantém o nome histórico do papel de T11, agora teste de jogo Windows simples com instalação nova; não indica dependência de Cities II.
