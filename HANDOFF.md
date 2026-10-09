@@ -1,6 +1,14 @@
 # Handoff
 
-Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
+Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
+
+## T03 — BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente codex, papel wine_bridge, modelo efetivo gpt-6.1-sol; branch `codex/t03-bridge-sikarugir`. Lock schemaVersion 2/ABI PASS copiado e fonte Wine 11.0 em commit `db11d0fe6a169c457e23d007e20404643d067aa8` conferida. TDD RED e tentativa real de registro do build confirmam base sem `WINE_EXTERNAL`, `EXTERNAL_SUBDIRS` e `CXX_PE_LIBS`/bibliotecas C++ PE exigidos pelo shim atual. Check read-only em `bridge/tests/sikarugir-buildcheck.sh`; evidências em `docs/evidence/bridge-build.md`. Sete recusas negativas PASS, gate positivo RED esperado. Scripts de produção/Makefile preservados após remoção dos experimentos; nenhum artefato compilado.
+
+**Próximo passo.** Revisão solicitada para Claude Code Opus 5.5 e decisão sobre adaptação do shim ao build Wine 11.0. Revisor deve registrar modelo efetivo. Não substituir implicitamente a base por 11.15 nem encerrar T03.
+
+**Bloqueios.** Condição de parada T03: interfaces de build ausentes na base verificada. Hashes de saída, otool/file e rebuild NOT RUN; runtime e integração não liberados. T01/T02 continuam concluídos. Nenhuma gravação nos originais T01, wrapper, engine instalada, Steam, prefixos ou saves.
 
 ## Atualização T02 (claude, branch `claude/t02-steam-profile`)
 
