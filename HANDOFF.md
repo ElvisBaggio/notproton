@@ -4,8 +4,11 @@ Atualizado: 2026-10-09 · Agente: codex · Máquina: mac
 
 ## Estado
 
-- Projeto pessoal: Cities: Skylines II pelo Steam nativo com NotProton e motor Sikarugir, sem depender de CrossOver.
-- Especificação e plano aprovados para execução incremental em 2026-10-08: autorização explícita de Elvis e revisão independente Astra. T01/T02 liberados; predecessores e gates continuam obrigatórios.
+- Escopo efetivo em 2026-10-09: instalar jogos Windows e iniciar pelo Steam nativo Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem CrossOver. Cities II é teste opcional posterior, sem gate de localização/build/Cloud para a base. Não promete todos os jogos nem múltiplas engines.
+- Branch atual de reescopo: `codex/game-agnostic-scope`. Todos os cards #1–#16: Prontidão = Aguarda revisão do plano novo; Status diferente de Done. Implementação/probes suspensos; aprovações e bloqueios abaixo pertencem ao histórico anterior.
+- **Recado para Claude Code Opus:** ler `docs/reviews/claude-opus-scope-review.md` e revisar objetivos, origem/ABI e marcos; publicar findings em arquivo/PR. Nenhuma sessão Claude iniciada; não implementar durante revisão pendente.
+- #18 permanece aberto/não Done; não prova o runtime integrado.
+- Histórico do escopo anterior: especificação e plano aprovados para execução incremental em 2026-10-08: autorização explícita de Elvis e revisão independente Astra. T01/T02 liberados; predecessores e gates continuam obrigatórios.
 - Base: NotProton v1.1.0, commit `05a27874798ffbffb8e64a37595bde6f16d5320a`.
 - Branch de documentação: `codex/sikarugir-cities2-design`; `origin` aponta ao repositório pessoal privado https://github.com/ElvisBaggio/notproton e `upstream` ao projeto original.
 - Especificação: `docs/superpowers/specs/2026-10-08-sikarugir-cities2-design.md`.
@@ -21,14 +24,14 @@ Atualizado: 2026-10-09 · Agente: codex · Máquina: mac
 
 ## Próximo passo
 
-1. Resolver fonte e patchset exatos da engine em T01 (#5); não consumir o lock incompleto em T03.
-2. Completar T02 (#6): resolver localização/build do jogo após busca ampliada negativa nas áreas acessíveis (com erros de leitura registrados), Steam Cloud, compatibilidade efetiva do cliente Steam e backup do estado imediatamente anterior ao deploy.
-3. Compilar shim corrigido e ponte contra fonte validada em ambiente isolado; cumprir T05 (#9) antes da integração do app.
-4. Validar descoberta real pelo Ubisoft Connect com shim 1.1.1 em prefixo isolado e cenário comparável 1.1.0; não usar o Steam Windows original como prova.
+1. Claude Code Opus revisa o reescopo e registra findings em arquivo/PR; recado compartilhado em `docs/reviews/claude-opus-scope-review.md`. Não iniciar sessão automaticamente.
+2. Após aprovação explícita da revisão, completar T01 (fonte/patchset exatos) e T02 (Steam/NotProton/wrapper, suporte real do cliente, espaço e recuperação geral). Localização/build/Cloud do Cities II não bloqueiam a base.
+3. Cumprir T03–T05: ABI real, patches exatos, probe com AppID legítimo selecionado e Steam nativo; depois integração/assinatura T06–T09 e rollback T10.
+4. T11 instala jogo Windows simples novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Teste Cities II posterior é opcional.
 
 Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-sol` ou `gpt-6-luna`, incluindo scripts de prova e testes. Pedido posterior de Elvis autoriza **Claude Code como alternativa**, com aliases `sonnet`/`opus` definidos por card e modelo efetivo registrado ao iniciar. Não trocar cliente/modelo automaticamente nem editar o mesmo território em paralelo.
 
-## Bloqueios / decisões pendentes
+## Bloqueios / decisões pendentes (histórico anterior ao reescopo; prevalece Estado acima)
 
 - Ponte upstream preparada com Wine 11.15; engine observada no wrapper é Sikarugir 11.0. Viabilidade ainda não comprovada.
 - Fonte exata da engine, versão efetiva do Steam e configuração gráfica carregada precisam de validação na execução do plano.

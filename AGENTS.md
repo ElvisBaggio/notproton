@@ -2,7 +2,7 @@
 
 @/Users/elvisoliveira/.codex/RTK.md
 
-Comunicação em português brasileiro. Projeto: Cities: Skylines II pelo Steam nativo do Mac, com Sikarugir 11.0 e sem dependência de CrossOver.
+Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Revisão do plano novo pendente; Claude Code Opus deve ler `docs/reviews/claude-opus-scope-review.md`, sem iniciar implementação/probes.
 
 ## Fonte de verdade
 
