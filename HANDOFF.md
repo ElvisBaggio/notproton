@@ -6,9 +6,9 @@ Atualizado: 2026-10-09 · Agente: claude · Modelo efetivo: `sonnet` (Claude Son
 
 **Estado.** Perfil `signatures/macos.arm64/1791415817.json` gerado para o build Steam ativo **1791415817** (confirmado por `content_log.txt`, `bootstrap_log.txt` e manifesto `publicbeta` instalado). Validação **estática**: 18/18 assinaturas resolvidas por âncora nas cópias em `scratch/steam-1791415817/`, padrões de bytes únicos, endereços e 8 vptrs RTTI conferidos por decodificação independente, `sigcheck.py` passa com 4 perfis. Ferramentas novas: `dylib/tests/sigstatic.c` (resolve sem `dlopen`) e `dylib/tests/sigprofile.py` (gera o JSON). Detalhes, hashes e limites em `docs/evidence/system-baseline.md`.
 
-**Próximo passo.** (1) Revisão independente do T02 por Claude Code Opus 5.5 (registrar modelo efetivo), separando validação estática de suporte real. (2) Opcional: Elvis roda `make anchorcheck` no Steam real para fechar o ramo `dlopen`. (3) Depois da revisão e do merge, T05/T10 passam a ter perfil para o build ativo; se o Steam atualizar, regerar com `sigstatic --emit` + `sigprofile.py`.
+**Próximo passo.** (1) Revisão Claude Code Opus 5.5 aprovada (issue #6). (2) `anchorcheck` real PASS em 2026-10-09 (18/18, 8/8 vptrs). (3) Integrar `claude/t02-steam-profile` à linha principal do reescopo. Depois da revisão e do merge, T05/T10 passam a ter perfil para o build ativo; se o Steam atualizar, regerar com `sigstatic --emit` + `sigprofile.py`.
 
-**Bloqueios.** Bloqueio do perfil removido. T02 ainda **não Done**: faltam revisão independente; `anchorcheck`/`make sigdb-fixtures` com `dlopen` NOT RUN (risco de construtores do Steam real); perfil não implantado e nenhum runtime/loader exercitado. T01 segue BLOCKED (fonte/patchset); T03 depende dele.
+**Bloqueios.** Bloqueio do perfil removido. T02 com aceite cumprido (perfil validado estático + `anchorcheck` real, revisão aprovada). Perfil ainda não implantado e loader/hooks não exercitados — isso é T07/T10. T01 replanejado (D2-c, ABI verificada no binário) e em execução em `claude/t01-abi-check`; T03 depende dele.
 
 ## Estado (registro do reescopo, agente codex)
 
