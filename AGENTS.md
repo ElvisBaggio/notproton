@@ -2,7 +2,7 @@
 
 @/Users/elvisoliveira/.codex/RTK.md
 
-Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Revisão do plano novo pendente; Claude Code Opus deve ler `docs/reviews/claude-opus-scope-review.md`, sem iniciar implementação/probes.
+Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8. Incorporar os ajustes e sincronizar os cards antes de iniciar T01/T02; depois, eles podem rodar em paralelo em worktrees distintos. T01 permanece bloqueado até a fonte/patchset ser confirmada pelo mantenedor; não iniciar T03 sem isso.
 
 ## Fonte de verdade
 
@@ -17,7 +17,7 @@ Comunicação em português brasileiro. Projeto: instalar jogos Windows e inicia
 - Implementação padrão: Sol 6.1 (`gpt-6.1-sol`); Luna 6 (`gpt-6-luna`) somente nos cards atribuídos a ele.
 - Claude Code é alternativa autorizada pelo usuário: usar `sonnet` ou `opus` conforme o card, registrar o modelo efetivo. Detalhes em `docs/AGENT_EXECUTION.md`.
 - Uma execução por card/território. Você não está sozinho no repositório: preserve mudanças alheias e não edite arquivos de outro responsável em paralelo.
-- Não iniciar implementação/probes até a revisão do plano. Publicar o board não libera seus gates.
+- Não iniciar cards além de T01/T02 antes de suas dependências e gates. A revisão aprovada com ajustes não encerra gates de runtime. Ao final de cada card, deixar pedido de revisão para Claude Code Opus 5.5 e registrar modelo efetivo do revisor.
 
 ## Evidência e encerramento
 

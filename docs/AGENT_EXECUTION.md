@@ -25,6 +25,8 @@ Exemplo de início manual, após liberação do card: `claude --model sonnet` (o
 
 O arquivo CLAUDE.md importa AGENTS.md. Não é necessário lançar Claude nem enviar conteúdo a ele para preparar esta opção; nenhuma sessão Claude foi iniciada nesta publicação.
 
-## Reescopo de 2026-10-09 — revisão pendente
+## Reescopo de 2026-10-09 — revisão concluída com ajustes
 
-Executores, modelos, alternativas e territórios dos cards permanecem. Todos aguardam revisão do plano novo; nenhuma implementação/probe liberada. Claude Code Opus é o destinatário do [recado de revisão](reviews/claude-opus-scope-review.md), também apontado em HANDOFF.md e AGENTS.md. Preparar o recado não inicia Claude nem muda a escolha de cliente dos cards. `cities_integration` mantém o nome histórico do papel de T11, agora teste de jogo Windows simples com instalação nova; não indica dependência de Cities II.
+Claude Code Sonnet 5.5 recomendou aprovação com ajustes F1–F8; findings em `docs/reviews/claude-scope-review-findings.md`. Elvis decidiu gerar perfil para o build Steam atual, solicitar ao mantenedor a proveniência da engine (pedido em https://github.com/Sikarugir-App/Sikarugir/issues/288) e selecionar o jogo depois do inventário T02. Os ajustes ao plano/spec foram aplicados; sincronizar Project e descrições das issues antes de iniciar T01/T02. Quando liberados, T01/T02 podem executar em paralelo em worktrees separados. T01 não libera T03 sem fonte e patchset verificados. `cities_integration` mantém o nome histórico do papel de T11, agora teste de jogo Windows simples com instalação nova; não indica dependência de Cities II.
+
+Ao final de cada card, registrar evidências e deixar pedido de revisão para Claude Code Opus 5.5, conforme solicitação de Elvis. A versão/modelo efetivo deve ser registrado pelo revisor; não assumir disponibilidade de alias/versionamento.

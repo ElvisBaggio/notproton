@@ -6,11 +6,11 @@
 
 **Architecture:** Fork mínimo do NotProton v1.1.0. Manter a ponte Steam existente, adaptar seus componentes internos ao Wine Sikarugir 11.0 e introduzir uma origem explícita no runner. A prova de API real precede a integração do aplicativo; implantação e jogo usam cópias isoladas.
 
-**Tech Stack:** Swift 6.2/SwiftPM, C/C++, shell POSIX, Python, Clang/SDK macOS, mingw-w64 e ferramentas Apple; reutilizar as dependências upstream.
+**Tech Stack:** Swift >=6.2/SwiftPM, C/C++, shell POSIX, Python, Clang/SDK macOS, mingw-w64 e ferramentas Apple; reutilizar as dependências upstream.
 
 **Spec:** [2026-10-08-sikarugir-cities2-design.md](../specs/2026-10-08-sikarugir-cities2-design.md)
 
-**Estado:** Reescopo autorizado por Elvis em 2026-10-09; todos os cards aguardam revisão do plano novo. A aprovação incremental de 2026-10-08 pertence ao escopo anterior e não libera implementação/probes deste plano. Base: `05a27874798ffbffb8e64a37595bde6f16d5320a`.
+**Estado:** Claude Code Sonnet 5.5 revisou o reescopo em 2026-10-09 e recomendou aprovação com ajustes (F1–F8; ver `docs/reviews/claude-scope-review-findings.md`). Elvis decidiu gerar um perfil Steam para o build atual, solicitar ao mantenedor o manifesto da engine e selecionar o jogo após T02. Aplicar estes ajustes antes de liberar T01/T02; os gates de implementação/probe permanecem sequenciais. Base: `05a27874798ffbffb8e64a37595bde6f16d5320a`.
 
 ## Global Constraints
 
@@ -69,8 +69,8 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 - [ ] **Passo 1:** Comparar pacote original e engine instalada e registrar diferenças, sem extrair sobre o wrapper.
 - [ ] **Passo 2:** Identificar fonte exata e patches da distribuição; confirmar arquitetura real do loader e Rosetta disponível.
-- [ ] **Passo 3:** Conferir Clang/SDK, Swift 6.2, CMake, mingw-w64, bison, flex, Python/Capstone; listar ausências sem instalação global automática.
-- [ ] **Passo 4:** Salvar lock local e relatório sanitizado com referências de origem. Parar se a fonte correspondente não puder ser identificada.
+- [ ] **Passo 3:** Conferir Clang/SDK, Swift >=6.2, CMake, mingw-w64, bison, flex, Python/Capstone; listar ausências sem instalação global automática.
+- [ ] **Passo 4:** Salvar lock local e relatório sanitizado com referências de origem. Se a fonte correspondente não puder ser identificada, manter `sourceCommit/sourcePatches=null`, registrar BLOCKED e aguardar o manifesto solicitado ao mantenedor; não inferir a fonte pelo tag Wine 11.0 nem avançar T03.
 - [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
 
 **Testes e asserts:** Verificação de dados: cada files[].path existe dentro da cópia, SHA-256 calculado coincide, sourceCommit resolve na fonte e version é wine sikarugir 11.0 (revision 0). Não usar apenas o nome do tarball como prova.
@@ -92,10 +92,10 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 - Criar scratch/sikarugir/system-baseline.json e backups locais com acesso restrito; reaproveitar ferramentas macOS.
 - Ler SteamInstaller.swift, SteamRepair.swift, Uninstall.swift e configurações existentes.
 
-**Interfaces / entrega:** Produzir system-baseline.json com schemaVersion=1, steamClientBuild, steamSupportEvidence, wrapperState, diskFreeBytes, touchedFiles[{path,existed,sha256,mode,symlinkTarget,backupPath}]. referenceGame{appID,build,path,prefixPath,cloudState} é opcional e nunca gate da integração base. Caminhos e conta permanecem locais; ausência vira diagnóstico, nunca dado inventado.
+**Interfaces / entrega:** Produzir `system-baseline.json` com schemaVersion=1, steamClientBuild, steamSupportEvidence, wrapperState, diskFreeBytes e touchedFiles[{path,existed,sha256,mode,symlinkTarget,backupPath}]. `steamSupportEvidence` registra o resultado da verificação do perfil para o build ativo, incluindo perfis/hashes usados e `sigcheck.py`/fixtures; não aceitar apenas o perfil mais recente quando ele não casa com `steamClientBuild`. Gerar e validar um perfil para o build Steam atual observado (1791415817 no inventário anterior), sem fixar ou desabilitar updates. `wrapperState` distingue versão instalada do NotProton (1.1.0), base de fonte (1.1.1) e estado do wrapper. `referenceGame{appID,build,path,prefixPath,cloudState}` é opcional e nunca gate da integração base. Caminhos e conta permanecem locais; ausência vira diagnóstico, nunca dado inventado. Migrar o manifesto atual para este schema sem perder as evidências históricas; manter detalhes de Cities II apenas em `referenceGame`, quando ainda válidos.
 
 - [ ] **Passo 1:** Inventariar wrapper, prefixos e saves existentes como dados a preservar; registrar referências de jogos somente quando disponíveis. Localização/build/Cloud do Cities II não bloqueiam a integração base; não reinterpretar S: ausente como ausência global.
-- [ ] **Passo 2:** Inventariar Steam e NotProton já instalados, versão efetiva do cliente, integrações e política de updates; medir espaço para cópias.
+- [ ] **Passo 2:** Inventariar Steam e NotProton já instalados, versão efetiva do cliente, integrações e política de updates; validar um perfil de assinaturas para o build ativo com `dylib/tests/sigcheck.py` e fixtures; medir espaço para cópias. Se o perfil não puder ser gerado/validado, T02 fica bloqueado e registra a causa sem escolher perfil antigo por conveniência.
 - [ ] **Passo 3:** Documentar ordem de backup/restauração de arquivos, plists, assinatura, ferramentas e estado anterior; usar cópia/clone APFS, nunca hard link.
 - [ ] **Passo 4:** Ensaiar restauração em diretório temporário com arquivo, symlink, permissão e arquivo antes inexistente; comparar estado. Não restaurar sobre instalações reais nesta tarefa.
 - [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
@@ -104,9 +104,15 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 
 **Verificação:** Conferir hashes, modos e links antes/depois do ensaio e registrar readback. Resultado esperado: restauração exata dos itens tocados, sem apagar diretórios compartilhados.
 
-**Aceite:** Estado Steam/NotProton/wrapper inventariado; saves existentes preservados. Referência de jogo opcional, sem bloqueio por localização/build/Cloud do Cities II. Versão real do Steam e compatibilidade NotProton registradas. Ensaio de restauração passou; proteção dos dados existentes e espaço documentados. Cloud do jogo de teste será validado em T11 antes de tocá-lo.
+**Aceite:** Estado Steam/NotProton/wrapper inventariado; saves existentes preservados. `system-baseline.json` segue o schema acima e mantém `referenceGame` opcional, sem bloqueio por localização/build/Cloud do Cities II. Versão real do Steam e perfil de assinaturas correspondente ao build ativo foram validados. Ensaio de restauração passou; proteção dos dados existentes e espaço documentados. Cloud do jogo de teste será validado em T11 antes de tocá-lo.
 
-**Parar se:** Backup não restaurável, Steam sem versão suportada ou risco de sobrescrever saves sem resolução.
+**Parar se:** Backup não restaurável, perfil de assinaturas não validado para o build Steam ativo ou risco de sobrescrever saves sem resolução.
+
+### Decisões de Elvis após inventário
+
+**D1 — Jogo-base para T05/T11:** selecionar somente depois de T02. Deve ser pequeno, ter versão somente Windows (sem depot/build macOS), inicializar a API Steam, oferecer save ou configuração persistente identificável e ter conta/Cloud conhecidos. Registrar AppID/build e evidência de elegibilidade antes de T05. Não usar Cities II como jogo-base.
+
+**D2 — Proveniência da engine:** solicitar ao mantenedor o commit Wine exato, patches ordenados com hashes e opções/toolchain para o asset oficial `WS12WineSikarugir11.0.tar.xz`, SHA-256 `dcb3de3acab2eaf37591768dc7f6f6c20fa8e6b69c88ddd61e63798c02befcf9`. Pedido público: https://github.com/Sikarugir-App/Sikarugir/issues/288. Até a resposta, T01 fica BLOCKED e T03 não começa; não aceitar ABI inferida do binário nem trocar de engine implicitamente.
 
 ## E2 — Viabilidade da ponte Wine–Steam
 
@@ -178,11 +184,11 @@ Cada card termina com revisão independente e commit `[codex] ...` ou `[claude] 
 - Criar bridge/tests/steam-api-probe.c e bridge/tests/run-steam-api-probe.sh.
 - Criar docs/evidence/steam-api-probe.md; logs brutos somente em scratch.
 
-**Interfaces / entrega:** Probe usa interfaces Steam disponíveis no projeto; verifica init bem-sucedido, AppID igual ao AppID legítimo selecionado e registrado para o probe e sessão autenticada, imprimindo apenas booleanos/AppID, nunca SteamID/token. Runner recebe engine/prefix/bridge por argumentos explícitos, exige prefixo de scratch e devolve exit 0 apenas após todas as provas.
+**Interfaces / entrega:** Probe usa interfaces Steam disponíveis no projeto; verifica init bem-sucedido, AppID igual ao AppID legítimo selecionado e registrado para o probe e sessão autenticada, imprimindo apenas booleanos/AppID, nunca SteamID/token. Runner recebe engine/prefix/bridge por argumentos explícitos, exige prefixo de scratch e devolve exit 0 apenas após todas as provas. T05 usa a instalação existente do Steam nativo somente para a chamada de API; não instala nem implanta NotProton, não altera a instalação Steam e não modifica wrapper/biblioteca/saves. O relatório registra o estado observado no manifesto T02: NotProton instalado 1.1.0, fonte-base 1.1.1 e qualquer divergência relevante.
 
 - [ ] **Passo 1:** Escrever asserts do probe e caso negativo sem Steam; conferir que Steam ausente/init falsa resulta em falha explícita.
 - [ ] **Passo 2:** Inicializar prefixo descartável com cópia patchada e bridge construída; registrar ausência de erro loader/server/Unix-call.
-- [ ] **Passo 3:** Executar com Steam nativo autenticado e contexto válido de AppID legitimamente disponível e selecionado; registrar a seleção e a disponibilidade antes do probe; não instalar Steam Windows nem substituir autenticação.
+- [ ] **Passo 3:** Após o inventário T02, Elvis seleciona e registra um AppID elegível conforme decisão D1; executar com Steam nativo autenticado e contexto válido; registrar a seleção e disponibilidade antes do probe; não instalar Steam Windows nem substituir autenticação.
 - [ ] **Passo 4:** Verificar que o wrapper original permaneceu intacto e publicar relatório PASS/FAIL; Astra revisa gate antes de liberar E3.
 - [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
 
@@ -248,7 +254,7 @@ let root = SupportPaths.clonedRoot(forBuild: build.id, runners: URL(filePath: "/
 - Atualizar Resources/payload.manifest e Package.swift apenas para payload próprio necessário.
 - Estender RunnerInstallerTests, RunnerSetupTests, RunnerPatcherTests, NtdllPatcherTests, SteamInstallerTests, SteamRepairTests e CrossOverLicenseTests.
 
-**Interfaces / entrega:** Adicionar overloads RunnerInstaller.clone(from: SikarugirInstall, replacingExisting: Bool=false, runners: URL=SupportPaths.runners) throws -> RunnerBuild e RunnerSetup.run(from: SikarugirInstall, replacingExisting: Bool=false, report: @Sendable (Phase)->Void={_ in}) throws -> Outcome. Preservar prepare, verifyClone, RunnerPatcher.install e entradas CrossOver; selecionar comportamento por build.origin. Bridge Sikarugir exclusiva sob bridge/sikarugir-11.0-r0, consumindo manifests T03/T04.
+**Interfaces / entrega:** Adicionar overloads RunnerInstaller.clone(from: SikarugirInstall, replacingExisting: Bool=false, runners: URL=SupportPaths.runners) throws -> RunnerBuild e RunnerSetup.run(from: SikarugirInstall, replacingExisting: Bool=false, report: @Sendable (Phase)->Void={_ in}) throws -> Outcome. Preservar prepare, verifyClone, RunnerPatcher.install e entradas CrossOver; selecionar comportamento por build.origin. Bridge Sikarugir exclusiva sob bridge/sikarugir-11.0-r0, consumindo manifests T03/T04. A validação do perfil Steam deve exigir igualdade entre o build ativo e o build registrado no perfil; rejeitar combinação única porém divergente, antes de instalar hooks.
 
 - [ ] **Passo 1:** Escrever testes: setup/repair Sikarugir não chamam licença CrossOver, enquanto origem CrossOver continua exigindo licença; falha de clone/patch preserva destino anterior.
 - [ ] **Passo 2:** Implementar os overloads, validação do loader correto, staging de payload e assinatura adequada à engine.
@@ -276,13 +282,13 @@ let root = SupportPaths.clonedRoot(forBuild: build.id, runners: URL(filePath: "/
 
 **Interfaces / entrega:** Consumir os mesmos build id/tool id/layout de T06 e bridge isolada de T07. Manter verbos existentes do launcher e formato TSV. Para sikarugir-11.0-r0 selecionar bin/wine, bin/wineserver e lib/wine/x86_64-unix da cópia; validar loader real contra T01. Prefixo vem de STEAM_COMPAT_DATA_PATH exclusivo, nunca do wrapper.
 
-- [ ] **Passo 1:** Criar regressões para caminhos com espaços, build adulterado com ../, engine ausente, prefixo bloqueado e duas inicializações concorrentes; executar para falhar.
+- [ ] **Passo 1:** Criar regressões para caminhos com espaços, build adulterado com ../, engine ausente, prefixo bloqueado, duas inicializações concorrentes e ausência de `CX_HOME`/variáveis CrossOver no ambiente Sikarugir; executar para falhar.
 - [ ] **Passo 2:** Adaptar seleção de raiz/loader/bridge e reutilizar locks e tratamento de erro existentes. Remover exigência de CX_HOME apenas no caminho Sikarugir.
 - [ ] **Passo 3:** Fazer PrefixTools e PrefixRebuild usarem a mesma resolução da engine; não criar um segundo mapeamento divergente.
-- [ ] **Passo 4:** Executar checks shell e Swift; confirmar logs úteis e redação de campos que exponham conta/token.
+- [ ] **Passo 4:** Executar checks shell e Swift; confirmar logs úteis e redação de campos que exponham conta/token. Estender `envcheck.sh` para provar que o caminho Sikarugir não exporta nem herda `CX_HOME`/CrossOver, preservando o ambiente atual no caminho CrossOver.
 - [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
 
-**Testes e asserts:** build adulterado => recusa sem executar; caminho com espaços preservado como argumento; concorrência não corrompe template; prefixo do wrapper nunca tocado; Wine tool e launcher escolhem mesmo loader; flavor CrossOver permanece funcional.
+**Testes e asserts:** build adulterado => recusa sem executar; caminho com espaços preservado como argumento; concorrência não corrompe template; prefixo do wrapper nunca tocado; Wine tool e launcher escolhem mesmo loader; Sikarugir não recebe `CX_HOME` nem variáveis CrossOver; flavor CrossOver permanece funcional.
 
 **Verificação:** rtk make runcheck buildcheck envcheck seedcheck bridgecheck routecheck; rtk proxy sh -c 'cd app && swift test --no-parallel --filter "PrefixToolsTests|RunnerSwitchTests"'. Esperado: PASS real; SKIP por ferramenta ausente não conta como sucesso.
 
@@ -359,15 +365,15 @@ let root = SupportPaths.clonedRoot(forBuild: build.id, runners: URL(filePath: "/
 - Criar docs/evidence/game-launch.md; reutilizar docs/runbooks/recovery.md.
 - Biblioteca/prefixo local exclusivos; qualquer patch do jogo deve incluir hash/build e backup local, sem distribuir DLL proprietária.
 
-**Interfaces / entrega:** Selecionar e registrar AppID de jogo Windows simples legitimamente disponível. Instalar do zero pelo Steam nativo em biblioteca/prefixo exclusivos com notproton-sikarugir-11.0-r0; não reutilizar Cities II, sua biblioteca ou prefixo. Inventário T02 protege o estado geral; nenhuma localização/build/Cloud do Cities II é pré-condição.
+**Interfaces / entrega:** Após o inventário T02, Elvis seleciona e registra um AppID que cumpra D1: jogo pequeno, somente Windows (sem build macOS), inicializa a API Steam, possui save ou configuração persistente identificável e tem conta/Cloud conhecidos. Instalar do zero pelo Steam nativo em biblioteca/prefixo exclusivos com notproton-sikarugir-11.0-r0; não reutilizar Cities II, sua biblioteca ou prefixo. Inventário T02 protege o estado geral; nenhuma localização/build/Cloud do Cities II é pré-condição.
 
 - [ ] **Passo 1:** Conferir espaço e Cloud do jogo selecionado; preservar quaisquer dados existentes e não resolver conflitos automaticamente.
-- [ ] **Passo 2:** Instalar a versão Windows do jogo simples do zero via Steam nativo em biblioteca de teste isolada; registrar AppID, build, arquivos Windows, prefixo e ferramenta selecionada.
+- [ ] **Passo 2:** Instalar a versão Windows do jogo simples do zero via Steam nativo em biblioteca de teste isolada; conferir manifesto/depot para provar que foi instalado o conteúdo Windows e confirmar que o Steam nativo não escolheu um build macOS; registrar AppID, build, prefixo e ferramenta selecionada.
 - [ ] **Passo 3:** Selecionar ferramenta e iniciar via Jogar; diagnosticar separadamente ponte/Wine/jogo. Eventual patch deve casar com build atual.
 - [ ] **Passo 4:** Entrar em gameplay real e registrar build, renderer efetivo, mensagens e saída do processo; retorno do botão Jogar ao estado correto.
 - [ ] **Fechamento:** revisar diff e evidências; commit dos arquivos deste card; push e atualização de HANDOFF/issue/Project.
 
-**Testes e asserts:** Jogo inicia pelo Steam nativo sem cliente Windows; biblioteca e saves originais preservados; reabrir não reinicializa prefixo; falhas possuem diagnóstico atribuível.
+**Testes e asserts:** Manifesto/depot confirma conteúdo Windows e build macOS não selecionado; jogo inicia pelo Steam nativo sem cliente Windows; biblioteca e saves originais preservados; reabrir não reinicializa prefixo; falhas possuem diagnóstico atribuível.
 
 **Verificação:** Verificação funcional pela UI do Steam e do jogo, com logs da execução correlacionados. Esperado: gameplay real pelo novo fluxo; menu sozinho não basta.
 

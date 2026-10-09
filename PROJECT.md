@@ -34,7 +34,7 @@ Atualizado: 2026-10-09 · Autor: codex
 
 Instalar versões Windows e iniciar pelo Steam nativo Mac com Sikarugir 11.0 revision 0 fixado. A base será validada com jogo simples legitimamente disponível, instalação nova em biblioteca isolada; Cities II opcional depois, sem gate de localização/build/Cloud. Não é suporte a qualquer engine ou garantia de todos os jogos.
 
-Todos #1–#16: Prontidão = Aguarda revisão do plano novo; Status diferente de Done. Aprovações anteriores não liberam implementação/probes. Revisão Claude Code Opus preparada em [recado](docs/reviews/claude-opus-scope-review.md), sem iniciar sessão. T01 fonte/patchset, T03–T05 ABI/API reais, suporte Steam/assinatura e rollback permanecem obrigatórios. T12 mantém Luna 6 e >=15 minutos com persistência/reabertura (save se suportado, dados pertinentes/configuração caso contrário). #18 não Done.
+Claude Code Sonnet 5.5 revisou o reescopo e recomendou aprovação com ajustes F1–F8 em [findings](docs/reviews/claude-scope-review-findings.md). Elvis decidiu gerar perfil de assinaturas para o build Steam atual, solicitar ao mantenedor o manifesto da engine ([pedido](https://github.com/Sikarugir-App/Sikarugir/issues/288)) e escolher o jogo-base após T02. Ajustes documentais incorporados; sincronizar cards antes de iniciar T01/T02. T01/T02 podem rodar em paralelo; T01 permanece bloqueado até fonte/patchset exatos. T03–T05 ainda exigem ABI/API reais; rollback continua obrigatório. T12 mantém Luna 6 e >=15 minutos com persistência/reabertura (save se suportado, dados pertinentes/configuração caso contrário). #18 não Done.
 
 ## Execução e estado (histórico anterior ao reescopo)
 
@@ -42,9 +42,9 @@ Estado inicial: 4 épicos e 12 cards em Todo, com Prontidão = Aguarda revisão 
 
 Readback em 2026-10-08 confirmou os 16 itens, 12 relações pai/filho, 14 bloqueadores nativos, todos os campos de responsabilidade e igualdade dos documentos locais/remotos. Distribuição: 4 épicos coordenados por Astra, 11 cards Sol 6.1 e 1 card Luna 6; cada card contém alternativa Claude Code.
 
-O plano usa subagentes por card e revisão independente. Após sua revisão por Elvis, liberar T01/T02; os demais só avançam após dependências e gates. Modelos indicados não são contas GitHub nem representam agentes já executando.
+O plano usa subagentes por card e revisão independente. Após a revisão Sonnet 5.5 e decisões de Elvis, liberar T01/T02 quando os ajustes documentais e os cards estiverem sincronizados; os demais só avançam após dependências e gates. Modelos indicados não são contas GitHub nem representam agentes já executando.
 
-T01/T02 podem ocorrer em paralelo em territórios distintos. T03–T12 são sequenciais pelo acoplamento das interfaces. Ao fechar cada card, incluir evidência, commit, checks e sincronizar Status; o épico só fecha depois de seus filhos e gate.
+T01/T02 podem ocorrer em paralelo em worktrees/territórios distintos. T03–T12 são sequenciais pelo acoplamento das interfaces. Ao fechar cada card, incluir evidência, commit, checks, pedido de revisão a Claude Code Opus 5.5 e sincronizar Status; o épico só fecha depois de seus filhos e gate.
 
 Nenhuma implementação começou. Runtime, save/reabertura e rollback continuam não executados.
 
@@ -56,4 +56,4 @@ Autor: codex. Branch `codex/sikarugir-ubisoft-1.1.1`. T01/T02 retomados por Sol 
 
 ## Execução dos cards — 2026-10-09
 
-Autor: codex. Branch `codex/sikarugir-card-execution`; T01/T02 executados por `gpt-6.1-sol`, revisão por `gpt-6-astra`. T01 segue bloqueado pela origem da fonte/patchset. T02 possui backup independente de quatro saves locais e investigação direta no filesystem, sem localização atual do jogo nas áreas acessíveis; compatibilidade Steam e Cloud não comprovadas. Cards In Progress / Bloqueado por dependência, sem gates encerrados. Demais cards aguardam seus predecessores.
+Autor: codex. Branch `codex/sikarugir-card-execution`; T01/T02 anteriores executados por `gpt-6.1-sol`, revisão por `gpt-6-astra`. T01 segue bloqueado pela origem da fonte/patchset. T02 possui backup independente de quatro saves locais e investigação direta no filesystem, sem localização atual do jogo nas áreas acessíveis; perfil de assinatura para o Steam atual ainda precisa ser validado; Cloud não comprovada. Esses registros são históricos e serão migrados/conferidos no escopo reespecificado antes do fechamento dos cards.

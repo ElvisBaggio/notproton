@@ -2,7 +2,7 @@
 
 Data: 2026-10-08 · Autor: codex · Planejamento e revisão: Astra
 
-Estado: reescopo autorizado por Elvis em 2026-10-09. Todos os cards aguardam revisão do plano novo; implementação e probes suspensos. A aprovação de 2026-10-08 refere-se ao escopo anterior e fica preservada como histórico, sem liberar os gates novos.
+Estado: Claude Code Sonnet 5.5 revisou em 2026-10-09 e recomendou aprovação com ajustes F1–F8. Elvis decidiu gerar perfil Steam para o build atual, solicitar ao mantenedor o manifesto da engine e selecionar o jogo-base após T02. Aplicar os ajustes documentais antes de liberar T01/T02; aprovação anterior refere-se ao escopo antigo.
 
 ## 1. Resultado esperado
 
@@ -76,7 +76,7 @@ Steam nativo do macOS
 
 ### 5.1 Integração com Steam
 
-Reutilizar a detecção de jogos, a seleção de ferramenta de compatibilidade e a integração de inicialização existentes no NotProton. Verificar a versão efetiva do cliente Steam e as assinaturas suportadas antes de qualquer modificação.
+Reutilizar a detecção de jogos, a seleção de ferramenta de compatibilidade e a integração de inicialização existentes no NotProton. Verificar a versão efetiva do cliente Steam e validar um perfil de assinaturas correspondente a esse build antes de qualquer modificação. O perfil é gerado/validado para o build atual inventariado; não fixar ou desabilitar updates como atalho. A validação deve confirmar correspondência de build e resolver todas as assinaturas necessárias; o perfil mais recente não é suficiente se for de outro build.
 
 Registrar a ferramenta com identidade própria, distinta das ferramentas CrossOver. O fluxo aceito precisa partir do botão Jogar do Steam nativo; um atalho que simplesmente abre o Steam Windows no wrapper não atende ao objetivo.
 
@@ -98,7 +98,7 @@ Trabalhar inicialmente no caminho x86_64/Rosetta. Validar também arquitetura, d
 
 ### 5.4 Ambiente do jogo
 
-Criar prefixo e biblioteca de teste exclusivos. Selecionar jogo Windows simples legitimamente disponível e registrar AppID, build, renderer e dependências observadas. Instalar a versão Windows do zero via Steam nativo; não reutilizar biblioteca, prefixo ou saves do Cities II.
+Criar prefixo e biblioteca de teste exclusivos. Depois do inventário T02, selecionar jogo pequeno, somente Windows (sem build/depot macOS), que inicialize a API Steam, tenha save ou configuração persistente identificável e conta/Cloud conhecidos. Registrar AppID/build e evidência de elegibilidade antes de T05. Instalar a versão Windows do zero via Steam nativo; confirmar por manifesto/depot que o conteúdo Windows foi selecionado; não reutilizar biblioteca, prefixo ou saves do Cities II.
 
 T02 inventaria Steam, NotProton e wrapper, prepara rollback geral e protege dados existentes. Seu schema não exige campos de jogo; `referenceGame` é opcional. Localização/build/Cloud do Cities II não bloqueiam o inventário. T11 verifica espaço e Cloud do jogo selecionado antes de tocá-lo; não sobrescrever versões locais/remotas nem resolver conflitos automaticamente.
 
