@@ -69,3 +69,25 @@ Esses resultados são negativos dentro das superfícies públicas consultadas, s
 **Opções para destravar:** (1) obter do mantenedor o commit/arquivo de fonte, série ordenada de patches com hashes e opções/toolchain usados para o asset `WS12WineSikarugir11.0.tar.xz`, identificado pelo SHA-256 acima; (2) localizar esse manifesto em uma publicação oficial ainda não encontrada; (3) se a fonte permanecer indisponível, retornar ao planejamento para aprovação explícita de outra engine com fonte demonstrável. A opção 3 muda a versão fixada e invalida os hashes/hooks planejados; não foi aplicada. Uma compilação a partir do tag upstream 11.0 ou do Portfile candidato não satisfaz o aceite de T01.
 
 **Readback:** `engine-lock.json` mantém `status=blocked-source-provenance` e `sourceURL/sourceCommit/sourcePatches=null`. As faltas de mingw/Capstone e bison antigo já registradas continuam sem instalação neste card; não há build correspondente ou prova de ABI. Wrapper, prefixos, biblioteca e runtime vivo preservados.
+
+
+## Retomada após revisão F1–F8 — 2026-10-09
+
+Executor: `t01_engine_provenance` · Cliente: Codex · Modelo efetivo: `gpt-6.1-sol` · Branch: `codex/t01-engine-provenance` · Base: `b09836e`.
+
+**Resultado: BLOCKED — aguardando manifesto do mantenedor.** A revisão Sonnet 5.5 e a incorporação de F1–F8 liberam esta auditoria; não substituem a comprovação de fonte, patchset e opções da build. O [pedido público autorizado por Elvis](https://github.com/Sikarugir-App/Sikarugir/issues/288) está aberto e sem comentários na consulta desta rodada. As afirmações anteriores sobre ausência de contato descrevem as rodadas históricas anteriores a esse pedido.
+
+### Readback desta rodada
+
+- A API da [release oficial v1.0](https://github.com/Sikarugir-App/Engines/releases/tag/v1.0) ainda informa o asset com 167224628 bytes e digest `sha256:dcb3de3acab2eaf37591768dc7f6f6c20fa8e6b69c88ddd61e63798c02befcf9`.
+- Os cinco arquivos da tabela e `version` foram relidos no wrapper e na extração histórica `package-reference/wswine.bundle`; todos os hashes coincidem com os valores publicados. Cada caminho foi resolvido e conferido dentro de sua raiz antes da leitura. Loader, wineserver e ntdll Unix são Mach-O x86_64; ntdll Windows são PE32+ x86-64 e PE32 i386. `otool -L bin/wine` continua listando libSystem.
+- O pacote `.tar.xz` original não foi localizado na busca limitada ao nome exato em Downloads e scratch do projeto; não foi baixado nem relido nesta rodada. A comparação atual cobre a extração histórica e os cinco arquivos instalados, sem afirmar integridade de todo o pacote, wrapper ou prefixo.
+- Clang 21.0.0, Swift 6.4, SDK 27.0, CMake 4.4.4, Python 3.14.8 e flex 2.6.4 confirmados. `i686-w64-mingw32-gcc` e `x86_64-w64-mingw32-gcc` ausentes do PATH; Capstone ausente nesse Python; bison 2.3 continua antigo para o script existente. Nenhuma dependência foi instalada.
+- Receipt Rosetta presente. A execução x86_64 PASS permanece evidência histórica; nenhum novo probe Rosetta, execução Wine, build ou teste de ABI foi realizado.
+- O lock local do worktree foi salvo com modo `0600`, relido e comparado com sua estrutura em memória. Conserva schemaVersion=1, runnerID `sikarugir-11.0-r0`, status `blocked-source-provenance` e `sourceURL/sourceCommit/sourcePatches=null`; registra esta revalidação e seus limites. Não é consumível por T03.
+
+A resolução de `sourceCommit` segue **BLOCKED**, pois o mantenedor ainda não forneceu commit exato, patches ordenados e opções/toolchain explicitamente vinculados ao digest do asset. T01 permanece aberto/não Done; T03 não deve iniciar. Nenhum binário ou arquivo do wrapper, engine, prefixo, biblioteca ou saves foi escrito por esta execução.
+
+### Pedido de revisão ao Claude Code Opus 5.5
+
+Revisar esta evidência e o lock local, com foco na distinção entre identidade binária e proveniência, limites da comparação, campos de fonte nulos e bloqueio de T03. Registrar cliente e modelo efetivo do revisor antes da revisão; Opus 5.5 é o modelo solicitado, ainda não executado. A revisão deste relatório não encerra o gate de proveniência ou de runtime.
