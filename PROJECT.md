@@ -47,3 +47,7 @@ Nenhuma implementação começou. Runtime, save/reabertura e rollback continuam 
 Autor: codex. Branch `codex/sikarugir-ubisoft-1.1.1`. T01/T02 retomados por Sol 6.1 com evidências; T01 bloqueado por fonte/patchset e T02 parcial. Nenhum gate runtime encerrado.
 
 [M01 / #18](https://github.com/ElvisBaggio/notproton/issues/18): `upstream_update` / `gpt-6.1-sol`, revisão independente Astra. Backport do patch agregado 1.1.1 e versão; teste de contrato host e checks bridge/route passaram. Build PE e descoberta no Ubisoft Connect continuam pendentes. Não confundir esta manutenção com conclusão de T03/T08 ou integração Sikarugir funcional.
+
+## Execução dos cards — 2026-10-09
+
+Autor: codex. Branch `codex/sikarugir-card-execution`; T01/T02 executados por `gpt-6.1-sol`, revisão por `gpt-6-astra`. T01 segue bloqueado pela origem da fonte/patchset. T02 possui backup independente de quatro saves locais e investigação direta no filesystem, sem localização atual do jogo nas áreas acessíveis; compatibilidade Steam e Cloud não comprovadas. Cards In Progress / Bloqueado por dependência, sem gates encerrados. Demais cards aguardam seus predecessores.

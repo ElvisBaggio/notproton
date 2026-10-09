@@ -2,7 +2,7 @@
 
 Data: 2026-10-08 · Autor: codex · Planejamento e revisão: Astra
 
-Estado: especificação aprovada por Elvis em 2026-10-08 ao solicitar avanço e publicação do planejamento no GitHub. Plano escrito e execução ainda dependem de revisão. A publicação de repositório, épicos e cards está autorizada.
+Estado: especificação aprovada por Elvis em 2026-10-08 ao solicitar avanço e publicação do planejamento no GitHub. Plano revisado por Astra e execução incremental autorizada por Elvis; T01/T02 liberados, demais cards dependem de seus predecessores e gates. A publicação de repositório, épicos e cards está autorizada.
 
 ## 1. Resultado esperado
 
@@ -160,6 +160,6 @@ Manter um registro curto de versão do Steam, build do jogo, engine, hashes e re
 
 ## 10. Próxima etapa e limites desta entrega
 
-Com esta especificação aprovada, usar a skill `writing-plans` para produzir o plano de implementação, com tarefas, arquivos, testes, critérios de parada e delegação aos modelos permitidos. A execução só começa após revisão do plano e escolha do método de execução.
+Com esta especificação aprovada, usar a skill `writing-plans` para produzir o plano de implementação, com tarefas, arquivos, testes, critérios de parada e delegação aos modelos permitidos. Revisão e execução por subagentes autorizadas; a sequência permanece sujeita aos gates de fonte, ABI, API real, jogo e persistência.
 
 Este registro não inclui produto implementado, prova de viabilidade executada, dependências instaladas nem alterações nas instalações de Steam, NotProton e Sikarugir. Elvis autorizou posteriormente a publicação dos documentos, épicos e cards no repositório pessoal privado `ElvisBaggio/notproton` e no Project associado.

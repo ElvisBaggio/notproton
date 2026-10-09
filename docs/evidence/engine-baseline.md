@@ -16,7 +16,7 @@ A engine do wrapper declara `wine sikarugir 11.0 (revision 0)`. O pacote local `
 | `lib/wine/x86_64-windows/ntdll.dll` | `da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676` | MATCH |
 | `lib/wine/i386-windows/ntdll.dll` | `e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589` | MATCH |
 
-`file` identifica bin/wine como Mach-O x86_64 e ntdll.so como biblioteca Mach-O x86_64. `otool -L bin/wine` registra apenas libSystem; isso não prova ausência de dependências transitivas da engine. O receipt com.apple.pkg.RosettaUpdateAuto existe; execução x86_64 não foi testada.
+`file` identifica bin/wine como Mach-O x86_64 e ntdll.so como biblioteca Mach-O x86_64. `otool -L bin/wine` registra apenas libSystem; isso não prova ausência de dependências transitivas da engine. O receipt com.apple.pkg.RosettaUpdateAuto existe; execução Rosetta passou posteriormente com executável mínimo x86_64 isolado, conforme seção de aprofundamento. Wine original não foi executado.
 
 ## Proveniência
 
@@ -35,4 +35,37 @@ O build existente fixa Wine 11.15 (`2df1ee28039cf84776eb1421ed90bd154cebb65f`) e
 
 ## Verificação
 
-Assert de SHA-256 passou para os cinco arquivos listados entre pacote e instalado; version também coincide. Lock foi escrito e relido com igualdade de estrutura. Nenhum arquivo do wrapper foi escrito. Fonte exata, build reproduzível, execução Rosetta, API Steam e fluxo Ubisoft Connect continuam NOT RUN/indeterminados.
+Assert de SHA-256 passou para os cinco arquivos listados entre pacote e instalado; version também coincide. Lock foi escrito e relido com igualdade de estrutura. Nenhum arquivo do wrapper foi escrito. Execução Rosetta passou com executável mínimo isolado; fonte exata e build reproduzível permanecem indeterminados. Wine original, API Steam e fluxo Ubisoft Connect continuam NOT RUN.
+
+## Aprofundamento após liberação dos cards
+
+A revisão incremental liberou T01/T02, na branch `codex/sikarugir-card-execution`. O inventário foi ampliado sem tocar instalações.
+
+- O tag público [wine-11.0](https://github.com/Sikarugir-App/wine/releases/tag/wine-11.0) resolve ao commit `db11d0fe6a169c457e23d007e20404643d067aa8`; a branch stable em Gcenx/wine coincide. Isso identifica Wine upstream 11.0, sem provar que foi a fonte usada na engine personalizada.
+- A API de refs de Sikarugir-App/wine e Gcenx/wine não retornou refs cujo nome contenha Sikarugir; busca GitHub de código por Sikarugir nesses dois repositórios não retornou resultados. Resultados negativos de busca não demonstram inexistência de fonte privada ou removida.
+- O [commit de publicação](https://github.com/Sikarugir-App/Engines/commit/3f6f7e2beacff563fd849dd6ec8da7a6b5dbb1e0) adiciona WS12WineSikarugir11.0 ao EngineList em 2026-09-25, sem diff de build, commit de Wine ou patchset.
+- Engines expõe somente workflow de publicação de GitHub Pages; APIs de workflows de Sikarugir-App/wine e Gcenx/wine não forneceram workflow de build vinculando o asset.
+- [Portfile wine-stable](https://github.com/Gcenx/macports-wine/blob/main/emulators/wine-stable/Portfile) usa Wine11.0 e lista llvm-mingw_fixes.patch e 0001-win32u-Enable-host-Vulkan-portability-enumeration.diff. É candidato de receita, sem ligação demonstrada com o pacote Sikarugir; não adotado como patchset efetivo. Portfile sikarugir empacota Creator1.0.1, não a engine.
+- Strings da ntdll.so do pacote revelam `wine-11.0 (Sikarugir)` e `SikarugirAppWine11`, confirmando identidade personalizada; não fornecem commit de fonte.
+
+**Rosetta PASS:** Clang compilou um executável mínimo x86_64 em scratch; `file` confirmou Mach-O x86_64 e `arch -x86_64` executou com `X86_64_EXECUTION=ok`, exit0. Wine original e prefixos não foram executados. Bison efetivo é 2.3; flex 2.6.4.
+
+**Destravamento concreto:** obter manifesto da build desse asset/digest contendo commit do Wine, patches aplicados e opções de build, ou localizar release/arquivo público que vincule esses três itens ao pacote. Nenhum contato externo foi enviado. Até isso ocorrer sourceCommit/sourcePatches permanecem null; T03 não deve começar a partir de candidatos. Não substituir engine ou remover o requisito de fonte para satisfazer o gate.
+
+
+## Retomada T01 — 2026-10-09
+
+Executor: `engine_audit_resume` · Codex / `gpt-6.1-sol`. Resultado: **BLOCKED**, sem alteração dos cinco hashes já validados e sem execução de T03.
+
+A consulta ampliada às árvores, branches e releases públicas por API GitHub não encontrou vínculo demonstrável entre o pacote fixado e uma árvore de fonte personalizada:
+
+- [Branches de Sikarugir-App/wine](https://api.github.com/repos/Sikarugir-App/wine/branches?per_page=100): somente `master` (`455e3509b98a6919fd4ad1def4803e08c41c03b2`). [Gcenx/wine](https://api.github.com/repos/Gcenx/wine/branches?per_page=100): `master`, `stable` (`db11d0fe6a169c457e23d007e20404643d067aa8`) e `oldstable` (`b073859675060c9211fcbccfd90e4e87520dc2c2`). Nenhuma dessas branches identifica a personalização presente nas strings do binário.
+- [Árvore pública de Engines](https://github.com/Sikarugir-App/Engines): README, EngineList, página e workflow estático. [Assets da release](https://api.github.com/repos/Sikarugir-App/Engines/releases/tags/v1.0) não incluem asset nomeado como fonte/source/src. O arquivo automático “Source code” do GitHub corresponde a esse repositório de publicação, não demonstra conter fonte Wine correspondente.
+- [Gcenx/macOS_Wine_builds README](https://github.com/Gcenx/macOS_Wine_builds): lista dependências MacPorts, llvm-mingw e opções de configure para seus pacotes Winehq. Esta documentação ajuda a preparar ferramentas, mas não identifica o patchset nem a receita da engine Sikarugir fixada. Não transpor suas opções para `engine-lock.json` como se fossem a build efetiva.
+- [Gcenx/wine-packaging](https://github.com/Gcenx/wine-packaging/tree/master/packaging-wine/macosx) possui scripts genéricos de empacotamento; não há identificação do asset Sikarugir 11.0 r0 na árvore consultada. [Gcenx/wine-on-mac](https://github.com/Gcenx/wine-on-mac) deixa a seção de build como TODO. [Sikarugir-foss-sources](https://github.com/Sikarugir-App/Sikarugir-foss-sources) contém a árvore do aplicativo; não fornece o vínculo faltante da engine. Winerosetta é uma biblioteca auxiliar separada e não resolve a fonte de ntdll/Wine.
+
+Esses resultados são negativos dentro das superfícies públicas consultadas, sem afirmar inexistência de fontes em outros locais. Nenhum programa externo desses repositórios foi executado; nenhum contato ou issue foi enviado ao mantenedor.
+
+**Opções para destravar:** (1) obter do mantenedor o commit/arquivo de fonte, série ordenada de patches com hashes e opções/toolchain usados para o asset `WS12WineSikarugir11.0.tar.xz`, identificado pelo SHA-256 acima; (2) localizar esse manifesto em uma publicação oficial ainda não encontrada; (3) se a fonte permanecer indisponível, retornar ao planejamento para aprovação explícita de outra engine com fonte demonstrável. A opção 3 muda a versão fixada e invalida os hashes/hooks planejados; não foi aplicada. Uma compilação a partir do tag upstream 11.0 ou do Portfile candidato não satisfaz o aceite de T01.
+
+**Readback:** `engine-lock.json` mantém `status=blocked-source-provenance` e `sourceURL/sourceCommit/sourcePatches=null`. As faltas de mingw/Capstone e bison antigo já registradas continuam sem instalação neste card; não há build correspondente ou prova de ABI. Wrapper, prefixos, biblioteca e runtime vivo preservados.

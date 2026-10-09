@@ -10,7 +10,7 @@
 
 **Spec:** [2026-10-08-sikarugir-cities2-design.md](../specs/2026-10-08-sikarugir-cities2-design.md)
 
-**Estado:** especificação aprovada em conversa; plano e cards preparados para revisão. Publicação não inicia implementação. Base: `05a27874798ffbffb8e64a37595bde6f16d5320a`.
+**Estado:** execução autorizada explicitamente por Elvis em 2026-10-08 e plano revisado por Astra para execução incremental. T01/T02 liberados; os demais exigem predecessores e gates concluídos. Base: `05a27874798ffbffb8e64a37595bde6f16d5320a`.
 
 ## Global Constraints
 
@@ -403,6 +403,6 @@ let root = SupportPaths.clonedRoot(forBuild: build.id, runners: URL(filePath: "/
 
 ## Revisão do plano e método de execução
 
-Método recomendado: subagentes por card, com revisor separado. Default Sol 6.1 e Luna 6 conforme tabela; Claude Code é alternativa por card, não execução paralela dos mesmos arquivos. A publicação do board está autorizada; aguardar revisão deste plano antes de executar produto ou probes.
+Método recomendado: subagentes por card, com revisor separado. Default Sol 6.1 e Luna 6 conforme tabela; Claude Code é alternativa por card, não execução paralela dos mesmos arquivos. A execução foi autorizada por Elvis e o plano aprovado por Astra em 2026-10-08. Avançar incrementalmente, sem tratar autorização como conclusão das dependências ou gates.
 
 Cobertura conferida: spec §§1/6 → T05/T10–T12; §§2/4 → política e todos os cards; §§3/5.3 → T01/T03–T05; §§5.1/5.2 → T06–T09; §5.4 → T02/T11/T12; §7 → T02/T07–T12; §8 → testes de cada card. Os valores desconhecidos de fonte, offsets e versão atual do jogo são entregas bloqueantes de T01/T02/T04, não placeholders de implementação.
