@@ -3,14 +3,16 @@
 Data: 2026-10-09 · Agente: codex · Executor: gpt-6.1-sol · Cliente: Codex.
 Branch: `codex/t02-steam-baseline` · Base documental: `b09836e`.
 
-## Resultado atual: BLOCKED por perfil Steam ausente
+## Resultado atual: perfil Steam 1791415817 gerado e validado estaticamente; T02 aguarda revisão
 
-O schema atual foi preenchido, o inventário foi revalidado e o ensaio de recuperação passou. T02 permanece **In Progress / BLOCKED** porque não há perfil exato validado para o build observado **1791415817**. A localização/build/Cloud do Cities II é referência opcional histórica e não bloqueia o inventário base. Nenhum jogo-base foi selecionado; isso ocorrerá após T02, pelos critérios D1 do plano.
+Atualização 2026-10-09 · Agente: claude · Modelo efetivo: `sonnet` (Claude Sonnet 5.5) · Branch `claude/t02-steam-profile`. O bloqueio único (perfil exato do build **1791415817**) foi resolvido: `signatures/macos.arm64/1791415817.json` tem as 18 assinaturas resolvidas por âncora nos binários do build, com padrão de bytes único e endereços conferidos por decodificação independente (seção "Perfil 1791415817"). Limites: o `anchorcheck`/`make sigdb-fixtures` com `dlopen` **NOT RUN** (executaria construtores do Steam real) e nenhum runtime foi exercitado. T02 **não** fica Done sem a revisão independente (Claude Code Opus 5.5).
+
+Registro anterior (Codex): O schema atual foi preenchido, o inventário foi revalidado e o ensaio de recuperação passou. T02 permanecia **In Progress / BLOCKED** porque não havia perfil exato validado para o build observado **1791415817**. A localização/build/Cloud do Cities II é referência opcional histórica e não bloqueia o inventário base. Nenhum jogo-base foi selecionado; isso ocorrerá após T02, pelos critérios D1 do plano.
 
 | Critério | Readback atual | Estado |
 |---|---|---|
 | Steam nativo | Última linha `Client version`, em 2026-10-08 13:47:01: **1791415817** | Evidência de log; runtime NOT RUN |
-| Perfil exato | Fonte e suporte instalado contêm somente **1788400362, 1789086785, 1790904859** | **BLOCKED**; nenhum perfil 1791415817 gerado/validado |
+| Perfil exato | Fonte agora contém **1791415817** (além de 1788400362, 1789086785, 1790904859); suporte instalado ainda só tem os três antigos (nada implantado) | Perfil gerado e validado estaticamente (18/18); runtime NOT RUN |
 | NotProton | App instalado e suporte **1.1.0**; fonte `dylib/version.h` **1.1.1** | Readback PASS; não houve implantação |
 | Injeção preexistente | Plist externo declara o `notproton.dylib` do Steam.app; plist interno não declara `DYLD_INSERT_LIBRARIES` | Estado anterior preservado; não comprova funcionamento |
 | Updates | Marcador `package/beta` = **publicbeta**; os dois `steam.cfg` previstos por UpdateBlock estão ausentes | Nenhum bloqueio de updates nesses arquivos; política não alterada |
@@ -36,6 +38,61 @@ Um harness descartável reutilizou `np_load_profile`/`np_free_profile`, `sigdb.c
 
 `make sigdb-fixtures` e `anchorcheck` completos são **NOT RUN**: carregam bibliotecas Steam por `dlopen`, que pode executar construtores. Não há gerador de perfil no repositório; preencher build/endereço/bytes a partir de perfil antigo seria inferência. A geração/validação exata requer análise específica dos binários e fica pendente para uma etapa com escopo apropriado. Nenhum perfil foi renomeado/copiado como se fosse do build atual, nenhuma biblioteca Steam foi carregada e nenhum hook/injeção foi instalado nesta execução.
 
+## Perfil 1791415817: método e resultado (claude, `sonnet`)
+
+**Build ativo.** `logs/content_log.txt`: `Client version: 1791415817` em 2026-10-08 13:47:01 (antes, 1790904859 às 13:43:17); `logs/bootstrap_log.txt`: manifesto baixado `steam_client_publicbeta_osx version 1791415817`. O `package/steam_client_publicbeta_signed-2_osx.manifest` instalado declara `version 1791415817` e `package/beta` = `publicbeta`. Leitura somente; nada gravado no Steam.
+
+**Cópias e hashes** (em `scratch/steam-1791415817/`, ignorado; binários não commitados):
+
+| Arquivo | SHA-256 |
+|---|---|
+| `steamclient.dylib` (universal, cópia do original) | `3db7cac83567792f98bc36e4f545bba6cb9aaa545846c02e489e07f0ba4ff6ec` |
+| `steamui.dylib` (universal, cópia do original) | `51958623e20047a07e76fa92e31443287ecb3a406164aff08ea8e2e6270a21ce` |
+| `steamclient.arm64` (fatia arm64, `lipo -thin`) | `d6557fb939914d92887e41568a83481efeb700eae7fe21eb264e880b562b11a6` |
+| `steamui.arm64` (fatia arm64) | `d6a74cb50dbc35193a8e8bbc24c27d6c65d9443faa7d43eb8fa54932037e1462` |
+| `signatures/macos.arm64/1791415817.json` (gerado) | `955abf5cda35c423fe1d9af99efd1764124ce2318a0bfa06e1b7c1c4ddd6dd47` |
+
+**Método.**
+1. `dylib/tests/sigstatic.c` (novo) monta a fatia arm64 em memória anônima (segmentos nos vmaddr; opcodes de rebase clássicos aplicados, pois os binários usam `LC_DYLD_INFO_ONLY`, sem chained fixups) e chama o mesmo `np_locate_anchor`, `np_aob_site` e `np_rtti_vptr` do dylib. Nenhum código da imagem executa e não há `dlopen`. Rodado só sobre as cópias.
+2. As âncoras do perfil 1790904859 (strings, `caller_hops`, pares de instruções, `calls`) foram reaplicadas ao binário novo; endereços e bytes saem do binário novo. Controle negativo: o perfil antigo contra o binário novo dá 13 problemas (6 padrões não casam, 7 endereços gravados divergem). As 5 assinaturas cujo endereço não mudou (3 de WebUI, 2 de steamui) coincidem com os gravados, o que valida o harness.
+3. `sigstatic --emit` e `dylib/tests/sigprofile.py` (novo) geram o JSON: o modelo fornece só nomes, módulo e definição de âncora. O padrão antigo é mantido apenas se casar de forma única no endereço da âncora do binário novo; senão é refeito a partir dos bytes novos (instruções dependentes de posição viram `??`) e ampliado até ser único em `__TEXT`. Resultado: 12 padrões mantidos (confirmados no binário novo) e 6 refeitos.
+4. Verificação independente (scripts descartáveis em Python com `objdump`/`otool`): para cada âncora de steamclient, string única, xref e função contendo conferem via ADRP/ADD/LDR decodificados à parte e `LC_FUNCTION_STARTS`; `caller_hops`/`caller_tail` têm um único chamador; os pares de instruções têm exatamente um acerto; as duas âncoras `calls` de steamui conferem com as stubs `_V_GetFileExtension` e `_V_strnicmp` (`otool -Iv`).
+
+**Resultado por assinatura** (endereços não deslocados; `=` mantém o endereço do perfil anterior):
+
+| Assinatura | Módulo | Âncora | Endereço 1791415817 | Padrão |
+|---|---|---|---|---|
+| CCompatManager::Init | steamclient | string | 0x6ac7b4 (era 0x6a0e50; corpo mudou) | refeito |
+| CCompatManager::BIsCompatibilityToolEnabled | steamclient | string | 0x6a492c | mantido |
+| CCompatManager::YldRegisterTool | steamclient | string | 0x6a8a10 | mantido |
+| CCompatManager::GetOSListOverrideForApp.oslist_gate | steamclient | insn_pair | 0x6a4548 | refeito |
+| CCompatManager::ResolveCompatToolForApp.local_redirect | steamclient | insn_pair | 0x6a4638 | refeito |
+| CAppManager::TerminateProcessByPid | steamclient | string indireta + 1 hop | 0xdd4d4 | refeito |
+| CCompatManager::FindToolForTargetApp | steamclient | string | 0x6a4034 | refeito |
+| CCompatManager::GetValidPlatforms | steamclient | string | 0x6a2aa0 | mantido |
+| CWebUIJobDispatcher::RegisterHandler | steamclient | string | = 0x93e60 | mantido |
+| CWebUITransport::DispatchJob | steamclient | string | = 0x94064 | mantido |
+| CWebUIMsgJob::SendResponse | steamclient | string | = 0x9453c | mantido |
+| CCompatManager::SetCompatToolMapping | steamclient | string + 1 hop (tail) | 0x6a3d84 | mantido |
+| CCompatManager::InternalSpecifyCompatTool | steamclient | string | 0x6a2f04 | mantido |
+| CCompatManager::FindMapping | steamclient | string | 0x6a4210 | mantido |
+| CCompatManager::GetWildcardMapping | steamclient | string | 0x6a4288 | refeito |
+| LaunchBuilder::SteamVRSupportCheck | steamclient | string | 0xb250cc | mantido |
+| steamui::ShortcutExtensionMatches | steamui | calls | = 0xa5478 | mantido |
+| steamui::ShortcutIconRender | steamui | calls | = 0xa55fc | mantido |
+
+Também foram lidos os 8 vptrs RTTI (`14CCompatManager` 0x1743c80 etc.), conferidos por decodificação independente (typeinfo para vtable primária), e acrescentados à tabela de `anchorcheck.c` para o build 1791415817.
+
+**Checks.** `sigstatic` sobre o perfil novo e os dois módulos: 18/18 âncoras resolvidas, padrão e endereço gravado coincidentes, 8/8 vptrs, **0 problemas**. `python3 dylib/tests/sigcheck.py`: 4 perfis, 18 assinaturas cada, todas referenciadas. As 40 fixtures de `sigdb-fixtures` passaram pelo `sigstatic` sem crash (só robustez; os status de `EXPECTED` são do `anchorcheck` e não foram reproduzidos). `anchorcheck.c` compila (`-fsyntax-only`).
+
+**Limites e riscos.**
+- `anchorcheck` e `make sigdb-fixtures` **NOT RUN**: fazem `dlopen` do `steamclient.dylib` instalado (caminho fixo sob `~/Library/Application Support/Steam`, não das cópias), com construtores e dependências `@loader_path`; não é seguro nem viável apontar para `scratch/`. O equivalente estático é o `sigstatic`. Diferença conhecida: o `dlopen` real aplica o runtime ObjC aos slots de seletor; a leitura estática usa os slots do arquivo (ponteiros para a própria string). Só a execução real do `anchorcheck` confirmaria o ramo `uniqued_selector` da âncora indireta de `TerminateProcessByPid`.
+- `steamui::ShortcutIconRender` usa seletores ObjC; os endereços vêm do resolvedor (mesmo código que casou o perfil anterior), sem decodificação independente dos nomes de seletor.
+- O perfil não foi instalado no suporte do NotProton nem testado com o loader; nenhum hook, injeção, update ou arquivo do Steam/NotProton foi alterado. Se o Steam atualizar, o perfil precisa ser regerado (`sigstatic --emit` e `sigprofile.py` a partir do perfil mais recente, depois `sigstatic` de novo).
+- Os padrões refeitos usam a regra de máscara de `sigstatic.c` (ADRP/ADR, B/BL/B.cond, CBZ/TBZ, LDR literal e deslocamento de página após ADRP). Nos 12 padrões mantidos a regra reproduz o antigo, exceto em `YldRegisterTool`, onde o padrão antigo (mantido) não mascara um LDR após ADRP.
+
+Reprodução: compilar `dylib/tests/sigstatic.c` com `dylib/core/macho.c`, `dylib/resolver/{aob,anchor,resolver,sigdb}.c`, `dylib/util/{log,file}.c` e `vendor/cJSON.c` (`clang -arch arm64 -Idylib -Ivendor`), depois `sigstatic [--emit out.tsv] signatures/macos.arm64/<build>.json steamclient.dylib=<cópia> steamui.dylib=<cópia> [rtti:<tipo>...]`. O manifesto `scratch/sikarugir/system-baseline.json` não existe neste worktree (fica no checkout do Codex); o `steamSupportEvidence` correspondente deve registrar: perfil 1791415817 na fonte, validado estaticamente, não implantado no suporte instalado.
+
 ## Manifesto local e preservação
 
 `scratch/sikarugir/system-baseline.json`, **schemaVersion=1**, modo **0600**, diretório **0700**, contém `steamClientBuild`, `steamSupportEvidence`, `wrapperState`, `diskFreeBytes` e `touchedFiles`. `referenceGame` preserva a referência opcional Cities II. A evidência anterior completa fica em `historicalEvidence`; os backups antigos mantêm suas referências originais, sem mudar nem recriar os saves.
@@ -48,7 +105,7 @@ Não foram repetidas as buscas globais de jogos, nem acessadas áreas antes nega
 
 ## Próximo passo e revisão
 
-1. Gerar e validar um perfil exato para **1791415817**, incluindo todos os anchors/bytes necessários, em escopo apropriado; repetir o readback se Steam atualizar. Não fixar ou desabilitar updates para contornar o gate.
+1. Perfil exato para **1791415817**: gerado e validado estaticamente (ver seção acima). Repetir o readback se o Steam atualizar; não fixar ou desabilitar updates para contornar o gate. Opcional: Elvis roda `make anchorcheck` por conta própria no Steam real para fechar o ramo `dlopen`.
 2. Solicitar revisão independente a **Claude Code Opus 5.5**, conforme pedido de Elvis; o revisor registra modelo efetivo e separa parser/nome de suporte real do cliente. T02 não fica Done por esses checks estáticos.
 3. Após conclusão de T02, selecionar jogo-base segundo D1 e validar AppID/build/Cloud nas tarefas respectivas. T03 continua dependente da fonte/patchset em T01.
 

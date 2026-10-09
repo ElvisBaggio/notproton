@@ -159,6 +159,17 @@ static const struct { uint64_t build; const char *type_name; uintptr_t vptr; } e
     {1790904859, "40CCompatManager_SpecifyCompatTool_Request",     0x16ad2b0},
     {1790904859, "41CCompatManager_SpecifyCompatTool_Response",    0x16ad360},
     {1790904859, "40CCompatManager_StateChanged_Notification",     0x16ad410},
+
+    // 1791415817: read statically from the on-disk image (dylib/tests/sigstatic.c) and
+    // cross-checked by a separate decode of typeinfo -> primary vtable; not yet seen under dlopen.
+    {1791415817, "14CCompatManager",                              0x1743c80},
+    {1791415817, "21CMsgCompatManagerTool",                       0x16acff0},
+    {1791415817, "22CMsgCompatManagerAlias",                      0x16ad0a0},
+    {1791415817, "37CCompatManager_GetCompatTools_Request",        0x16ad150},
+    {1791415817, "38CCompatManager_GetCompatTools_Response",       0x16ad200},
+    {1791415817, "40CCompatManager_SpecifyCompatTool_Request",     0x16ad2b0},
+    {1791415817, "41CCompatManager_SpecifyCompatTool_Response",    0x16ad360},
+    {1791415817, "40CCompatManager_StateChanged_Notification",     0x16ad410},
 };
 
 static int run_rtti(const struct mach_header_64 *mh, intptr_t slide,
