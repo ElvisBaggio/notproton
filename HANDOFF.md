@@ -1,6 +1,14 @@
 # Handoff
 
-Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
+Atualizado: 2026-10-09 · Agente: claude (modelo efetivo `claude-opus-5-5`) · Máquina: mac
+
+## Atualização T04 — parte preparatória (claude, branch `claude/t04-ntdll-prep`)
+
+**Estado.** T04 está **PARCIAL e aguarda T03**. `resolve.py` agora resolve x86_64 sobre a ntdll Sikarugir. A causa da falha anterior era o frame `rbp = rsp+0x80` com spill de `load_path` em `[rbp-0x28]`, e não um slot realmente reescrito. i386 segue resolvendo. Pins derivados do binário Sikarugir: x86_64 `da7e1ea5…`, hook `0x34f40` `488b8590000000`, wm `r14`, load_path `rsp+0x58`, cave em padding `0x70860`; i386 `e1ce5ae3…`, hook `0x2eba0` `8b4514a801`, wm `edi`, load_path `ebp-0x40`, seção anexada `0x9a000`. `apply.py` ganhou um patcher guiado por manifesto (`--manifest`), que recusa hash, arquitetura, bytes, bounds, payload ou cave divergentes, reaplicação e escrita in-place. `ntdll-patch/tests/test_sikarugir.py` tem 10 testes OK e roda sem capstone. A regressão no CrossOver cx26 deu self-test OK, com `--sh` idêntico ao original. `scratch/sikarugir/patches.json` é PARCIAL: `payloadHash`/`patchedHash` = null. Detalhes em `docs/evidence/ntdll-port.md`.
+
+**Próximo passo.** Depois de T03, construir os payloads x86_64/i386 com toolchain local, aplicar só em cópia com `apply.py --manifest`, registrar `payloadHash`/`patchedHash`, testar a recusa de reaplicação no binário real e pedir a revisão Opus 5.5 final de T04.
+
+**Bloqueios.** Payload e patch real dependem de T03. Não houve runtime nem escrita no wrapper/engine/Steam. Revisão Claude Code Opus 5.5 desta parte foi pedida na issue #8.
 
 ## Atualização T02 (claude, branch `claude/t02-steam-profile`)
 
@@ -37,7 +45,7 @@ Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
 ## Próximo passo
 
 1. T03: compilar ponte/shim contra a base `wine-11.0` verificada (engine-lock schemaVersion 2, `abiCheck=PASS`), com `lsteamclient.so` no `x86_64-unix` da cópia isolada da engine. T01 e T02 concluídos.
-2. T04: derivar pins do binário Sikarugir e adaptar `resolve.py` em x86_64; mapear a lista de `apply_binary_patches` da Sikarugir.
+2. T04: pins e resolvedor x86_64 prontos (parcial, `claude/t04-ntdll-prep`); falta payload/patch em cópia após T03. Ordem em runtime de `apply_binary_patches` × hook fica para T05.
 3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
