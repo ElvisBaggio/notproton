@@ -10,7 +10,7 @@
 
 **Spec:** [2026-10-08-sikarugir-cities2-design.md](../specs/2026-10-08-sikarugir-cities2-design.md)
 
-**Estado:** Claude Code Sonnet 5.5 revisou o reescopo em 2026-10-09 e recomendou aprovação com ajustes (F1–F8; ver `docs/reviews/claude-scope-review-findings.md`). Elvis decidiu gerar um perfil Steam para o build atual, solicitar ao mantenedor o manifesto da engine e selecionar o jogo após T02. Aplicar estes ajustes antes de liberar T01/T02; os gates de implementação/probe permanecem sequenciais. Base: `05a27874798ffbffb8e64a37595bde6f16d5320a`.
+**Estado:** Claude Code Sonnet 5.5 revisou o reescopo em 2026-10-09 e recomendou aprovação com ajustes F1–F8 (ver `docs/reviews/claude-scope-review-findings.md`); ajustes documentais e cards aplicáveis foram sincronizados. T01/T02 foram retomados em paralelo: T01 permanece BLOCKED pela proveniência exata; T02 permanece BLOCKED por perfil Steam compatível com 1791415817. T03–T12 seguem bloqueados pelas dependências e gates técnicos. Base: `05a27874798ffbffb8e64a37595bde6f16d5320a`.
 
 ## Global Constraints
 

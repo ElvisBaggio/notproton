@@ -2,7 +2,7 @@
 
 @/Users/elvisoliveira/.codex/RTK.md
 
-Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8. Incorporar os ajustes e sincronizar os cards antes de iniciar T01/T02; depois, eles podem rodar em paralelo em worktrees distintos. T01 permanece bloqueado até a fonte/patchset ser confirmada pelo mantenedor; não iniciar T03 sem isso.
+Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8; os ajustes documentais e cards aplicáveis estão sincronizados. T01 e T02 foram retomados em worktrees paralelos e permanecem BLOCKED: fonte/patchset e perfil Steam exato pendentes. T03 não inicia sem T01 concluído.
 
 ## Fonte de verdade
 

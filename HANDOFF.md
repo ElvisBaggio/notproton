@@ -8,16 +8,19 @@ Atualizado: 2026-10-09 · Agente: codex · Máquina: mac
 - Branch: `codex/game-agnostic-scope`; base NotProton 1.1.0 em `05a27874798ffbffb8e64a37595bde6f16d5320a`.
 - Claude Code Sonnet 5.5 concluiu a revisão do reescopo em `8462af8`, recomendando **aprovar com ajustes F1–F8**. Findings em `docs/reviews/claude-scope-review-findings.md`.
 - Decisões de Elvis: F1 gerar perfil de assinatura para o build Steam atual; F2 pedir ao mantenedor o manifesto da engine; F4 escolher o jogo depois do inventário T02. Pedido público ao mantenedor: https://github.com/Sikarugir-App/Sikarugir/issues/288.
-- Ajustes documentais F3/F5/F6/F7/F8 sendo incorporados. T01/T02 só começam depois desses ajustes e da sincronização dos cards; podem rodar em paralelo, em worktrees separados. T01 permanece bloqueado até haver fonte/patchset verificáveis; T03 não pode começar antes disso.
+- Ajustes F1–F8 aplicados ao plano/spec e aos cards #5, #6, #9, #11, #12 e #15; prontidão dos outros itens reflete dependências, sem rótulo de revisão pendente. Requisição de revisão Opus 5.5 foi deixada na PR #21 e nos cards concluídos.
+- T01: branch `codex/t01-engine-provenance`, commit `40e8c58`; hashes/versão/arquiteturas revalidados; **BLOCKED** sem fonte/patchset do mantenedor. Issue #5 mantém In Progress e prontidão bloqueada; pedido público ao mantenedor permanece sem resposta em https://github.com/Sikarugir-App/Sikarugir/issues/288.
+- T02: branch `codex/t02-steam-baseline`, commit `a073897`; schema/readback atualizados e ensaio descartável PASS; **BLOCKED** sem perfil Steam exato para build `1791415817`. `sigcheck.py` confirma nomes, não anchors ou build. Issue #6 mantém In Progress e prontidão bloqueada.
+- T01/T02 não foram integrados à branch de reescopo; commits estão publicados em branches próprios aguardando revisão Opus 5.5. T03–T12 continuam bloqueados por proveniência/perfil e dependências.
 - #18 permanece aberto/não Done e não demonstra integração/runtime.
 - Especificação e plano: `docs/superpowers/specs/2026-10-08-sikarugir-cities2-design.md` e `docs/superpowers/plans/2026-10-08-sikarugir-cities2-implementation.md`. Project: https://github.com/users/ElvisBaggio/projects/8. Papéis e modelos: `docs/AGENT_EXECUTION.md`.
 - NotProton instalado continua 1.1.0; a fonte local é 1.1.1. Nada foi implantado no Steam. Gates de API real, jogo Windows, sessão persistente e rollback seguem NOT RUN.
 
 ## Próximo passo
 
-1. Finalizar e revisar F1–F8 no plano/spec/PROJECT e sincronizar descrição/prontidão dos cards.
-2. Executar T01 e T02 em paralelo. T01 solicita e verifica proveniência; sem o manifesto do mantenedor, permanece BLOCKED. T02 migra o manifesto para o schema atual, valida perfil Steam do build 1791415817 e ensaio de recuperação.
-3. Após T01/T02, executar T03–T05 em sequência: ABI/patches exatos, depois API real com AppID selecionado segundo D1 e Steam nativo. Em seguida T06–T09 e T10.
+1. Aguardar resposta ao pedido de proveniência #288 e resolver um perfil de assinaturas exato para Steam `1791415817`; manter T01/T02 BLOCKED até as respectivas evidências passarem.
+2. Revisar os commits/solicitações Opus 5.5 nos cards #5 e #6 antes de integrá-los; não fechar nenhum gate por evidência estática.
+3. Só depois da proveniência e do perfil Steam aprovados, retomar T03–T05 em sequência; escolher AppID conforme D1 depois do inventário. Em seguida T06–T09 e T10.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
 Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-sol` ou `gpt-6-luna`, incluindo scripts de prova e testes. Pedido posterior de Elvis autoriza **Claude Code como alternativa**, com aliases `sonnet`/`opus` definidos por card e modelo efetivo registrado ao iniciar. Não trocar cliente/modelo automaticamente nem editar o mesmo território em paralelo.

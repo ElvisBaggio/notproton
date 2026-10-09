@@ -1,6 +1,6 @@
 # Recado para Claude Code Opus — revisão do reescopo
 
-Data: 2026-10-09 · Autor: codex · Estado: aguarda revisão; sessão Claude não iniciada
+Data: 2026-10-09 · Autor: codex · Estado: concluída por Claude Code Sonnet 5.5, com recomendação de aprovação após ajustes. Findings: [claude-scope-review-findings.md](claude-scope-review-findings.md). A autorização de Elvis para usar Sonnet nesta sessão ficou registrada no relatório.
 
 Branch efetiva do reescopo: `codex/game-agnostic-scope`. Revise os documentos dessa branch; as referências dos cards apontam para ela, preservando os nomes históricos dos arquivos.
 
@@ -12,4 +12,4 @@ Revise a coerência com os objetivos acima, a rastreabilidade da origem/fonte/pa
 
 Publique findings priorizados com referências e recomendação de aprovação/ajustes em arquivo versionado sob docs/reviews/ ou na PR de revisão. Diferencie documentação de evidência runtime. #18 continua não Done e não encerra gates da integração.
 
-Não implementar, executar probes, alterar wrapper/biblioteca/saves ou liberar cards enquanto a revisão do plano novo estiver pendente. Todos #1–#16 aguardam revisão, sem Status Done. Esta mensagem é recado compartilhado para a próxima sessão manual; não autoriza iniciar Claude automaticamente.
+Esta mensagem registrou o escopo pedido ao revisor. A revisão foi concluída em `8462af8`; F1–F8 foram incorporados ao plano/spec e aos cards aplicáveis. T01/T02 foram retomados em worktrees separados e continuam bloqueados pelas evidências registradas nos próprios cards. Não iniciar T03–T12 sem dependências e gates técnicos cumpridos.

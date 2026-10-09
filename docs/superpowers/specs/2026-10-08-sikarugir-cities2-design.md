@@ -2,7 +2,7 @@
 
 Data: 2026-10-08 · Autor: codex · Planejamento e revisão: Astra
 
-Estado: Claude Code Sonnet 5.5 revisou em 2026-10-09 e recomendou aprovação com ajustes F1–F8. Elvis decidiu gerar perfil Steam para o build atual, solicitar ao mantenedor o manifesto da engine e selecionar o jogo-base após T02. Aplicar os ajustes documentais antes de liberar T01/T02; aprovação anterior refere-se ao escopo antigo.
+Estado: Claude Code Sonnet 5.5 revisou em 2026-10-09 e recomendou aprovação com ajustes F1–F8. Ajustes documentais e cards aplicáveis foram sincronizados; T01 e T02 foram retomados, ambos permanecem BLOCKED por suas evidências pendentes. Elvis decidiu gerar perfil Steam para o build atual, solicitar ao mantenedor o manifesto da engine e selecionar o jogo-base após T02. A aprovação anterior refere-se ao escopo antigo.
 
 ## 1. Resultado esperado
 
