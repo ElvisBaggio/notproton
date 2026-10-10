@@ -2,7 +2,7 @@
 
 @/Users/elvisoliveira/.codex/RTK.md
 
-Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8; os ajustes documentais e cards aplicáveis estão sincronizados. Em 2026-10-09 Elvis replanejou T01 (D2-c): o gate passa a ser ABI verificada no binário contra o upstream `wine-11.0`, sem depender do mantenedor (#288 segue aberto). T01 (ABI PASS) e T02 (perfil Steam 1791415817 com `anchorcheck` real PASS) estão concluídos e integrados nesta branch; T03 liberado.
+Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8; os ajustes documentais e cards aplicáveis estão sincronizados. Em 2026-10-09 Elvis replanejou T01 (D2-c): o gate passa a ser ABI verificada no binário contra o upstream `wine-11.0`, sem depender do mantenedor (#288 segue aberto). T01 (ABI PASS) e T02 (perfil Steam 1791415817 com `anchorcheck` real PASS) estão concluídos e integrados nesta branch; T03 concluído (ponte com build reproduzível, `steam.exe` externo via llvm-mingw); T04 em fechamento.
 
 ## Fonte de verdade
 

@@ -1,0 +1,30 @@
+Register only lsteamclient in verified Wine 11.0; the shim builds externally.
+
+--- a/configure
++++ b/configure
+@@ -1223,6 +1223,7 @@
+ enable_loadperf
+ enable_localspl
+ enable_localui
++enable_lsteamclient
+ enable_lz32
+ enable_magnification
+ enable_mapi32
+@@ -22696,6 +22697,7 @@
+ wine_fn_config_makefile dlls/localspl/tests enable_tests
+ wine_fn_config_makefile dlls/localui enable_localui
+ wine_fn_config_makefile dlls/localui/tests enable_tests
++wine_fn_config_makefile dlls/lsteamclient enable_lsteamclient
+ wine_fn_config_makefile dlls/lz32 enable_lz32
+ wine_fn_config_makefile dlls/lz32/tests enable_tests
+ wine_fn_config_makefile dlls/lzexpand.dll16 enable_win16
+--- a/configure.ac
++++ b/configure.ac
+@@ -2838,6 +2838,7 @@
+ WINE_CONFIG_MAKEFILE(dlls/localspl/tests)
+ WINE_CONFIG_MAKEFILE(dlls/localui)
+ WINE_CONFIG_MAKEFILE(dlls/localui/tests)
++WINE_CONFIG_MAKEFILE(dlls/lsteamclient)
+ WINE_CONFIG_MAKEFILE(dlls/lz32)
+ WINE_CONFIG_MAKEFILE(dlls/lz32/tests)
+ WINE_CONFIG_MAKEFILE(dlls/lzexpand.dll16)

@@ -1,14 +1,26 @@
 # Handoff
 
-Atualizado: 2026-10-09 · Agente: claude (modelo efetivo `claude-opus-5-5`) · Máquina: mac
+Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
-## Atualização T04 — parte preparatória (claude, branch `claude/t04-ntdll-prep`)
+## T03 — PASS de build reproduzível (2026-10-09, Agente: codex)
 
-**Estado.** T04 está **PARCIAL e aguarda T03**. `resolve.py` agora resolve x86_64 sobre a ntdll Sikarugir. A causa da falha anterior era o frame `rbp = rsp+0x80` com spill de `load_path` em `[rbp-0x28]`, e não um slot realmente reescrito. i386 segue resolvendo. Pins derivados do binário Sikarugir: x86_64 `da7e1ea5…`, hook `0x34f40` `488b8590000000`, wm `r14`, load_path `rsp+0x58`, cave em padding `0x70860`; i386 `e1ce5ae3…`, hook `0x2eba0` `8b4514a801`, wm `edi`, load_path `ebp-0x40`, seção anexada `0x9a000`. `apply.py` ganhou um patcher guiado por manifesto (`--manifest`), que recusa hash, arquitetura, bytes, bounds, payload ou cave divergentes, reaplicação e escrita in-place. `ntdll-patch/tests/test_sikarugir.py` tem 10 testes OK e roda sem capstone. A regressão no CrossOver cx26 deu self-test OK, com `--sh` idêntico ao original. `scratch/sikarugir/patches.json` é PARCIAL: `payloadHash`/`patchedHash` = null. Detalhes em `docs/evidence/ntdll-port.md`.
+**Revisão Claude Code Opus 5.5 (2026-10-09): aprovado e integrado em `codex/game-agnostic-scope`.** Conferido: hashes dos três artefatos; `steam.exe` sem libc++/libunwind/msvcp/vcruntime dinâmicos (só Win32 + UCRT); `lsteamclient.so` x86_64 com `@rpath/ntdll.so` + `LC_RPATH @loader_path/`; os 11 símbolos Wine/Nt que a `.so` importa existem na `ntdll.so` do Sikarugir; `--artifacts` e negativos PASS. Não refeito por mim: rebuild limpo (reprodutibilidade fica pela evidência do Codex). Mudança de comportamento: `steam.exe` externo não inicializa OpenVR (status VR ~0). UCRT/`api-ms-win-crt` e `ucrtbase` precisam existir na engine; T05 confirma.
 
-**Próximo passo.** Depois de T03, construir os payloads x86_64/i386 com toolchain local, aplicar só em cópia com `apply.py --manifest`, registrar `payloadHash`/`patchedHash`, testar a recusa de reaplicação no binário real e pedir a revisão Opus 5.5 final de T04.
+**Estado.** Cliente codex, papel wine_bridge, modelo efetivo gpt-6.1-sol; branch `codex/t03-bridge-sikarugir`. Decisão `b441be3` integrada antes da retomada. `make bridge-sikarugir`: lsteamclient Unix/PE na base Wine 11.0 verificada; steam.exe externo com llvm-mingw T01 e runtime C++ estática. Gate positivo e sete negativos PASS; controle real com C++ dinâmica recusado. `file`/`otool`/`llvm-objdump`, exports Unix e layout adjacente à ntdll Sikarugir conferidos estaticamente. Reconfigure/rebuild do zero produziu os mesmos três hashes brutos. `make -n bridge` idêntico ao anterior. Evidência completa em `docs/evidence/bridge-build.md`, preservando o BLOCKED anterior.
 
-**Bloqueios.** Payload e patch real dependem de T03. Não houve runtime nem escrita no wrapper/engine/Steam. Revisão Claude Code Opus 5.5 desta parte foi pedida na issue #8.
+**Artefatos.** Sob `scratch/sikarugir/bridge/` (ignorados): `steam.exe` SHA-256 `56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70`; `x86_64-windows/lsteamclient.dll` `2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac` (também cópia flat); `x86_64-unix/lsteamclient.so` `3dd9b54f642ad73bc8f24c3b71de65b38ef35de6424456126b9060d1fa74fdea`. Manifesto local `manifest.json`. ntdll upstream não distribuída.
+
+**Próximo passo.** Pedido de revisão independente Claude Code Opus 5.5 na issue #7; registrar modelo efetivo do revisor. Issue permanece aberta e Project In Progress até revisão/aceite. T04 segue sua dependência; nenhum probe/runtime T05 iniciado por este card.
+
+**Bloqueios e limites.** Bloqueio de build removido; revisão independente pendente. Nenhum runtime Wine executado. T05 deve verificar a extensão pública kernel32 de conversão de caminhos, CP_UNIXCP/NT flags, API Steam real e personalizações Sikarugir (HideWineExports/apply_binary_patches). OpenVR Linux já indisponível no shim PE; i386 somente quando requerido. Shellcheck indisponível; sintaxe shell e checks aplicáveis PASS. Wrapper/engine instalada/prefixos/Steam/NotProton/saves e artefatos originais T01 preservados.
+
+## T03 — BLOCKED histórico (2026-10-09, Agente: codex)
+
+**Estado.** Cliente codex, papel wine_bridge, modelo efetivo gpt-6.1-sol; branch `codex/t03-bridge-sikarugir`. Lock schemaVersion 2/ABI PASS copiado e fonte Wine 11.0 em commit `db11d0fe6a169c457e23d007e20404643d067aa8` conferida. TDD RED e tentativa real de registro do build confirmam base sem `WINE_EXTERNAL`, `EXTERNAL_SUBDIRS` e `CXX_PE_LIBS`/bibliotecas C++ PE exigidos pelo shim atual. Check read-only em `bridge/tests/sikarugir-buildcheck.sh`; evidências em `docs/evidence/bridge-build.md`. Sete recusas negativas PASS, gate positivo RED esperado. Scripts de produção/Makefile preservados após remoção dos experimentos; nenhum artefato compilado.
+
+**Próximo passo.** Revisão solicitada para Claude Code Opus 5.5 e decisão sobre adaptação do shim ao build Wine 11.0. Revisor deve registrar modelo efetivo. Não substituir implicitamente a base por 11.15 nem encerrar T03.
+
+**Bloqueios.** Condição de parada T03: interfaces de build ausentes na base verificada. Hashes de saída, otool/file e rebuild NOT RUN; runtime e integração não liberados. T01/T02 continuam concluídos. Nenhuma gravação nos originais T01, wrapper, engine instalada, Steam, prefixos ou saves.
 
 ## Atualização T02 (claude, branch `claude/t02-steam-profile`)
 
@@ -44,9 +56,9 @@ Atualizado: 2026-10-09 · Agente: claude (modelo efetivo `claude-opus-5-5`) · M
 
 ## Próximo passo
 
-1. T03: compilar ponte/shim contra a base `wine-11.0` verificada (engine-lock schemaVersion 2, `abiCheck=PASS`), com `lsteamclient.so` no `x86_64-unix` da cópia isolada da engine. T01 e T02 concluídos.
-2. T04: pins e resolvedor x86_64 prontos (parcial, `claude/t04-ntdll-prep`); falta payload/patch em cópia após T03. Ordem em runtime de `apply_binary_patches` × hook fica para T05.
-3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10.
+1. T03 concluído e integrado (`c983e5e`; build separado aprovado por Elvis). T01 e T02 concluídos.
+2. T04: preparo revisado em `claude/t04-ntdll-prep` (`3096c26`; pins x86_64/i386 do binário Sikarugir, patcher por manifesto). Falta: payloads com os artefatos de T03, aplicar em cópia, `payloadHash`/`patchedHash`, recusa de reaplicação no binário real.
+3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10. D1: candidatos em `docs/evidence/d1-game-candidates.md` (claude, 2026-10-09; principal sugerido Banana 2923300); **Elvis escolheu Halls of Torment: Prelude 2316660** (reserva Banana).
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
 Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-sol` ou `gpt-6-luna`, incluindo scripts de prova e testes. Pedido posterior de Elvis autoriza **Claude Code como alternativa**, com aliases `sonnet`/`opus` definidos por card e modelo efetivo registrado ao iniciar. Não trocar cliente/modelo automaticamente nem editar o mesmo território em paralelo.
