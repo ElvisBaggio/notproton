@@ -371,6 +371,9 @@ def compare(A, B):
             if ea[n] != eb[n]:
                 add('a', f'a:pe-export-attr:{arch}:{n}', f'{ea[n]} != {eb[n]}')
         sa, sb = A['pe'][arch]['syscalls'], B['pe'][arch]['syscalls']
+        # An empty or uneven extraction means the stub format was not recognised on one side.
+        if not sa or not sb or len(sa) != len(sb):
+            add('b', f'b:syscall-count:{arch}', f'extracted syscalls A={len(sa)} B={len(sb)}')
         for n in sorted(set(sa) | set(sb)):
             if sa.get(n) != sb.get(n):
                 add('b', f'b:syscall:{arch}:{n}', f'{sa.get(n)} != {sb.get(n)}')

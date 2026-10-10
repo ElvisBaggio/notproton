@@ -148,7 +148,10 @@ static int is_wild(uint32_t w, uint32_t prev) {
 static int rebuild_pattern(const np_sig_entry_t *s, uintptr_t site, const image_t *im,
                            int min_insns, char *out) {
     const uint32_t *w = (const uint32_t *)(site + s->match_offset);
-    for (int n = min_insns; n <= 32; n++) {
+    uintptr_t avail = im->text + im->text_sz - (uintptr_t)w;   // never read past __TEXT
+    int max_insns = (uintptr_t)w < im->text || (uintptr_t)w >= im->text + im->text_sz ? 0 : (int)(avail / 4);
+    if (max_insns > 32) max_insns = 32;
+    for (int n = min_insns; n <= max_insns; n++) {
         char *o = out;
         for (int i = 0; i < n; i++) {
             int wild = is_wild(w[i], i ? w[i - 1] : 0);
