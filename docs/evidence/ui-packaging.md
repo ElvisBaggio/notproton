@@ -32,3 +32,12 @@ Com Xcode a suíte revelou 5 falhas de T08 que o harness swiftc não via, todas 
 - `make app` padrão não foi executado (depende do dylib); o alvo `app` compartilhado foi exercitado via `app-sikarugir -o app-payload`.
 - Não implantado em NotProton/Steam instalados (T10). Convivência com a 1.1.0 instalada (`DeploymentContent.blocksInstallation` por versão igual/mais nova; mesmo nome de bundle de recursos) fica para T10.
 - Selecionar a engine no NSOpenPanel e rodar o setup real não foram exercitados com GUI.
+
+## Revisão Opus 5.5 — payload construído do repositório (2026-10-10)
+
+Revisor: Claude Code Opus 5.5 (`claude-opus-5-5`). O payload da execução do Sonnet copiou `notproton.dylib`, `overlay-shim.dylib`, `appinfo`, `iconmaker` e a ponte CrossOver do app 1.1.0 instalado, por falta de `vendor/dobby`. Na revisão:
+
+- Dobby buscado no commit fixado `5dfc8546954ce3b3198132ab13fddb89ee92cdd7` (conforme `vendor/README.md`), `make dobby` e `make app-payload` completos a partir do repositório: PASS.
+- `make -o app-payload app-sikarugir` → `out/NotProton Sikarugir.app` (1.1.1); `codesign --verify --deep`: PASS. Payload contém ponte CrossOver e `bridge/sikarugir-11.0-r0/`.
+- `swift test --no-parallel` com esse payload (após `touch Package.swift`, porque o manifesto só inclui `Resources/payload` se ele existir na avaliação): **518 testes em 60 suítes, passed**.
+- Para T10: implantar somente o app gerado do repositório (nunca o payload copiado do 1.1.0).
