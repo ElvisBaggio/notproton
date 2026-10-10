@@ -1,8 +1,8 @@
-# T04 — porte dos patches ntdll para Sikarugir 11.0 r0 (parte preparatória)
+# T04 — porte dos patches ntdll para Sikarugir 11.0 r0
 
 Data: 2026-10-09 · Agente: claude · Modelo efetivo: `claude-opus-5-5` (Claude Code `opus`) · Branch: `claude/t04-ntdll-prep` (base `origin/codex/game-agnostic-scope` `db21814`)
 
-**Estado: PARCIAL, aguardando T03.** Hooks resolvidos e validados nas duas arquiteturas, testes negativos passando, manifesto parcial gerado. `payloadHash`/`patchedHash` e a aplicação real em cópia ficam pendentes porque dependem do payload do detour, que só será construído depois de T03. Nada roda em runtime.
+**Estado histórico do preparo: PARCIAL, aguardando T03.** Hooks resolvidos e validados nas duas arquiteturas, testes negativos passando, manifesto parcial gerado. `payloadHash`/`patchedHash` e a aplicação real em cópia ficam pendentes porque dependem do payload do detour, que só será construído depois de T03. Nada roda em runtime.
 
 ## Entradas (somente leitura)
 
@@ -68,3 +68,54 @@ Conferências independentes:
 2. `apply.py --manifest scratch/sikarugir/patches.json <cópia> <saída> <payload>` só em cópia, depois registrar `patchedHash` e confirmar que a reaplicação sobre a saída é recusada.
 3. Reexecutar os testes e a resolução read-only, e atualizar este relatório e o manifesto (`status` deixa de ser `PARTIAL`).
 4. Incorporar os pins no app só em T07.
+
+## Fechamento — PASS estático, 2026-10-09
+
+Cliente: `codex` · Papel: `ntdll_port` · Modelo efetivo: `gpt-6.1-sol`.
+Branch: `codex/t04-ntdll-close`, base `ba9c880` (preparo `3096c26` + linha T01/T02/T03 integrada).
+**PASS de construção/aplicação em cópias; revisão independente Claude Code Opus 5.5 solicitada, ainda pendente.** Nenhum runtime Wine executado; T05 continua responsável pela prova de funcionamento e T07 pelos pins no app.
+
+### Build e ABI do payload
+
+Mudança mínima nos scripts: `LLVM_MINGW`, `PYTHON` e `BUILD_DIR` permitem usar a toolchain/venv T01 somente para leitura e colocar toda saída no scratch. Sem essas variáveis, permanecem ferramentas, nomes e interface legados. `resolve.py --sh` fornece todos os pins; falha de resolução interrompe o build. O tamanho produzido é conferido contra `NP_CAVE_ROOM`. O patcher por manifesto também recusa payload maior que `cave.room` (novo teste negativo).
+
+O ld.lld PE não suporta os scripts GNU `link.ld`/`link32.ld`. O caminho LLVM compila e liga **objetos ELF como intermediários freestanding**, extraindo somente `.cave` como bytes; não produz DLL Linux nem introduz libc. x86_64 usa `ms_abi` explicitamente na entrada e nos três ponteiros Nt/Ldr, `-fpie` para referências RIP-relative e `-mno-red-zone`. No caminho GCC Windows, `NP_ABI` vazio mantém a ABI anterior. i386 mantém cdecl na entrada, stdcall nos ponteiros Nt/Ldr e o delta explícito para referências absolutas; apenas o nome da chamada no shim é adaptado para o símbolo ELF sem underscore. Não se alterou a lógica dos detours.
+
+```sh
+rtk proxy sh -c '
+  export LLVM_MINGW=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal
+  export PYTHON=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/venv-capstone/bin/python3
+  base="$PWD/scratch/sikarugir"
+  BUILD_DIR="$base/payload/x86_64-windows" sh ntdll-patch/build.sh "$base/orig/x86_64-windows/ntdll.dll" sikarugir
+  BUILD_DIR="$base/payload/i386-windows" sh ntdll-patch/build32.sh "$base/orig/i386-windows/ntdll.dll" sikarugir
+'
+```
+
+Toolchain llvm-mingw 20260826 de T01, sem instalação global. `llvm-readelf -r`: nenhuma relocation pendente nos dois links. `llvm-objdump -d` e asserts capstone: entrada no início do payload, contexto Nt/Ldr nos endereços pinados, wm r14/edi, load_path rsp+0x58/ebp-0x40, bytes roubados reexecutados e jmp para os resumes exatos. Shim x86_64 não modifica rbp; função C preserva/restaura rbp e os demais registradores não voláteis pela ABI MS. O aviso `_start` ausente é do intermediário ELF; o payload entra por shim_entry3/shim_entry32, não pelo entrypoint ELF. Reconstrução em diretórios novos `scratch/sikarugir/rebuild/<arch>/` deu bytes e hashes idênticos nas duas arquiteturas.
+
+### Artefatos finais (ignorados)
+
+Manifesto: `scratch/sikarugir/patches.json`, `status=COMPLETE`, `pending=[]`, hashes preenchidos, executor registrado. Cópias limpas revalidadas contra os pins, manifesto resolvido novamente do binário e engine-lock T01 `abiCheck=PASS`. Artefato T03 x86_64 lsteamclient.dll relido e hash conferido `2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac`; o payload procura esse nome/exports em runtime, sem embutir a ponte. T03 não fornece ponte i386: payload i386 foi construído/aplicado estaticamente por exigência deste card, sem promessa de caminho i386 funcional.
+
+| Arquitetura | Payload / bytes / SHA-256 | ntdll patchada SHA-256 |
+|---|---|---|
+| x86_64-windows | `payload/x86_64-windows/detour2-sikarugir.bin`, 834/1952 B, `526dfad08eeeab29b6ce4c9c7843a9adb27496280a19a41ec61d271ad66d982b` | `64930d7e55ceaa0216b432d428a0752bd26d2893941a440af03890f6b6f88631` |
+| i386-windows | `payload/i386-windows/detour32-sikarugir.bin`, 1370/4096 B, `50daa1d304380ea3d12018d7c9457a4c8d532427fe814ded412f039dc0be7e0f` | `932f5d47883aada83f84f18065ee9f56e5cc5c9e05644fb70357b3cc5f92c4f8` |
+
+Saídas: `scratch/sikarugir/patched/<arch>/ntdll.dll`. Aplicação executada pela CLI `apply.py --manifest`; depois `patchedHash` preenchido e resultado recalculado com hash fixado. Script local assert-based `scratch/sikarugir/verify.py` registra diff e testa recusas CLI. As origens copiadas e as duas ntdll **instaladas** foram relidas e seguem com os hashes clean da tabela inicial.
+
+### Diff de regiões
+
+Intervalos de arquivo abaixo são `[início, fim)`; todos os bytes antigos fora deles foram comparados individualmente e preservados.
+
+- x86_64: hook `[0x34f40,0x34f47)` e payload `[0x70860,0x70ba2)`. 817 bytes realmente diferentes; comprimento do arquivo inalterado. Hook final `e91bb90300cccc`.
+- i386: hook `[0x2eba0,0x2eba5)`; NumberOfSections `[0x7e,0x80)`; SizeOfImage `[0xc8,0xcc)`; cabeçalho `.npdet` `[0x260,0x288)`. 21 bytes antigos realmente diferentes. Acrescentados 4096 B em `[0x98000,0x99000)`, payload `[0x98000,0x9855a)`, restante zero. RVA `.npdet=0x9a000`; hook final `e95bb40600`.
+- Manifesto contém `changedFileRanges` completos (inclusive lacunas de bytes iguais), `allowedFileRanges`, contagem alterada/adicionada e mensagens de recusa por arquitetura.
+
+### Checks e limites
+
+- `python3 -m unittest discover -s ntdll-patch/tests -p 'test_*.py'`: **11 testes PASS** no Python do sistema (ausência de capstone confirmada) e no venv capstone 5.0.7.
+- Nas duas imagens reais copiadas: reaplicação recusada como `already patched`; mutação de um byte fora do hook recusada como hash `unknown`. Entrada preservada byte a byte; nenhuma saída nem `.tmp` após recusa.
+- CrossOver cx26 instalado, somente leitura, x86_64/i386: self-test **all pinned values reproduced**; `resolve.py --sh` byte a byte idêntico ao resolvedor anterior ao preparo (`3096c26^`). Demais builds CrossOver ausentes não reexecutados; build GCC legado não refeito.
+- `sh -n` dos scripts e `git diff --check`: PASS. Shellcheck indisponível.
+- Não foram tocados wrapper, engine instalada, prefixos, Steam, saves, app, Makefile, bridge, lsteamclient, steam-shim ou território do probe paralelo. Sem runtime, instalação global ou binário versionado. Efeito de HideWineExports/apply_binary_patches e funcionamento real ficam para T05.

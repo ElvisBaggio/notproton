@@ -2,6 +2,16 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T04 — PASS estático, revisão pendente (2026-10-09, Agente: codex)
+
+**Estado.** Cliente `codex`, papel `ntdll_port`, modelo efetivo `gpt-6.1-sol`, branch `codex/t04-ntdll-close`. Payloads locais LLVM construídos e reproduzidos: x86_64 834/1952 B; i386 1370/4096 B. Aplicação CLI por manifesto somente em cópias, diff restrito às regiões previstas, recusas reais de reaplicação/hash desconhecido com entrada intacta. Suíte 11 testes PASS com/sem capstone; cx26 --sh idêntico ao resolvedor anterior ao preparo. `scratch/sikarugir/patches.json` COMPLETE; evidência em `docs/evidence/ntdll-port.md`.
+
+**Hashes ntdll patchadas.** x86_64 `64930d7e55ceaa0216b432d428a0752bd26d2893941a440af03890f6b6f88631`; i386 `932f5d47883aada83f84f18065ee9f56e5cc5c9e05644fb70357b3cc5f92c4f8`. Artefatos em `scratch/sikarugir/patched/<arch>/ntdll.dll`; originais instalados/copied clean preservados.
+
+**Próximo passo.** Revisão independente Claude Code Opus 5.5 solicitada na issue #8; registrar modelo efetivo no parecer. Issue aberta e Project In Progress até aceite. Depois T05 prova runtime/API Steam; T07 incorpora pins no app.
+
+**Bloqueios e limites.** Nenhum bloqueio estático. Revisão ainda pendente; nenhum runtime Wine executado. Intermediário ELF freestanding com ABI MS explícita para x86_64, i386 cdecl/stdcall existente. Ponte i386 não existe em T03, portanto este payload não comprova integração i386. Shellcheck/build GCC legado/demais variantes CrossOver não executados. Território paralelo preservado.
+
 ## T03 — PASS de build reproduzível (2026-10-09, Agente: codex)
 
 **Revisão Claude Code Opus 5.5 (2026-10-09): aprovado e integrado em `codex/game-agnostic-scope`.** Conferido: hashes dos três artefatos; `steam.exe` sem libc++/libunwind/msvcp/vcruntime dinâmicos (só Win32 + UCRT); `lsteamclient.so` x86_64 com `@rpath/ntdll.so` + `LC_RPATH @loader_path/`; os 11 símbolos Wine/Nt que a `.so` importa existem na `ntdll.so` do Sikarugir; `--artifacts` e negativos PASS. Não refeito por mim: rebuild limpo (reprodutibilidade fica pela evidência do Codex). Mudança de comportamento: `steam.exe` externo não inicializa OpenVR (status VR ~0). UCRT/`api-ms-win-crt` e `ucrtbase` precisam existir na engine; T05 confirma.
@@ -57,7 +67,7 @@ Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máqui
 ## Próximo passo
 
 1. T03 concluído e integrado (`c983e5e`; build separado aprovado por Elvis). T01 e T02 concluídos.
-2. T04: preparo revisado em `claude/t04-ntdll-prep` (`3096c26`; pins x86_64/i386 do binário Sikarugir, patcher por manifesto). Falta: payloads com os artefatos de T03, aplicar em cópia, `payloadHash`/`patchedHash`, recusa de reaplicação no binário real.
+2. T04: preparo revisado em `claude/t04-ntdll-prep` (`3096c26`; pins x86_64/i386 do binário Sikarugir, patcher por manifesto). Fechamento estático PASS nesta branch: payloads, aplicação em cópia, hashes e recusas reais concluídos. Aguarda revisão independente Opus 5.5.
 3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10. D1: candidatos em `docs/evidence/d1-game-candidates.md` (claude, 2026-10-09; principal sugerido Banana 2923300); **Elvis escolheu Halls of Torment: Prelude 2316660** (reserva Banana).
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 

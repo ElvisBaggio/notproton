@@ -1,13 +1,16 @@
 // Clever detours
+#ifndef NP_ABI
+#define NP_ABI
+#endif
 
 typedef unsigned long long u64;
 typedef unsigned int u32;
 typedef unsigned short u16;
 typedef unsigned char u8;
 
-typedef u32 (*ldr_getdllhandle_t)(void *path, void *unused, void *name_us, void **out);
-typedef u32 (*ldr_loaddll_t)(void *path, void *flags, void *name_us, void **out);
-typedef u32 (*nt_protect_t)(void *proc, void **base, u64 *size, u32 newprot, u32 *oldprot);
+typedef u32 (NP_ABI *ldr_getdllhandle_t)(void *path, void *unused, void *name_us, void **out);
+typedef u32 (NP_ABI *ldr_loaddll_t)(void *path, void *flags, void *name_us, void **out);
+typedef u32 (NP_ABI *nt_protect_t)(void *proc, void **base, u64 *size, u32 newprot, u32 *oldprot);
 
 struct ctx
 {
@@ -161,7 +164,7 @@ static int wm_is_sc64(void *wm)
 }
 
 // build_module detour
-void detour_build_module(struct ctx *c, void *wm, void *load_path)
+void NP_ABI detour_build_module(struct ctx *c, void *wm, void *load_path)
 {
     u8 *sc64, *lsteam;
 

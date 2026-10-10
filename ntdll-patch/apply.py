@@ -94,6 +94,8 @@ def patch_bytes(data, entry, payload):
                          f"pinned {stolen.hex()}")
 
     cave = entry['cave']
+    if 'room' in cave and not 0 < len(payload) <= cave['room']:
+        raise SystemExit('payload does not fit the pinned cave room')
     d = bytearray(data)
     if cave['placement'] == 'section':
         fresh = pe.appended()

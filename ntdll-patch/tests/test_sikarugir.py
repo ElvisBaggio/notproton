@@ -142,6 +142,12 @@ class Refusals(Fixture):
         entry = entry_for(data, 'x86_64-windows', HOOK64)
         self.assert_refused(data, entry, payload=PAYLOAD + b'\0', why='payload')
 
+    def test_rejects_payload_exceeding_room(self):
+        data = make_pe(0x8664, HOOK64)
+        entry = entry_for(data, 'x86_64-windows', HOOK64)
+        entry['cave']['room'] = len(PAYLOAD) - 1
+        self.assert_refused(data, entry, why='room')
+
     def test_rejects_dirty_cave(self):
         data = bytearray(make_pe(0x8664, HOOK64))
         data[TEXT_RAW + PAYLOAD_RVA - TEXT_RVA + 5] = 0x90

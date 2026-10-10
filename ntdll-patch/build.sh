@@ -9,27 +9,47 @@ ntdll="${1:?usage: build.sh <target ntdll.dll> [variant]}"
 variant="${2:-rosetta}"
 [ "$variant" = rosetta ] && out=detour2.bin || out="detour2-$variant.bin"
 
-eval "$(python3 resolve.py --sh "$ntdll")"
+pins="$("${PYTHON:-python3}" "$here/resolve.py" --sh "$ntdll")"
+eval "$pins"
 [ "$NP_MACHINE" = 0x8664 ] || { echo "$ntdll is machine $NP_MACHINE, not x86_64" >&2; exit 1; }
 
 CC=x86_64-w64-mingw32-gcc
 LD=x86_64-w64-mingw32-ld
 OBJCOPY=x86_64-w64-mingw32-objcopy
 
+if [ -n "${LLVM_MINGW:-}" ]; then
+  CC="$LLVM_MINGW/bin/clang"
+  LD="$LLVM_MINGW/bin/ld.lld"
+  OBJCOPY="$LLVM_MINGW/bin/llvm-objcopy"
+  # ELF is only the link container; the payload keeps the Windows calling ABI.
+  target_flags="--target=x86_64-unknown-linux-gnu -fpie"
+  target_flags="$target_flags -mno-red-zone -DNP_ABI=__attribute__((ms_abi))"
+else
+  target_flags=""
+fi
+
+if [ -n "${BUILD_DIR:-}" ]; then
+  mkdir -p "$BUILD_DIR"
+  cd "$BUILD_DIR"
+fi
+
 CFLAGS="-Os -fno-asynchronous-unwind-tables -ffreestanding -fno-stack-protector"
 
 # shellcheck disable=SC2086 # CFLAGS carries several flags and has to split
-"$CC" -c $CFLAGS detour.c -o detour_c.o
-"$CC" -c -x assembler-with-cpp shim.S -o shim.o \
+"$CC" $target_flags -c $CFLAGS "$here/detour.c" -o detour_c.o
+"$CC" $target_flags -c -x assembler-with-cpp "$here/shim.S" -o shim.o \
   "-DWM_REG=$NP_WM" "-DSCRATCH_REG=$NP_SCRATCH" "-DLOAD_PATH_SLOT=$NP_LOAD_PATH" \
   "-DSTOLEN_BYTES=$NP_STOLEN_BYTES"
-"$LD" -T link.ld shim.o detour_c.o -o detour_linked.elf \
+"$LD" -T "$here/link.ld" shim.o detour_c.o -o detour_linked.elf \
   --defsym "CAVE_VA=$NP_PAYLOAD_VA" \
   --defsym "BM_RESUME=$NP_RESUME_VA" \
   --defsym "LDR_GETDLLHANDLE=$NP_LDR_GET_DLL_HANDLE" \
   --defsym "LDR_LOADDLL=$NP_LDR_LOAD_DLL" \
   --defsym "NT_PROTECT=$NP_NT_PROTECT_VIRTUAL_MEMORY"
 "$OBJCOPY" -O binary -j .cave detour_linked.elf "$out"
+
+size="$(wc -c < "$out")"
+[ "$size" -le "$NP_CAVE_ROOM" ] || { echo "error: payload $size exceeds cave $NP_CAVE_ROOM" >&2; exit 1; }
 
 got="$(shasum -a 256 "$out" | cut -d' ' -f1)"
 if [ -n "${NP_PAYLOAD_SHA256:-}" ]; then
@@ -46,7 +66,7 @@ echo "built $out ($(wc -c < "$out") bytes) for $NP_ARCH $NP_SHA256"
 echo "  cave $NP_CAVE_RVA fill $NP_FILL, payload at $NP_PAYLOAD_RVA, room $NP_CAVE_ROOM"
 echo "  hook $NP_HOOK_RVA stolen $NP_STOLEN, wm $NP_WM, load_path rsp+$NP_LOAD_PATH"
 
-app_copy="../app/Sources/NotProtonApp/Resources/$out"
+app_copy="$here/../app/Sources/NotProtonApp/Resources/$out"
 if [ -f "$app_copy" ] && ! cmp -s "$out" "$app_copy"; then
   echo "warning: $app_copy is stale" >&2
   echo "         cp $out $app_copy" >&2
