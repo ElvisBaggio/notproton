@@ -56,18 +56,24 @@
 #pragma pop_macro("__cdecl")
 #pragma pop_macro("strncpy")
 
+#ifdef STEAM_SHIM_EXTERNAL
+#include "mingw_compat.h"
+#else
 #include "wine/debug.h"
+#endif
 
 #pragma push_macro("wcsncpy")
 #undef wcsncpy
 #include "json/json.h"
 #pragma pop_macro("wcsncpy")
 
+#ifndef STEAM_SHIM_EXTERNAL
 #include "wine/unixlib.h"
 #include "wine/heap.h"
 #include "wine/vulkan.h"
 #include "openvr.h"
 #include "../src/ivrclientcore.h"
+#endif
 
 #include <msi.h>
 
@@ -697,6 +703,7 @@ static BOOL set_vr_status(HKEY key, DWORD value)
     return TRUE;
 }
 
+#ifndef STEAM_SHIM_EXTERNAL
 void* load_vrclient(void)
 {
     WCHAR pathW[PATH_MAX];
@@ -1089,6 +1096,18 @@ done:
     RegCloseKey(vr_key);
     return 0;
 }
+
+#else
+/* The existing PE dlfcn adapter cannot load Linux OpenVR either. */
+static DWORD WINAPI initialize_vr_data(void *arg)
+{
+    HKEY key = (HKEY)arg;
+    WINE_ERR("Linux OpenVR runtime is unavailable in the PE shim.\n");
+    set_vr_status(key, ~0u);
+    RegCloseKey(key);
+    return 0;
+}
+#endif
 
 static void setup_vr_registry(void)
 {

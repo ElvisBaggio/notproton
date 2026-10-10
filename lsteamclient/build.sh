@@ -89,6 +89,11 @@ for arg in "$@"; do
 	esac
 done
 
+if [ "${SIKARUGIR:-0}" = 1 ] && [ "$install" -eq 1 ]; then
+	echo "==> Sikarugir build does not install" >&2
+	exit 1
+fi
+
 "$here/fetch.sh"
 
 dll=dlls/lsteamclient
@@ -112,23 +117,32 @@ echo "==> syncing the assembled tree into $WINE_SRC_REL/$dll"
 # Unchanged files keep their mtime so the staleness checks below do not rebuild the
 # world.
 rsync -a --delete "$TREE/" "$src/"
+if [ "${SIKARUGIR:-0}" = 1 ]; then
+	# Keep C++ out of Wine 11.0's PE SOURCES; it cannot scan their Unix pragmas.
+	sed '/\.cpp/d' "$TREE/Makefile.in" > "$src/Makefile.in"
+	./config.status Makefile >/dev/null
+fi
 
 pe_info=$here/../bridge/pe-info.py
 
 pe_i386=$dll/i386-windows/lsteamclient.dll
 pe_x86_64=$dll/x86_64-windows/lsteamclient.dll
+pe_targets="$pe_i386 $pe_x86_64"
+[ "${SIKARUGIR:-0}" != 1 ] || pe_targets="$pe_x86_64"
 
 if [ "$do_pe" -eq 1 ]; then
-	for cc in i686-w64-mingw32-gcc x86_64-w64-mingw32-gcc; do
+	compilers="i686-w64-mingw32-gcc x86_64-w64-mingw32-gcc"
+	[ "${SIKARUGIR:-0}" != 1 ] || compilers="x86_64-w64-mingw32-gcc"
+	for cc in $compilers; do
 		command -v "$cc" >/dev/null || { echo "==> missing $cc, install mingw-w64"; exit 1; }
 	done
 
-	for target in "$pe_i386" "$pe_x86_64"; do
+	for target in $pe_targets; do
 		echo "==> building $target"
 		make "$target" >/dev/null
 	done
 
-	for target in "$pe_i386" "$pe_x86_64"; do
+	for target in $pe_targets; do
 		want=${target#"$dll/"}
 		want=${want%%-windows/*}
 		size=$(stat -f %z "$target")
@@ -157,6 +171,10 @@ if [ "$do_unix" -eq 1 ]; then
 	CXXFLAGS="-arch $UNIX_ARCH -I$dll -I$src -Iinclude -I$WINE_SRC_REL/include \
 -D__WINESRC__ -DSTEAM_API_EXPORTS -Dprivate=public -Dprotected=public -DWINE_UNIX_LIB \
 -fPIC -fasynchronous-unwind-tables -g -O2"
+	if [ "${SIKARUGIR:-0}" = 1 ]; then
+		# Include libc first, before Wine 11.0's forbidden-wcsncpy macro reaches libc++.
+		CXXFLAGS="${CXXFLAGS% -g -O2} -O2 -include wchar.h -DNOMINMAX"
+	fi
 
 	built=0
 	for cpp in $objs; do
@@ -178,8 +196,10 @@ if [ "$do_unix" -eq 1 ]; then
 	done
 
 	echo "==> linking $out"
+	repro_flags=""
+	[ "${SIKARUGIR:-0}" != 1 ] || repro_flags="-Wl,-no_uuid"
 	# shellcheck disable=SC2086
-	gcc -std=gnu23 -arch "$UNIX_ARCH" -o "$out" -dynamiclib \
+	gcc -std=gnu23 -arch "$UNIX_ARCH" -o "$out" -dynamiclib $repro_flags \
 		-install_name @rpath/lsteamclient.so -Wl,-rpath,@loader_path/ \
 		$link_objs dlls/ntdll/ntdll.so -lc++ -Wl,-undefined,dynamic_lookup
 
