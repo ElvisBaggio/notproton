@@ -72,6 +72,16 @@ enum BridgePayload {
             )
         }
 
+        let sikarugir = base.appending(path: SupportedRunners.sikarugir.id)
+        if files.fileExists(atPath: sikarugir.path) {
+            for (path, expected) in RunnerPatcher.sikarugirBridge.sorted(by: { $0.key < $1.key }) {
+                let source = sikarugir.appending(path: path)
+                guard Digest.sha256IfPresent(source) == expected else {
+                    throw StepFailure(step: step, detail: "Unknown Sikarugir bridge file: \(path).")
+                }
+                sources.append((source: source, bridgePaths: ["\(SupportedRunners.sikarugir.id)/\(path)"]))
+            }
+        }
         return Located(sources: sources)
     }
 

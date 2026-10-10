@@ -131,11 +131,13 @@ enum DeploymentContent {
         }
         for build in Set(tools.map(\.build)).sorted() {
             let root = SupportPaths.clonedRoot(forBuild: build, runners: runners)
-            for builtin in RunnerPatcher.builtins(in: root) {
-                let path = "\(builtin.arch)/\(builtin.name)"
+            guard let runner = SupportedRunners.build(id: build) else { continue }
+            for builtin in RunnerPatcher.builtins(for: runner, in: root) {
+                let relative = RunnerPatcher.builtinPath(builtin)
+                let path = runner.origin == .sikarugir ? "\(build)/\(relative)" : relative
                 if let entry = bridgePayload.sources.first(where: { $0.bridgePaths.contains(path) }) {
-                    files.append(File(source: entry.source, destination: root.appending(path: "lib/wine/\(path)"),
-                                      name: "crossover-\(build)/\(path)"))
+                    files.append(File(source: entry.source, destination: RunnerPatcher.builtinDestination(builtin, in: root),
+                                      name: "\(SupportPaths.runnerFolder(forBuild: build))/\(relative)"))
                 }
             }
         }

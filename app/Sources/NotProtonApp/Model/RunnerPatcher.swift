@@ -17,6 +17,31 @@ enum RunnerPatcher {
         windowsBuiltins + unixArches(in: root).map { (arch: $0, name: "lsteamclient.so") }
     }
 
+    static let sikarugirBridge: [String: String] = [
+        "steam.exe": "56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70",
+        "x86_64-windows/lsteamclient.dll": "2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac",
+        "x86_64-unix/lsteamclient.so": "d71f954cf1c1a2355e9dfd7e8de593d8a4d1274117d42626394d4e95c7379a9c",
+    ]
+
+    static func builtins(for build: RunnerBuild, in root: URL) -> [(arch: String, name: String)] {
+        if build.origin == .sikarugir {
+            return [("", "steam.exe"), ("x86_64-windows", "lsteamclient.dll"), ("x86_64-unix", "lsteamclient.so")]
+        }
+        return builtins(in: root)
+    }
+
+    static func bridgeRoot(for build: RunnerBuild, in bridge: URL) -> URL {
+        build.origin == .sikarugir ? bridge.appending(path: build.id) : bridge
+    }
+
+    static func builtinPath(_ builtin: (arch: String, name: String)) -> String {
+        builtin.arch.isEmpty ? builtin.name : "\(builtin.arch)/\(builtin.name)"
+    }
+
+    static func builtinDestination(_ builtin: (arch: String, name: String), in root: URL) -> URL {
+        root.appending(path: builtin.arch.isEmpty ? "bin/\(builtin.name)" : "lib/wine/\(builtinPath(builtin))")
+    }
+
     static func unixArches(in root: URL) -> [String] {
         let arches = unixLoaders(in: root).compactMap { loader in
             loader.pathComponents.last { $0.hasSuffix("-unix") }
@@ -40,10 +65,32 @@ enum RunnerPatcher {
     static func install(
         build: RunnerBuild, root: URL, bridge: URL = SupportPaths.bridge
     ) throws -> Outcome {
+        let sources = bridgeRoot(for: build, in: bridge)
+        for builtin in builtins(for: build, in: root) {
+            let path = builtinPath(builtin)
+            guard let hash = Digest.sha256IfPresent(sources.appending(path: path)),
+                  build.origin != .sikarugir || hash == sikarugirBridge[path] else {
+                throw StepFailure(step: step, detail: "Missing or unknown bridge file: \(path).")
+            }
+        }
+        for (arch, hash) in build.patchedNtdll {
+            guard Digest.sha256IfPresent(NtdllPatcher.stagedCopy(of: arch, build: build.id, in: bridge)) == hash else {
+                throw StepFailure(step: step, detail: "Missing or unknown staged ntdll: \(arch.rawValue).")
+            }
+        }
+        if verify(build: build, root: root, bridge: bridge).isEmpty { return Outcome() }
+        let staging = root.deletingLastPathComponent().appending(path: ".patch-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: staging) }
+        try RunnerInstaller.cloneTree(from: root, to: staging)
         var outcome = Outcome()
-        outcome.ntdll = try installNtdll(build: build, root: root, bridge: bridge)
-        outcome.builtins = try installBuiltins(root: root, bridge: bridge)
-        outcome.loaders = try grantLoaderEntitlement(root: root)
+        outcome.ntdll = try installNtdll(build: build, root: staging, bridge: bridge)
+        outcome.builtins = try installBuiltins(build: build, root: staging, bridge: sources)
+        if build.origin == .crossOver {
+            outcome.loaders = try grantLoaderEntitlement(root: staging)
+        }
+        let wrong = verify(build: build, root: staging, bridge: bridge)
+        guard wrong.isEmpty else { throw StepFailure(step: step, detail: wrong.joined(separator: "\n")) }
+        try RunnerInstaller.publish(staging, at: root, occupied: true)
         return outcome
     }
 
@@ -62,22 +109,32 @@ enum RunnerPatcher {
                 wrong.append("\(arch.rawValue)/ntdll.dll is not the patched copy")
             }
         }
-        for builtin in builtins(in: root) {
+        for builtin in builtins(for: build, in: root) {
             let installed = Digest.sha256IfPresent(
-                root.appending(path: "lib/wine/\(builtin.arch)/\(builtin.name)"))
+                builtinDestination(builtin, in: root))
             guard let installed else {
                 wrong.append("\(builtin.arch)/\(builtin.name) is missing")
                 continue
             }
 
-            let staged = Digest.sha256IfPresent(
-                bridge.appending(path: "\(builtin.arch)/\(builtin.name)"))
+            let staged = build.origin == .sikarugir ? sikarugirBridge[builtinPath(builtin)] : Digest.sha256IfPresent(
+                bridge.appending(path: builtinPath(builtin)))
             if let staged, staged != installed {
                 wrong.append("\(builtin.arch)/\(builtin.name) is out of date")
             }
         }
 
-        for loader in unixLoaders(in: root) {
+        if build.origin == .sikarugir {
+            if Digest.sha256IfPresent(SikarugirSource.unixLoader(inRoot: root)) != build.loaderSHA256 {
+                wrong.append("bin/wine is missing or does not match the pinned loader")
+            }
+            do { try RunnerInstaller.verifyClone(build: build, root: root) }
+            catch { wrong.append(error.localizedDescription) }
+            return wrong
+        }
+        let loaders = unixLoaders(in: root)
+        if loaders.isEmpty { wrong.append("No Wine loaders found") }
+        for loader in loaders {
             let granted = entitlements(of: loader)
             if granted?.contains(restrictedEntitlement) == true {
                 if !signatureIsValid(signingTarget(for: loader)) {
@@ -118,11 +175,11 @@ enum RunnerPatcher {
         return installed
     }
 
-    private static func installBuiltins(root: URL, bridge: URL) throws -> [String] {
+    private static func installBuiltins(build: RunnerBuild, root: URL, bridge: URL) throws -> [String] {
         var installed: [String] = []
 
-        for builtin in builtins(in: root) {
-            let source = bridge.appending(path: "\(builtin.arch)/\(builtin.name)")
+        for builtin in builtins(for: build, in: root) {
+            let source = bridge.appending(path: builtinPath(builtin))
             guard FileManager.default.fileExists(atPath: source.path(percentEncoded: false)) else {
                 throw StepFailure(
                     step: step,
@@ -131,7 +188,7 @@ enum RunnerPatcher {
                 )
             }
 
-            let destination = root.appending(path: "lib/wine/\(builtin.arch)/\(builtin.name)")
+            let destination = builtinDestination(builtin, in: root)
             if Digest.sha256IfPresent(source) == Digest.sha256IfPresent(destination) { continue }
 
             try atomicReplace(destination, with: Data(contentsOf: source), step: step)

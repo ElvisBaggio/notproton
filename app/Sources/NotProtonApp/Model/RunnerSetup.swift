@@ -12,7 +12,7 @@ enum RunnerSetup {
 
         var label: String {
             switch self {
-            case .cloning: "Copying CrossOver"
+            case .cloning: "Copying runner"
             case .staging: "Patching"
             case .patching: "Installing compatibility tool"
             case .finished: "Done"
@@ -22,8 +22,8 @@ enum RunnerSetup {
 
     struct Outcome: Sendable {
         let build: RunnerBuild
-        let staged: [WineArch]
-        let installed: RunnerPatcher.Outcome
+        var staged: [WineArch]
+        var installed: RunnerPatcher.Outcome
         var toolsChanged = false
 
         var stagedNothing: Bool { staged.isEmpty && installed.wroteNothing && !toolsChanged }
@@ -39,6 +39,28 @@ enum RunnerSetup {
         report(.cloning)
         let build = try RunnerInstaller.clone(from: install, replacingExisting: replacingExisting)
         return try prepare(build, report: report)
+    }
+
+    static func run(
+        from install: SikarugirInstall,
+        replacingExisting: Bool = false,
+        report: @Sendable (Phase) -> Void = { _ in }
+    ) throws -> Outcome {
+        report(.cloning)
+        var staged: [WineArch] = []
+        var installed = RunnerPatcher.Outcome()
+        let build = try RunnerInstaller.clone(from: install, replacingExisting: replacingExisting) { build, root in
+            report(.staging)
+            staged = try NtdllPatcher.stage(build: build, runnerRoot: root)
+            report(.patching)
+            installed = try RunnerPatcher.install(build: build, root: root)
+        }
+        var outcome = try prepare(build, report: report)
+        outcome.staged += staged
+        outcome.installed.ntdll += installed.ntdll
+        outcome.installed.builtins += installed.builtins
+        outcome.installed.loaders += installed.loaders
+        return outcome
     }
 
     static let prepareStep = "Set up compatibility tool"
@@ -67,9 +89,11 @@ enum RunnerSetup {
         }
 
         let root = SupportPaths.clonedRoot(forBuild: build.id, runners: runners)
-        let status = license(root)
-        guard status.licensed else {
-            throw StepFailure(step: "Verify CrossOver license", detail: status.detail)
+        if build.origin == .crossOver {
+            let status = license(root)
+            guard status.licensed else {
+                throw StepFailure(step: "Verify CrossOver license", detail: status.detail)
+            }
         }
 
         try verify(build, root)

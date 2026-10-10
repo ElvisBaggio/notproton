@@ -65,6 +65,7 @@ enum SteamInstaller {
         backups: URL = SupportPaths.backups,
         compatTools: URL = SupportPaths.Steam.compatTools,
         holdingInstallationLock: Bool = false,
+        clientRoot: URL = SupportPaths.Steam.innerClient,
         runnerIsRunning: @Sendable (URL) -> Bool = { RunnerInstaller.isRunning(from: $0) },
         verifyRunner: (RunnerBuild, URL) throws -> Void = RunnerInstaller.verifyClone,
         patchRunner: (RunnerBuild, URL, URL) throws -> Void = { build, root, bridge in
@@ -84,6 +85,7 @@ enum SteamInstaller {
         let plist = app.appending(path: "Contents/Info.plist")
         let dylib = app.appending(path: "Contents/MacOS/\(SupportPaths.dylibName)")
         try assertBundleIsPresent(app)
+        try requireSignatureProfile(activeBuild: activeClientBuild(in: clientRoot), profiles: payload.signatures)
         try assertInsertIsDeployedOrAbsent(at: plist, dylib: dylib)
         let installationLock = holdingInstallationLock ? -1 : try DeploymentContent.acquireInstallationLock(for: app)
         defer { if installationLock >= 0 { close(installationLock) } }
@@ -200,6 +202,41 @@ enum SteamInstaller {
             backedUpPlist: backedUp,
             bridgeStaged: bridgeResult.staged.count
         )
+    }
+
+    static func activeClientBuild(in root: URL) throws -> UInt64 {
+        let package = root.appending(path: "package")
+        let beta = package.appending(path: "beta")
+        let channel = FileManager.default.fileExists(atPath: beta.path)
+            ? try String(contentsOf: beta, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        let manifest: String
+        switch channel {
+        case "": manifest = "steam_client_osx.manifest"
+        case "publicbeta": manifest = "steam_client_publicbeta_signed-2_osx.manifest"
+        default: throw StepFailure(step: step, detail: "Unknown Steam channel; cannot verify installed client build.")
+        }
+        let text = try String(contentsOf: package.appending(path: manifest), encoding: .utf8)
+        let versions = text.matches(of: #/"version"\s+"([0-9]+)"/#)
+        guard versions.count == 1, let build = UInt64(versions[0].output.1), build > 0 else {
+            throw StepFailure(step: step, detail: "Missing or ambiguous installed Steam build.")
+        }
+        return build
+    }
+
+    static func requireSignatureProfile(activeBuild: UInt64, profiles: [URL]) throws {
+        struct Profile: Decodable { let steam_build: UInt64 }
+        var matches = 0
+        for file in profiles {
+            let profile = try JSONDecoder().decode(Profile.self, from: Data(contentsOf: file))
+            guard profile.steam_build > 0,
+                  file.lastPathComponent == "\(profile.steam_build).json" else {
+                throw StepFailure(step: step, detail: "Signature profile filename/build mismatch.")
+            }
+            if profile.steam_build == activeBuild { matches += 1 }
+        }
+        guard matches == 1 else {
+            throw StepFailure(step: step, detail: "Steam build \(activeBuild) requires exactly one matching signature profile. No hooks installed.")
+        }
     }
 
     static func finish(
