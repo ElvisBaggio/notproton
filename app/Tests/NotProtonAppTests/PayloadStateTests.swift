@@ -150,7 +150,7 @@ struct PayloadStateTests {
 
     @Test("Missing entries are reported per origin")
     func splitsMissingByOrigin() {
-        let built = PayloadEntry(origin: .built, path: "x86_64-unix/lsteamclient.so")
+        let built = PayloadEntry(origin: .built, path: "sikarugir-11.0-r0/x86_64-unix/lsteamclient.so")
         let valve = PayloadEntry(origin: .valve, path: "steamclient64.dll")
         let patched = PayloadEntry(origin: .patched, path: "wine/i386-windows/ntdll.dll")
         let payload = state(missing: [built, valve, patched])

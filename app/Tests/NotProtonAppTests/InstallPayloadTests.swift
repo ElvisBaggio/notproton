@@ -122,18 +122,16 @@ struct InstallPayloadTests {
             .deletingLastPathComponent().deletingLastPathComponent()
         let source = try String(contentsOf: repo.appending(path: "dylib/feats/compat_run.sh"), encoding: .utf8)
         #expect(packaged == source, "the staged run is stale: run make app-payload")
-        #expect(packaged.contains("np_origin=sikarugir"))
+        #expect(packaged.contains("SikarugirAppWine11=1"))
     }
 
     @Test func testPayloadContainsOnlyPinnedSikarugirBridge() throws {
         let located = try InstallPayload.locate()
         let folder = located.run.deletingLastPathComponent()
             .appending(path: "bridge/\(SupportedRunners.sikarugir.id)")
-        guard FileManager.default.fileExists(atPath: folder.path) else {
-            // Optional by contract (T07): absence keeps the CrossOver-only package. The
-            // experimental bundle is gated by the Makefile's sikarugir-payload-check.
-            return
-        }
+        #expect(FileManager.default.fileExists(atPath: folder.path),
+                "the payload has no pinned Sikarugir bridge: run make bridge-sikarugir && make app-payload")
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
         var found: [String] = []
         for case let url as URL in FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.isRegularFileKey])! {
             guard (try url.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { continue }
@@ -150,10 +148,6 @@ struct InstallPayloadTests {
         let work = try scratchDirectory("bridge-sikarugir")
         defer { try? FileManager.default.removeItem(at: work) }
         let bridge = work.appending(path: "bridge")
-        for entry in BridgePayload.entries {
-            try FileManager.default.createDirectory(at: bridge, withIntermediateDirectories: true)
-            try Data("x".utf8).write(to: bridge.appending(path: entry.resource))
-        }
         let folder = bridge.appending(path: SupportedRunners.sikarugir.id)
         for path in RunnerPatcher.sikarugirBridge.keys {
             let file = folder.appending(path: path)

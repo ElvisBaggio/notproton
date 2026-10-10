@@ -10,9 +10,9 @@ struct PayloadManifestTests {
     func shippedManifestIsComplete() throws {
         let manifest = try PayloadManifest.bundled()
 
-        #expect(manifest.entries.count == 20)
-        #expect(manifest.paths(origin: .built).count == 7)
-        #expect(manifest.paths(origin: .patched).count == 3)
+        #expect(manifest.entries.count == 15)
+        #expect(manifest.paths(origin: .built).count == 3)
+        #expect(manifest.paths(origin: .patched).count == 2)
         #expect(manifest.paths(origin: .valve).count == 10)
 
         // Every payload file is fetchable from Valve or produced here, which is what dropping
@@ -23,7 +23,6 @@ struct PayloadManifestTests {
         #expect(Set(manifest.paths(origin: .patched)) == [
             "wine/i386-windows/ntdll.dll",
             "wine/x86_64-windows/ntdll.dll",
-            "wine/aarch64-windows/ntdll.dll",
         ])
     }
 
@@ -88,14 +87,13 @@ struct PayloadInspectionTests {
             try Data().write(to: file)
         }
 
-        let fex = try #require(SupportedRunners.all.first { $0.flavor == "fex" })
-        let state = PayloadInspector.inspect(bridge: bridge, builds: [fex])
+        let state = PayloadInspector.inspect(bridge: bridge, builds: [SupportedRunners.sikarugir])
         #expect(state.manifestProblem == nil)
-        #expect(state.expected == 20)
+        #expect(state.expected == 15)
         #expect(state.present == 10)
         #expect(state.missing(origin: .valve).isEmpty)
-        #expect(state.missing(origin: .built).count == 7)
-        #expect(state.missing(origin: .patched).count == 3)
+        #expect(state.missing(origin: .built).count == 3)
+        #expect(state.missing(origin: .patched).count == 2)
         #expect(!state.isComplete)
     }
 }

@@ -29,7 +29,7 @@ struct SikarugirSourceTests {
     @Test func testExactHashesIdentifySource() throws {
         let fixture = try Fixture()
         let install = try SikarugirSource.inspect(root: fixture.root, hash: { fixture.baselineHash($0) })
-        #expect(install.build.origin == .sikarugir)
+        #expect(install.build.id == SupportedRunners.sikarugir.id)
         #expect(install.root == fixture.root)
         #expect(SikarugirSource.files.count == 5)
     }
@@ -49,14 +49,14 @@ struct SikarugirSourceTests {
         let fixture = try Fixture()
         #expect(throws: StepFailure.self) {
             try SikarugirSource.inspect(root: fixture.root, hash: { file in
-                file.lastPathComponent == "wine" ? SupportedRunners.all.first { $0.flavor == "fex" }!.loaderSHA256
+                file.lastPathComponent == "wine" ? String(repeating: "7a", count: 32) // the loader of an arm64 build
                     : fixture.baselineHash(file)
             })
         }
     }
     @Test func testWrongOriginVersionIsRejected() throws {
         let fixture = try Fixture()
-        try "CrossOver 27".write(to: fixture.root.appending(path: "version"), atomically: true, encoding: .utf8)
+        try "wine 27.0".write(to: fixture.root.appending(path: "version"), atomically: true, encoding: .utf8)
         #expect(throws: StepFailure.self) { try SikarugirSource.inspect(root: fixture.root, hash: { fixture.baselineHash($0) }) }
     }
     @Test func testWrapperFrameworksAndMissingFrameworks() throws {

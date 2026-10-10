@@ -1,4 +1,4 @@
-// Clones CrossOver, throws it in bridge, invokes ntdll patch,
+// Clones Sikarugir, throws it in bridge, invokes ntdll patch,
 
 import Foundation
 
@@ -30,18 +30,6 @@ enum RunnerSetup {
     }
 
     static func run(
-        from install: CrossOverInstall,
-        replacingExisting: Bool = false,
-        report: @Sendable (Phase) -> Void = { _ in }
-    ) throws -> Outcome {
-        try CrossOverLicense.requireValid(for: install)
-
-        report(.cloning)
-        let build = try RunnerInstaller.clone(from: install, replacingExisting: replacingExisting)
-        return try prepare(build, report: report)
-    }
-
-    static func run(
         from install: SikarugirInstall,
         replacingExisting: Bool = false,
         report: @Sendable (Phase) -> Void = { _ in }
@@ -59,8 +47,7 @@ enum RunnerSetup {
         outcome.staged += staged
         outcome.installed.ntdll += installed.ntdll
         outcome.installed.builtins += installed.builtins
-        outcome.installed.loaders += installed.loaders
-        return outcome
+                return outcome
     }
 
     static let prepareStep = "Set up compatibility tool"
@@ -72,7 +59,6 @@ enum RunnerSetup {
         toolList: URL = SupportPaths.toolList,
         compatTools: URL = SupportPaths.Steam.compatTools,
         runScript: () throws -> URL = { try InstallPayload.locate().run },
-        license: (URL) -> CrossOverLicense.Status = { CrossOverLicense.check(crossOverRoot: $0) },
         verify: (RunnerBuild, URL) throws -> Void = RunnerInstaller.verifyClone,
         stage: (RunnerBuild, URL, URL) throws -> [WineArch] = {
             try NtdllPatcher.stage(build: $0, runnerRoot: $1, bridge: $2)
@@ -89,13 +75,6 @@ enum RunnerSetup {
         }
 
         let root = SupportPaths.clonedRoot(forBuild: build.id, runners: runners)
-        if build.origin == .crossOver {
-            let status = license(root)
-            guard status.licensed else {
-                throw StepFailure(step: "Verify CrossOver license", detail: status.detail)
-            }
-        }
-
         try verify(build, root)
 
         report(.staging)
@@ -104,7 +83,7 @@ enum RunnerSetup {
         report(.patching)
         var outcome = Outcome(build: build, staged: staged, installed: try patch(build, root, bridge))
         outcome.toolsChanged = try CompatToolList.sync(
-            runners: runners, bridge: bridge, file: toolList, compatTools: compatTools
+            runners: runners, bridge: bridge, file: toolList
         )
         for tool in CompatToolList.installed(runners: runners, file: toolList) {
             let run = compatTools.appending(path: "\(tool.name)/run")

@@ -3,12 +3,11 @@
 #
 #   ./setup-wine-tree.sh   create and configure, skipping whatever is already done
 #
-# CrossOver ships a runtime-only Wine with no winegcc or winebuild, so lsteamclient
+# The Sikarugir engine is a runtime-only Wine with no winegcc or winebuild, so lsteamclient
 # and the steam.exe shim are built in a wine source tree and staged into the bridge
 # unsigned.
 #
-# The base is stock Wine 11.15, the version the CrossOver runtime is built from
-# (wine-11.15-8895-g32f409fef6a). ntdll from a different vintage speaks a different
+# The base is the stock Wine release the engine is built from (see build-sikarugir.sh). ntdll from a different vintage speaks a different
 # server protocol and the shipped loader refuses to boot it.
 #
 # A unix half loads into the wine loader's own process and has to match its arch. The

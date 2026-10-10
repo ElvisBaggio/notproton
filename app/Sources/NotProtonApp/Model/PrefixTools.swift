@@ -55,7 +55,7 @@ enum PrefixTools {
                 return PrefixBuildRecord(build: build, display: nil)
             }
         }
-        return PrefixBuildRecord(build: "", display: "another version of CrossOver")
+        return PrefixBuildRecord(build: "", display: "another Wine build")
     }
 
     static func writeBuildRecord(_ tool: InstalledTool, for prefix: WinePrefix) throws {
@@ -101,97 +101,37 @@ enum PrefixTools {
         return recorded?.trimmingCharacters(in: .whitespacesAndNewlines) == "1" ? "1" : "0"
     }
 
-    static func environment(
-        prefix: WinePrefix, runner: URL, flavor: CompatTool.Flavor = .fex
-    ) -> [String: String] {
+    static func environment(prefix: WinePrefix, runner: URL) -> [String: String] {
         let root = runner.path(percentEncoded: false)
-        var environment = ProcessInfo.processInfo.environment
-        if isSikarugir(runner: runner) {
-            environment = environment.filter { key, _ in
-                !key.hasPrefix("CX_") && !key.hasPrefix("DYLD_") && !key.hasPrefix("WINEDLLPATH")
-                    && !["WINELOADER", "WINESERVER", "WINELOADERNOEXEC", "WINEPATH", "WINEDLLOVERRIDES"].contains(key)
-            }
-            environment["SikarugirAppWine11"] = "1"
-            environment["WINEARCH"] = "win64"
-            environment["WINELOADER"] = runner.appending(path: "bin/wine").path(percentEncoded: false)
-            environment["WINESERVER"] = runner.appending(path: "bin/wineserver").path(percentEncoded: false)
-            environment["WINEDLLPATH"] = "\(root)/Frameworks/renderer/d3dmetal/wine"
-            environment["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = "\(root)/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
-            environment["WINEPREFIX"] = prefix.pfx.path(percentEncoded: false)
-            environment["WINEMSYNC"] = syncBackend(prefix: prefix)
-            environment["PATH"] = "\(root)/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
-            return environment
+        let environment = ProcessInfo.processInfo.environment.filter { key, _ in
+            !key.hasPrefix("CX_") && !key.hasPrefix("DYLD_") && !key.hasPrefix("WINEDLLPATH")
+                && !["WINELOADER", "WINESERVER", "WINELOADERNOEXEC", "WINEPATH", "WINEDLLOVERRIDES"].contains(key)
         }
-        environment["CX_ROOT"] = root
-        environment["CX_HOME"] = SupportPaths.applicationSupport
-            .appending(path: "CrossOver").path(percentEncoded: false)
-        let wine = layout(runner: runner, flavor: flavor)
-        environment["WINELOADER"] = wine.loader.path(percentEncoded: false)
-        environment["WINESERVER"] = wine.server.path(percentEncoded: false)
-        environment["WINEDLLPATH"] = "\(root)/lib/wine/x86_64-windows:"
-            + wine.unixDir.path(percentEncoded: false)
-        environment["WINEPREFIX"] = prefix.pfx.path(percentEncoded: false)
-        environment["WINEMSYNC"] = syncBackend(prefix: prefix)
-        environment["PATH"] = "\(root)/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
-        return environment
-    }
-
-    static func isSikarugir(runner: URL) -> Bool {
-        runner.lastPathComponent == "wine"
-            && runner.deletingLastPathComponent().lastPathComponent.hasPrefix("sikarugir-")
+        var result = environment
+        result["SikarugirAppWine11"] = "1"
+        result["WINEARCH"] = "win64"
+        result["WINELOADER"] = runner.appending(path: "bin/wine").path(percentEncoded: false)
+        result["WINESERVER"] = runner.appending(path: "bin/wineserver").path(percentEncoded: false)
+        result["WINEDLLPATH"] = "\(root)/Frameworks/renderer/d3dmetal/wine"
+        result["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = "\(root)/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
+        result["WINEPREFIX"] = prefix.pfx.path(percentEncoded: false)
+        result["WINEMSYNC"] = syncBackend(prefix: prefix)
+        result["PATH"] = "\(root)/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
+        return result
     }
 
     static func command(loader: URL, arguments: [String], runner: URL) -> (executable: String, arguments: [String]) {
-        guard isSikarugir(runner: runner) else {
-            return (loader.path(percentEncoded: false), arguments)
-        }
-        return ("/usr/bin/arch", ["-x86_64", "/usr/bin/env",
+        ("/usr/bin/arch", ["-x86_64", "/usr/bin/env",
             "DYLD_FALLBACK_LIBRARY_PATH=\(runner.path(percentEncoded: false))/Frameworks:/usr/lib",
             loader.path(percentEncoded: false)] + arguments)
     }
 
-    static func loader(runner: URL, flavor: CompatTool.Flavor = .fex) -> URL {
-        layout(runner: runner, flavor: flavor).loader
-    }
-
-    struct WineLayout {
-        let loader: URL
-        let server: URL
-        let unixDir: URL
-    }
-
-    static func layout(runner: URL, flavor: CompatTool.Flavor = .fex) -> WineLayout {
-        let fm = FileManager.default
-        let bin = runner.appending(path: "bin")
-        func executable(_ url: URL) -> Bool {
-            fm.isExecutableFile(atPath: url.path(percentEncoded: false))
-        }
-
-        if isSikarugir(runner: runner) {
-            return WineLayout(loader: bin.appending(path: "wine"), server: bin.appending(path: "wineserver"),
-                              unixDir: runner.appending(path: "lib/wine/x86_64-unix"))
-        }
-
-        let arm = runner.appending(path: "lib/wine/aarch64-unix")
-        let armLoader = arm.appending(path: "wine.app/Contents/MacOS/wine")
-        let armServer = bin.appending(path: "wineserver-arm64")
-        if flavor == .fex, executable(armLoader), executable(armServer) {
-            return WineLayout(loader: armLoader, server: armServer, unixDir: arm)
-        }
-
-        let unix = runner.appending(path: "lib/wine/x86_64-unix")
-        let server = bin.appending(path: "wineserver")
-        return WineLayout(
-            loader: unix.appending(path: "wine"),
-            server: executable(server) ? server : bin.appending(path: "wineserver-x86"),
-            unixDir: unix
-        )
-    }
+    static func loader(runner: URL) -> URL { runner.appending(path: "bin/wine") }
 
     private static func readyLoader(
-        step: String, prefix: WinePrefix, runner: URL, flavor: CompatTool.Flavor
+        step: String, prefix: WinePrefix, runner: URL
     ) throws -> URL {
-        let loader = loader(runner: runner, flavor: flavor)
+        let loader = loader(runner: runner)
         guard FileManager.default.isExecutableFile(atPath: loader.path(percentEncoded: false)) else {
             throw StepFailure(
                 step: step,
@@ -210,42 +150,27 @@ enum PrefixTools {
 
     static func launch(_ tool: WineTool, in prefix: WinePrefix) throws {
         let chosen = try resolvedTool(step: "Open \(tool.label)", for: prefix)
-        try launch(
-            tool, in: prefix, runner: SupportPaths.clonedRoot(forBuild: chosen.build),
-            flavor: chosen.tool.flavor
-        )
+        try launch(tool, in: prefix, runner: SupportPaths.clonedRoot(forBuild: chosen.build))
     }
 
-    static func launch(
-        _ tool: WineTool, in prefix: WinePrefix, runner: URL, flavor: CompatTool.Flavor = .fex
-    ) throws {
-        let loader = try readyLoader(
-            step: "Open \(tool.label)", prefix: prefix, runner: runner, flavor: flavor
-        )
+    static func launch(_ tool: WineTool, in prefix: WinePrefix, runner: URL) throws {
+        let loader = try readyLoader(step: "Open \(tool.label)", prefix: prefix, runner: runner)
         let command = command(loader: loader, arguments: [tool.rawValue], runner: runner)
         try Shell.detach(
             command.executable,
             command.arguments,
-            environment: environment(prefix: prefix, runner: runner, flavor: flavor)
+            environment: environment(prefix: prefix, runner: runner)
         )
     }
 
     static func run(_ executable: URL, in prefix: WinePrefix) throws {
         let chosen = try resolvedTool(step: "Run \(executable.lastPathComponent)", for: prefix)
-        try run(
-            executable, in: prefix, runner: SupportPaths.clonedRoot(forBuild: chosen.build),
-            flavor: chosen.tool.flavor
-        )
+        try run(executable, in: prefix, runner: SupportPaths.clonedRoot(forBuild: chosen.build))
     }
 
-    static func run(
-        _ executable: URL,
-        in prefix: WinePrefix,
-        runner: URL,
-        flavor: CompatTool.Flavor = .fex
-    ) throws {
+    static func run(_ executable: URL, in prefix: WinePrefix, runner: URL) throws {
         let step = "Run \(executable.lastPathComponent)"
-        let loader = try readyLoader(step: step, prefix: prefix, runner: runner, flavor: flavor)
+        let loader = try readyLoader(step: step, prefix: prefix, runner: runner)
         guard FileManager.default.fileExists(atPath: executable.path(percentEncoded: false)) else {
             throw StepFailure(step: step, detail: "No file at \(executable.path(percentEncoded: false)).")
         }
@@ -261,7 +186,7 @@ enum PrefixTools {
         try Shell.detach(
             command.executable,
             command.arguments,
-            environment: environment(prefix: prefix, runner: runner, flavor: flavor),
+            environment: environment(prefix: prefix, runner: runner),
             currentDirectory: executable.deletingLastPathComponent()
         )
     }

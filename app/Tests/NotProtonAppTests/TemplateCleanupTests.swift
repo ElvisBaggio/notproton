@@ -11,7 +11,7 @@ struct TemplateCleanupTests {
         var runners: URL { root.appending(path: "runners") }
         var library: SteamLibrary { SteamLibrary(root: root.appending(path: "library")) }
         var folder: URL { library.compatdata.appending(path: SupportPaths.prefixTemplateFolder) }
-        var template: URL { SupportPaths.prefixTemplates(forBuild: "26.3.0.39832", in: library)[0] }
+        var template: URL { SupportPaths.prefixTemplates(forBuild: "sikarugir-11.0-r0", in: library)[0] }
         var lock: URL { library.compatdata.appending(path: ".notproton-template.lock") }
 
         init() throws {
@@ -20,14 +20,14 @@ struct TemplateCleanupTests {
         }
 
         func removeBuild() throws {
-            let build = "1.2.3.4567"
+            let build = "sikarugir-test-build"
             try FileManager.default.createDirectory(
                 at: SupportPaths.runnerRoot(forBuild: build, runners: runners),
                 withIntermediateDirectories: true)
             try Data("old tool list\n".utf8).write(to: root.appending(path: "tools"))
             try RunnerInstaller.removeClone(
                 forBuild: build, runners: runners, bridge: root.appending(path: "bridge"),
-                toolList: root.appending(path: "tools"), compatTools: root.appending(path: "compat-tools"),
+                toolList: root.appending(path: "tools"),
                 libraries: [library], running: { _ in false })
         }
     }
@@ -51,7 +51,7 @@ struct TemplateCleanupTests {
     func preservesUnknownChildren() throws {
         let layout = try Layout()
         defer { try? FileManager.default.removeItem(at: layout.root) }
-        let names = ["notes", "crossover--x86_64-unix", "crossover-bad_build-x86_64-unix", "crossover-26.3.0.39832-i386-unix"]
+        let names = ["notes", "sikarugir--x86_64-unix", "sikarugir-bad_build-x86_64-unix", "sikarugir-11.0-r0-i386-unix", "crossover-27.0.0.40921-x86_64-unix"]
         for name in names {
             try Data("keep".utf8).write(to: layout.folder.appending(path: name))
         }
@@ -73,7 +73,7 @@ struct TemplateCleanupTests {
         try FileManager.default.createDirectory(at: cache.appending(path: "x86_64-unix"), withIntermediateDirectories: true)
         try Data("bridge".utf8).write(to: cache.appending(path: "x86_64-unix/lsteamclient.so"))
 
-        #expect(RunnerInstaller.removePrefixTemplates(keeping: ["26.3.0.39832"], libraries: [layout.library]).isEmpty)
+        #expect(RunnerInstaller.removePrefixTemplates(keeping: ["sikarugir-11.0-r0"], libraries: [layout.library]).isEmpty)
         #expect(FileManager.default.fileExists(atPath: cache.appending(path: "x86_64-unix/lsteamclient.so").path))
         #expect(FileManager.default.fileExists(atPath: layout.template.path))
 
@@ -111,7 +111,7 @@ struct TemplateCleanupTests {
         let sentinel = outside.appending(path: "keep")
         try Data("keep".utf8).write(to: sentinel)
         try FileManager.default.createSymbolicLink(at: layout.template.appending(path: "Documents"), withDestinationURL: outside)
-        let linked = SupportPaths.prefixTemplates(forBuild: "26.3.0.39832", in: layout.library)[1]
+        let linked = SupportPaths.prefixTemplates(forBuild: "sikarugir-10.0-r3", in: layout.library)[0]
         try FileManager.default.createSymbolicLink(at: linked, withDestinationURL: outside)
 
         let failures = RunnerInstaller.removeStalePrefixTemplates(runners: layout.runners, libraries: [layout.library])
@@ -132,7 +132,7 @@ struct TemplateCleanupTests {
 
         #expect(throws: StepFailure.self) { try layout.removeBuild() }
         #expect(FileManager.default.fileExists(atPath: layout.template.path))
-        #expect(!FileManager.default.fileExists(atPath: SupportPaths.runnerRoot(forBuild: "1.2.3.4567", runners: layout.runners).path))
+        #expect(!FileManager.default.fileExists(atPath: SupportPaths.runnerRoot(forBuild: "sikarugir-test-build", runners: layout.runners).path))
         #expect(try String(contentsOf: layout.root.appending(path: "tools"), encoding: .utf8).isEmpty)
     }
 
@@ -207,12 +207,12 @@ struct TemplateCleanupTests {
     func refreshesTemplateSizes() async throws {
         let layout = try Layout()
         defer { try? FileManager.default.removeItem(at: layout.root) }
-        let build = "26.3.0.39832"
+        let build = "sikarugir-11.0-r0"
         try FileManager.default.createDirectory(
             at: SupportPaths.clonedRoot(forBuild: build, runners: layout.runners).appending(path: "lib/wine"),
             withIntermediateDirectories: true)
         let other = SteamLibrary(root: layout.root.appending(path: "second-library"))
-        let otherTemplate = SupportPaths.prefixTemplates(forBuild: build, in: other)[1]
+        let otherTemplate = SupportPaths.prefixTemplates(forBuild: build, in: other)[0]
         try FileManager.default.createDirectory(at: otherTemplate, withIntermediateDirectories: true)
         let file = layout.template.appending(path: "ntdll.dll")
         try Data(repeating: 7, count: 4 << 20).write(to: file)
@@ -232,41 +232,16 @@ struct TemplateCleanupTests {
         #expect(try #require(status.templateSizes[build]?.values.reduce(0, +)) < 5 << 20)
     }
 
-    @MainActor
-    @Test("A build with a FEX and a Rosetta tool measures each tool's template on its own")
-    func measuresTemplatesPerTool() async throws {
-        let layout = try Layout()
-        defer { try? FileManager.default.removeItem(at: layout.root) }
-        let build = "27.0.0.40921-fex"
-        try FileManager.default.createDirectory(
-            at: SupportPaths.clonedRoot(forBuild: build, runners: layout.runners).appending(path: "lib/wine"),
-            withIntermediateDirectories: true)
-        for (flavor, size) in [(CompatTool.Flavor.fex, 4 << 20), (.rosetta, 1 << 20)] {
-            let template = SupportPaths.prefixTemplate(forBuild: build, flavor: flavor, in: layout.library)
-            try FileManager.default.createDirectory(at: template, withIntermediateDirectories: true)
-            try Data(repeating: 7, count: size).write(to: template.appending(path: "system.reg"))
-        }
-        let status = SystemStatus()
-
-        await status.refreshRunnerStorage(runners: layout.runners, libraries: [layout.library])
-        let sizes = try #require(status.templateSizes[build])
-        #expect(try #require(sizes[.fex]) >= 4 << 20)
-        #expect(try #require(sizes[.rosetta]) >= 1 << 20)
-        #expect(try #require(sizes[.rosetta]) < 2 << 20)
-    }
-
-    @Test("The size line names each tool's templates only when a build has more than one tool")
-    func sizeTextNamesTools() {
-        func labels(_ templates: [CompatTool.Flavor: Int64], _ flavors: [CompatTool.Flavor]) -> [String] {
-            StatusView.sizeText(runner: 2_000_000, templates: templates, flavors: flavors)
+    @Test("The size line shows the runner and, when there are any, its templates")
+    func sizeTextNamesTemplates() {
+        func labels(_ templates: [CompatTool.Flavor: Int64]) -> [String] {
+            StatusView.sizeText(runner: 2_000_000, templates: templates)
                 .components(separatedBy: "\n")
                 .map { $0.components(separatedBy: " ").dropLast(2).joined(separator: " ") }
         }
-        #expect(labels([.fex: 871_000_000, .rosetta: 417_000_000], [.fex, .rosetta])
-                == ["Runner", "FEX templates", "Rosetta templates"])
-        #expect(labels([.fex: 871_000_000, .rosetta: 0], [.fex, .rosetta]) == ["Runner", "FEX templates"])
-        #expect(labels([.rosetta: 371_000_000], [.rosetta]) == ["Runner", "Templates"])
-        #expect(labels([:], [.rosetta]) == ["Runner"])
+        #expect(labels([.rosetta: 371_000_000]) == ["Runner", "Templates"])
+        #expect(labels([.rosetta: 0]) == ["Runner"])
+        #expect(labels([:]) == ["Runner"])
     }
 
     @Test("A failed child does not prevent cleanup in other mounted libraries")
@@ -274,7 +249,7 @@ struct TemplateCleanupTests {
         let layout = try Layout()
         defer { try? FileManager.default.removeItem(at: layout.root) }
         let other = SteamLibrary(root: layout.root.appending(path: "other"))
-        let template = SupportPaths.prefixTemplates(forBuild: "26.3.0.39832", in: other)[0]
+        let template = SupportPaths.prefixTemplates(forBuild: "sikarugir-11.0-r0", in: other)[0]
         try FileManager.default.createDirectory(at: template, withIntermediateDirectories: true)
         try #require(chflags(layout.template.path, UInt32(UF_IMMUTABLE)) == 0)
         defer { chflags(layout.template.path, 0) }

@@ -133,7 +133,7 @@ enum SteamInstaller {
         }
         try refuseRunningRunners()
         _ = try CompatToolList.sync(runners: runners, bridge: bridge,
-                                   file: support.appending(path: "tools"), compatTools: compatTools)
+                                   file: support.appending(path: "tools"))
 
         report(.stagingBridge)
         let bridgeResult = try BridgePayload.stage(located: bridgeLocated, bridge: bridge)
@@ -235,7 +235,7 @@ enum SteamInstaller {
             if profile.steam_build == activeBuild { matches += 1 }
         }
         guard matches == 1 else {
-            throw StepFailure(step: step, detail: "Steam build \(activeBuild) requires exactly one matching signature profile. This check applies to every compatibility tool, CrossOver and Sikarugir alike. No hooks installed.")
+            throw StepFailure(step: step, detail: "Steam build \(activeBuild) requires exactly one matching signature profile. This check applies to every compatibility tool. No hooks installed.")
         }
     }
 

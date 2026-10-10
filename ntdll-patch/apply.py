@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Development tool. The real patcher lives in the app (NtdllPatcher.swift).
 # This is the original Python version, kept for validating patches against
-# new CrossOver builds.
+# new Sikarugir builds.
 import hashlib
 import os
 import sys
@@ -9,23 +9,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from resolve import PE, SECTION_FLAGS, SECTION_NAME, SECTION_SIZE, resolve, shell_vars  # noqa: E402
 
-# A new build needs its ntdll hash added here and in build-ntdll.sh.
-PAYLOAD_BY_CLEAN_SHA = {
-    "04c7200b6645decb7c2d1ba6b0195abc9af83257072558d11aa72cc067ac3377": "detour2.bin",
-    "94cc7c14c1e9dcf58ef501015c115f8405c73b2a65cefe31faa5d9e47f36e58b": "detour32.bin",
-    "f4fa556a3dc20f6e966a803f5de554359227a61a24cd5b5a2ad88a427ceeec58": "detour2-fex.bin",
-    "09474795d6f306163cebab6429819999fcff50e07dbc4b067a90ec4f74a3a7d7": "detour32-fex.bin",
-    "7823d71fbce6c9947163bf8b96beb299eabb02878245bcaf6759f2a22e81f071": "detour64-fex.bin",
-    "6dff64c00793ce92124f1316985c63783f539f26b392975c70f57637458d2387": "detour2-cx26.bin",
-    "2c60ee6b00dd13b7f6cb11017778a041ba6a321eaea194f1fa0dca7eab8403e2": "detour32-cx26.bin",
-    "5b388fd48823e905616432fba627eb48f68dc14383963bb213d55db3f691b1b9": "detour2-41069.bin",
-    "e7da2a712870222942ef27a80b3bf4fa70fc8545dd1a64bdc7f2fa24a38debc3": "detour32-41069.bin",
-    "1b02dcf6ad9d9490870f1127a421c4c0d1471c65ec1574e1e84c05d69801ac7e": "detour2-fex-41069.bin",
-    "66b1a244a611795c59a93a9491d17f36c98cd8db9be495004a37864e0e5ed4a5": "detour32-fex-41069.bin",
-    "77ca83b2e1a3a1242f9d2d8868328262b2bcfc3f59bacf8b9389ea7e797ea852": "detour64-fex-41069.bin",
-}
+# The payload names come from the --manifest entries; there is no built-in table of builds.
+PAYLOAD_BY_CLEAN_SHA = {}
 
-KNOWN_MACHINES = (0x8664, 0x14c, 0xaa64)
+KNOWN_MACHINES = (0x8664, 0x14c)
 
 
 def default_payload(src):
@@ -193,15 +180,9 @@ def main():
         if d[bm_off:bm_off + len(stolen)] != stolen:
             raise SystemExit(f"unexpected hook site at {site['hookRVA']:#x}: "
                              f"{d[bm_off:bm_off + len(stolen)].hex()}")
-        if r['machine'] == 0xaa64:
-            rel = payload_rva - site['hookRVA']
-            if rel % 4 or not -(1 << 27) <= rel < (1 << 27):
-                raise SystemExit(f"cave is {rel:#x} from the hook, out of bl range")
-            patch = (0x94000000 | ((rel >> 2) & 0x03ffffff)).to_bytes(4, 'little')
-        else:
-            # E9 rel32 to the shim at the payload start
-            rel = payload_rva - (site['hookRVA'] + 5)
-            patch = b"\xE9" + rel.to_bytes(4, 'little', signed=True) + b"\xCC" * (len(stolen) - 5)
+        # E9 rel32 to the shim at the payload start
+        rel = payload_rva - (site['hookRVA'] + 5)
+        patch = b"\xE9" + rel.to_bytes(4, 'little', signed=True) + b"\xCC" * (len(stolen) - 5)
         assert len(patch) == len(stolen)
         d[bm_off:bm_off + len(patch)] = patch
         hooks.append((site, bm_off, rel, stolen))

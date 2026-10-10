@@ -7,25 +7,46 @@ import Testing
 @Suite("Bridge payload")
 struct BridgePayloadTests {
 
-    private func fakeResources(in work: URL) throws -> URL {
-        let root = work.appending(path: "bridge")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    private static let layout = [
+        "steam.exe", "x86_64-windows/lsteamclient.dll", "x86_64-unix/lsteamclient.so",
+    ]
 
-        for entry in BridgePayload.entries {
-            let data = Data(repeating: UInt8(entry.resource.count % 256), count: entry.resource.count * 100)
-            try data.write(to: root.appending(path: entry.resource))
+    // Stand-in files for the pinned Sikarugir bridge, with pins computed from their content.
+    private func fakeResources(in work: URL) throws -> (root: URL, pins: [String: String]) {
+        let root = work.appending(path: "bridge")
+        var pins: [String: String] = [:]
+        for path in Self.layout {
+            let file = root.appending(path: "\(SupportedRunners.sikarugir.id)/\(path)")
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let data = Data(repeating: UInt8(path.count % 256), count: path.count * 100)
+            try data.write(to: file)
+            pins[path] = Digest.sha256(of: data)
         }
-        return root
+        return (root, pins)
     }
 
-    @Test("Locate finds all four resources when present")
+    private var stagedPaths: [String] { Self.layout.map { "\(SupportedRunners.sikarugir.id)/\($0)" } }
+
+    @Test("Locate finds every pinned Sikarugir file when present")
     func locateFindsAll() throws {
         let work = try scratchDirectory("bridge")
         defer { try? FileManager.default.removeItem(at: work) }
 
-        let root = try fakeResources(in: work)
-        let located = try BridgePayload.locate(root: root)
-        #expect(located.sources.count == BridgePayload.entries.count)
+        let (root, pins) = try fakeResources(in: work)
+        let located = try BridgePayload.locate(root: root, pins: pins)
+        #expect(located.sources.count == Self.layout.count)
+        #expect(located.sources.flatMap(\.bridgePaths).sorted() == stagedPaths.sorted())
+    }
+
+    @Test("Locate refuses a Sikarugir file whose hash is not the pinned one")
+    func locateRefusesUnknownFile() throws {
+        let work = try scratchDirectory("bridge")
+        defer { try? FileManager.default.removeItem(at: work) }
+
+        let (root, pins) = try fakeResources(in: work)
+        try Data("tampered".utf8).write(to: root.appending(path: "\(SupportedRunners.sikarugir.id)/steam.exe"))
+        #expect(throws: StepFailure.self) { try BridgePayload.locate(root: root, pins: pins) }
     }
 
     @Test("Locate reports missing resources rather than silently staging nothing")
@@ -39,17 +60,17 @@ struct BridgePayloadTests {
         #expect(throws: StepFailure.self) { try BridgePayload.locate(root: root) }
     }
 
-    @Test("Stage writes all six bridge paths from four resources")
+    @Test("Stage writes every Sikarugir bridge path")
     func stageWritesAll() throws {
         let work = try scratchDirectory("bridge")
         defer { try? FileManager.default.removeItem(at: work) }
 
-        let root = try fakeResources(in: work)
-        let located = try BridgePayload.locate(root: root)
+        let (root, pins) = try fakeResources(in: work)
+        let located = try BridgePayload.locate(root: root, pins: pins)
         let bridge = work.appending(path: "staged")
         let result = try BridgePayload.stage(located: located, bridge: bridge)
 
-        let allPaths = BridgePayload.entries.flatMap(\.bridgePaths)
+        let allPaths = stagedPaths
         #expect(result.staged.count == allPaths.count)
         #expect(result.unchanged.isEmpty)
 
@@ -66,12 +87,12 @@ struct BridgePayloadTests {
         let work = try scratchDirectory("bridge")
         defer { try? FileManager.default.removeItem(at: work) }
 
-        let root = try fakeResources(in: work)
-        let located = try BridgePayload.locate(root: root)
+        let (root, pins) = try fakeResources(in: work)
+        let located = try BridgePayload.locate(root: root, pins: pins)
         let bridge = work.appending(path: "staged")
 
         let first = try BridgePayload.stage(located: located, bridge: bridge)
-        let allPaths = BridgePayload.entries.flatMap(\.bridgePaths)
+        let allPaths = stagedPaths
         let untouchedDate = Date(timeIntervalSince1970: 1_000_000)
         let before = try allPaths.map { path in
             let destination = bridge.appending(path: path).path(percentEncoded: false)
@@ -92,17 +113,17 @@ struct BridgePayloadTests {
         }
     }
 
-    @Test("Changed contents replace every copy even when byte counts match")
+    @Test("Changed contents replace the copy even when byte counts match")
     func replacesSameSizeContents() throws {
         let work = try scratchDirectory("bridge")
         defer { try? FileManager.default.removeItem(at: work) }
 
-        let root = try fakeResources(in: work)
-        let located = try BridgePayload.locate(root: root)
+        let (root, pins) = try fakeResources(in: work)
+        let located = try BridgePayload.locate(root: root, pins: pins)
         let bridge = work.appending(path: "staged")
         _ = try BridgePayload.stage(located: located, bridge: bridge)
 
-        let entry = try #require(located.sources.first { $0.bridgePaths.count > 1 })
+        let entry = try #require(located.sources.first)
         let previous = try Data(contentsOf: entry.source)
         let changed = Data(repeating: 0xff, count: previous.count)
         try changed.write(to: entry.source)
@@ -146,27 +167,6 @@ struct BridgePayloadTests {
         #expect(try FileManager.default.contentsOfDirectory(
             atPath: destination.deletingLastPathComponent().path(percentEncoded: false)
         ) == ["steam.exe"])
-    }
-
-    @Test("Flat and arch copies are byte-identical")
-    func duplicatesMatch() throws {
-        let work = try scratchDirectory("bridge")
-        defer { try? FileManager.default.removeItem(at: work) }
-
-        let root = try fakeResources(in: work)
-        let located = try BridgePayload.locate(root: root)
-        let bridge = work.appending(path: "staged")
-        _ = try BridgePayload.stage(located: located, bridge: bridge)
-
-        // The x86_64 lsteamclient.dll is staged to both lsteamclient.dll and
-        // x86_64-windows/lsteamclient.dll, from the same source. Verify identity.
-        for entry in BridgePayload.entries where entry.bridgePaths.count > 1 {
-            let first = try Data(contentsOf: bridge.appending(path: entry.bridgePaths[0]))
-            for duplicate in entry.bridgePaths.dropFirst() {
-                let other = try Data(contentsOf: bridge.appending(path: duplicate))
-                #expect(first == other, "\(entry.bridgePaths[0]) and \(duplicate) differ")
-            }
-        }
     }
 
     @Test("Replacement preserves source permissions and extended attributes")
@@ -251,11 +251,10 @@ struct BridgePayloadTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: bridge.path(percentEncoded: false)) == ["steam.exe"])
     }
 
-    @Test("The entry manifest covers every built path in payload.manifest")
+    @Test("The pinned Sikarugir paths cover every built path in payload.manifest")
     func coversPayloadManifest() throws {
         let manifest = try PayloadManifest.bundled()
         let builtPaths = Set(manifest.paths(origin: .built))
-        let bridgePaths = Set(BridgePayload.entries.flatMap(\.bridgePaths))
-        #expect(builtPaths == bridgePaths, "BridgePayload entries do not match payload.manifest built paths")
+        #expect(builtPaths == Set(RunnerPatcher.sikarugirBridge.keys.map { "\(SupportedRunners.sikarugir.id)/\($0)" }))
     }
 }
