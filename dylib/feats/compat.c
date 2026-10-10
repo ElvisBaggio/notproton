@@ -340,7 +340,7 @@ static int parse_tool_line(char *line, tool_entry_t *out) {
     if (n != 4) return 0;
 
     if (!is_tool_name(field[0]) || !is_token(field[1], ".-")
-        || (strcmp(field[2], "fex") != 0 && strcmp(field[2], "rosetta") != 0)
+        || strcmp(field[2], "rosetta") != 0
         || !is_display(field[3]))
         return 0;
     if (strlen(field[0]) >= sizeof(out->name) || strlen(field[1]) >= sizeof(out->build)
@@ -482,7 +482,7 @@ static int write_tool(const tool_entry_t *tool) {
     return 0;
 }
 
-#define RUN_SCRIPT_MARK "\n# notproton CrossOver compatibility tool shim\n"
+#define RUN_SCRIPT_MARK "\n# notproton Sikarugir compatibility tool shim\n"
 
 static int written_here(const char *tool_dir) {
     char path[768];
@@ -762,7 +762,7 @@ static void *find_tool(void *compat_mgr, const char *wanted) {
     return NULL;
 }
 
-void np_compat_register_crossover(void *compat_mgr) {
+void np_compat_register_tools(void *compat_mgr) {
     static int registered = 0;
 
     // Every compat query arrives on the instance the properties page reads, which is
@@ -783,7 +783,7 @@ void np_compat_register_crossover(void *compat_mgr) {
     // to the local run script.
     uint8_t (*buffers)[COMPAT_TOOL_STRIDE + 64] = calloc((size_t)g_tool_count, sizeof(*buffers));
     if (g_tool_count && !buffers) {
-        NP_WARN("np_compat_register_crossover: out of memory, no tool registered");
+        NP_WARN("np_compat_register_tools: out of memory, no tool registered");
         return;
     }
     static const char from_oslist[] = "windows";
@@ -793,7 +793,7 @@ void np_compat_register_crossover(void *compat_mgr) {
         const tool_entry_t *t = &g_tools[i];
 
         if (find_tool(compat_mgr, t->name)) {
-            NP_LOG("np_compat_register_crossover: %s already registered from disk, "
+            NP_LOG("np_compat_register_tools: %s already registered from disk, "
                    "skipping the runtime entry", t->name);
             continue;
         }
@@ -809,7 +809,7 @@ void np_compat_register_crossover(void *compat_mgr) {
         *(const char **)(tool + np_compat_tool_off(COMPAT_TOOL_TO_OSLIST_OFF))   = to_oslist;
 
         g_yld_register_tool(compat_mgr, tool);
-        NP_LOG("np_compat_register_crossover: registered %s (build %s) into manager 0x%llx",
+        NP_LOG("np_compat_register_tools: registered %s (build %s) into manager 0x%llx",
                t->name, t->build, (unsigned long long)(uintptr_t)compat_mgr);
     }
 }

@@ -11,8 +11,6 @@ case "$block" in
   *) echo "FAIL: the bridge staging block not found in $SRC"; exit 1 ;;
 esac
 block=$(printf '%s\n' "$block" | sed '$d')
-legacy=$(sed -n '/^install_legacycompat() {/,/^}/p' "$SRC")
-[ -n "$legacy" ] || { echo "FAIL: install_legacycompat not found in $SRC"; exit 1; }
 body='same_volume() { [ -z "$cross" ]; }
 volume_clones() { :; }
 show_alert() { printf "alert: %s\n" "$1" >> "$log"; }
@@ -22,14 +20,15 @@ fi"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-files="steamclient64.dll steamclient.dll tier0_s64.dll vstdlib_s64.dll lsteamclient.dll steam.exe"
-mkdir -p "$work/bridge"
-for f in $files; do printf 'bridge %s\n' "$f" > "$work/bridge/$f"; done
-for arch in aarch64-unix x86_64-unix; do
-	mkdir -p "$work/bridge/$arch"
-	printf '%s bridge\n' "$arch" > "$work/bridge/$arch/lsteamclient.so"
-done
-wine_unix="$work/runner/aarch64-unix"
+# The pinned Sikarugir bridge lives under bridge/<build>, the Valve client beside it.
+build=sikarugir-fixture
+files="steamclient64.dll lsteamclient.dll lsteamclient.so steam.exe"
+mkdir -p "$work/bridge/$build/x86_64-windows" "$work/bridge/$build/x86_64-unix"
+printf 'bridge steamclient64.dll\n' > "$work/bridge/steamclient64.dll"
+printf 'bridge steam.exe\n' > "$work/bridge/$build/steam.exe"
+printf 'bridge lsteamclient.dll\n' > "$work/bridge/$build/x86_64-windows/lsteamclient.dll"
+printf 'x86_64-unix bridge\n' > "$work/bridge/$build/x86_64-unix/lsteamclient.so"
+wine_unix="$work/runner/x86_64-unix"
 
 fails=0
 ok() { printf '  ok    %s\n' "$1"; }
@@ -46,51 +45,51 @@ cross=""
 stage() {
 	: > "$work/log"
 	env bridge_src="$work/bridge" WINEPREFIX="$prefix" prefix_steam="$steam" \
-		log="$work/log" body="$body" wine_unix="$wine_unix" \
+		log="$work/log" body="$body" wine_unix="$wine_unix" np_build="$build" \
 		STEAM_COMPAT_DATA_PATH="$compat" cross="$cross" \
 		sh -ec 'eval "$body"; echo reached' > "$work/out" 2>&1 || true
 }
+source_of() {
+	case "$1" in
+		steamclient64.dll) echo "$work/bridge/steamclient64.dll" ;;
+		steam.exe) echo "$work/bridge/$build/steam.exe" ;;
+		lsteamclient.dll) echo "$work/bridge/$build/x86_64-windows/lsteamclient.dll" ;;
+		lsteamclient.so) echo "$work/bridge/$build/x86_64-unix/lsteamclient.so" ;;
+	esac
+}
 staged() {
 	n=0
-	for f in $files; do cmp -s "$work/bridge/$f" "$steam/$f" && n=$((n + 1)); done
+	for f in $files; do cmp -s "$(source_of "$f")" "$steam/$f" && n=$((n + 1)); done
 	echo "$n"
 }
 
 echo "== a fresh prefix gets the whole bridge"
 stage
 is "the launch goes on past staging" reached "$(cat "$work/out")"
-is "every file is copied" 6 "$(staged)"
-is "the ARM64 unix library is staged beside the DLL" "aarch64-unix bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
+is "every file is copied" 4 "$(staged)"
+is "the unix library is staged beside the DLL" "x86_64-unix bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
 unlogged "nothing claims to be staged already" "=== bridge already staged ==="
 
 echo "== a second launch copies nothing"
 stage
 is "the launch goes on" reached "$(cat "$work/out")"
 logged "the copy is recognised" "=== bridge already staged ==="
-is "the unix library survives pruning" "aarch64-unix bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
-
-echo "== a different Wine architecture replaces the unix library"
-wine_unix="$work/runner/x86_64-unix"
-stage
-unlogged "the old architecture is not taken as current" "=== bridge already staged ==="
-is "the x86_64 unix library replaces the ARM64 copy" "x86_64-unix bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
-stage
-logged "the x86_64 copy is recognised" "=== bridge already staged ==="
+is "the unix library survives pruning" "x86_64-unix bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
 
 echo "== a changed unix library is copied again"
-printf 'updated x86_64 bridge\n' > "$work/bridge/x86_64-unix/lsteamclient.so"
+printf 'updated x86_64 bridge\n' > "$work/bridge/$build/x86_64-unix/lsteamclient.so"
 stage
 unlogged "the old unix library is not taken as current" "=== bridge already staged ==="
 is "the prefix receives the updated unix library" "updated x86_64 bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
 
 echo "== changed bytes with the same size and timestamp"
-cp -p "$work/bridge/steam.exe" "$work/stamp"
-printf 'edited steam.exe\n' > "$work/bridge/steam.exe"
-touch -r "$work/stamp" "$work/bridge/steam.exe"
-is "the metadata still matches" "$(stat -f '%z %m' "$steam/steam.exe")" "$(stat -f '%z %m' "$work/bridge/steam.exe")"
+cp -p "$work/bridge/$build/steam.exe" "$work/stamp"
+printf 'edited steam.exe\n' > "$work/bridge/$build/steam.exe"
+touch -r "$work/stamp" "$work/bridge/$build/steam.exe"
+is "the metadata still matches" "$(stat -f '%z %m' "$steam/steam.exe")" "$(stat -f '%z %m' "$work/bridge/$build/steam.exe")"
 stage
 unlogged "matching metadata does not hide changed contents" "=== bridge already staged ==="
-is "the prefix receives the changed bytes" 6 "$(staged)"
+is "the prefix receives the changed bytes" 4 "$(staged)"
 
 echo "== a DLL the bridge no longer ships is pruned"
 printf 'old\n' > "$steam/old.dll"
@@ -104,23 +103,24 @@ printf 'bridge steamclient64.dll, newer build\n' > "$work/bridge/steamclient64.d
 stage
 is "the launch goes on" reached "$(cat "$work/out")"
 unlogged "the old copy is not taken as current" "=== bridge already staged ==="
-is "every file matches the bridge" 6 "$(staged)"
+is "every file matches the bridge" 4 "$(staged)"
 
-echo "== a bridge missing a file still stages the rest"
+echo "== a bridge missing a file stops the launch after staging the rest"
 rm -rf "$prefix"
-rm "$work/bridge/steam.exe"
+rm "$work/bridge/$build/steam.exe"
 stage
-is "the launch goes on" reached "$(cat "$work/out")"
+is "the launch stops" "" "$(grep -x reached "$work/out")"
 logged "the missing file is logged" "=== bridge missing steam.exe ==="
-is "the other files are copied" 5 "$(staged)"
-printf 'bridge steam.exe\n' > "$work/bridge/steam.exe"
+logged "the player is told" "alert: Steam files could not be copied"
+is "the other files are copied" 3 "$(staged)"
+printf 'bridge steam.exe\n' > "$work/bridge/$build/steam.exe"
 
 echo "== a prefix on the same drive clones from the bridge itself"
 rm -rf "$prefix"
 compat="$work/library/compatdata/1"
-cache="$work/library/compatdata/notproton-template/bridge"
+cache="$work/library/compatdata/notproton-template/bridge/$build"
 stage
-is "every file is copied" 6 "$(staged)"
+is "every file is copied" 4 "$(staged)"
 is "no copy of the bridge is made" no "$([ -e "$cache" ] && echo yes || echo no)"
 
 echo "== a prefix on another drive clones from that drive's copy"
@@ -128,14 +128,14 @@ rm -rf "$prefix"
 cross=1
 stage
 is "the launch goes on" reached "$(cat "$work/out")"
-is "every file is copied" 6 "$(staged)"
+is "every file is copied" 4 "$(staged)"
 is "the drive keeps a copy of steam.exe" "bridge steam.exe" "$(cat "$cache/steam.exe" 2>/dev/null)"
 is "the drive keeps the unix library under its architecture" "updated x86_64 bridge" \
 	"$(cat "$cache/x86_64-unix/lsteamclient.so" 2>/dev/null)"
 is "no temporary copies are left" "" "$(find "$cache" -name '*.[0-9]*' 2>/dev/null)"
 
 echo "== a changed bridge file refreshes the drive's copy"
-printf 'bridge steam.exe, newer build\n' > "$work/bridge/steam.exe"
+printf 'bridge steam.exe, newer build\n' > "$work/bridge/$build/steam.exe"
 stage
 is "the drive's copy is replaced" "bridge steam.exe, newer build" "$(cat "$cache/steam.exe" 2>/dev/null)"
 is "the prefix receives the new file" "bridge steam.exe, newer build" "$(cat "$steam/steam.exe" 2>/dev/null)"
@@ -145,7 +145,7 @@ rm -rf "$prefix" "$cache"
 mkdir -p "$work/elsewhere"
 ln -s "$work/elsewhere" "$cache"
 stage
-is "every file is copied" 6 "$(staged)"
+is "every file is copied" 4 "$(staged)"
 is "nothing is written through the link" "" "$(ls "$work/elsewhere")"
 rm "$cache"
 
@@ -156,7 +156,7 @@ chmod 500 "${cache%/*}"
 stage
 chmod 700 "${cache%/*}"
 is "the launch goes on" reached "$(cat "$work/out")"
-is "every file is copied" 6 "$(staged)"
+is "every file is copied" 4 "$(staged)"
 
 echo "== a file that cannot be staged stops the launch"
 cross=""
@@ -170,36 +170,7 @@ is "the reason is logged" yes "$(grep -q 'Permission denied' "$work/log" && echo
 logged "the player is told" "alert: Steam files could not be copied"
 stage
 is "the next launch stages it" reached "$(cat "$work/out")"
-is "every file is copied" 6 "$(staged)"
-
-echo "== a syswow64 trigger that cannot be installed stops the launch"
-trigger=$(sed -n '/^install_lsteamclient_trigger() {/,/^}/p;/^bridge_origin() {/,/^}/p;/^place_bridge_file() {/,/^}/p' "$SRC")
-mkdir -p "$work/bridge/i386-windows" "$prefix/drive_c/windows/syswow64"
-printf 'i386 bridge\n' > "$work/bridge/i386-windows/lsteamclient.dll"
-chmod 500 "$prefix/drive_c/windows/syswow64"
-: > "$work/log"
-env bridge_src="$work/bridge" WINEPREFIX="$prefix" log="$work/log" bridge_cache="" trigger="$trigger" \
-	sh -ec 'eval "$trigger"; if install_lsteamclient_trigger; then echo installed; else echo refused; fi' > "$work/out" 2>&1 || true
-chmod 700 "$prefix/drive_c/windows/syswow64"
-is "the trigger reports the failure" refused "$(cat "$work/out")"
-logged "the failure is logged" "=== could not copy i386-windows/lsteamclient.dll to $prefix/drive_c/windows/syswow64/lsteamclient.dll ==="
-is "the reason is logged" yes "$(grep -q 'Permission denied' "$work/log" && echo yes || echo no)"
-is "the launch checks the trigger" 1 "$(grep -c '^  if ! install_lsteamclient_trigger; then$' "$SRC")"
-env bridge_src="$work/bridge" WINEPREFIX="$prefix" log="$work/log" bridge_cache="" trigger="$trigger" \
-	sh -ec 'eval "$trigger"; if install_lsteamclient_trigger; then echo installed; else echo refused; fi' > "$work/out" 2>&1 || true
-is "a writable prefix gets the trigger" installed "$(cat "$work/out")"
-
-echo "== a legacycompat file that cannot be installed does not stop the launch"
-mkdir -p "$work/bridge/legacycompat" "$work/client/legacycompat"
-printf 'bridge Steam.dll\n' > "$work/bridge/legacycompat/Steam.dll"
-chmod 500 "$work/client/legacycompat"
-: > "$work/log"
-env bridge_src="$work/bridge" STEAM_COMPAT_CLIENT_INSTALL_PATH="$work/client" log="$work/log" \
-	legacy="$legacy" sh -ec 'eval "$legacy"; install_legacycompat; echo reached' > "$work/out" 2>&1 || true
-chmod 700 "$work/client/legacycompat"
-is "the launch goes on" reached "$(cat "$work/out")"
-logged "the failure is logged" "=== could not copy legacycompat/Steam.dll to $work/client/legacycompat/Steam.dll ==="
-is "the reason is logged" yes "$(grep -q 'Permission denied' "$work/log" && echo yes || echo no)"
+is "every file is copied" 4 "$(staged)"
 
 [ "$fails" -eq 0 ] || { echo "==> bridgecheck: $fails failure(s)"; exit 1; }
 echo "==> bridgecheck: the bridge stages on fresh, current, stale and incomplete prefixes"

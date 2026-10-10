@@ -30,7 +30,7 @@ struct ExperimentalUpdateTests {
         #expect(AppUpdater.shouldStart(info: [:]))
         #expect(AppUpdater.shouldStart(info: ["NPExperimental": false]))
 
-        // The checked-in plist is the upstream app: its feed stays and it is not experimental.
+        // The checked-in plist is the template: the Makefile stamps the Sikarugir identity.
         let info = try Self.infoPlist()
         #expect(AppUpdater.shouldStart(info: info))
         #expect(info["SUFeedURL"] != nil)
@@ -43,15 +43,16 @@ struct ExperimentalUpdateTests {
     func experimentalTargetIsDistinct() throws {
         let makefile = try Self.text("Makefile")
         #expect(makefile.contains("com.notproton.NotProton.sikarugir"))
-        #expect(makefile.contains("NotProton Sikarugir.app"))
+        #expect(makefile.contains("APP_NAME    := NotProton Sikarugir"))
         #expect(makefile.contains(#"Delete :SUFeedURL"#))
         #expect(makefile.contains(#"Delete :SUPublicEDKey"#))
         #expect(makefile.contains("Add :NPExperimental bool true"))
 
-        // deploy only looks at the upstream app names.
+        // deploy only looks at this app's own bundle name.
         let launchable = try #require(
             makefile.split(separator: "\n").first { $0.hasPrefix("LAUNCHABLE_BUNDLES") })
-        #expect(!launchable.contains("Sikarugir"))
+        #expect(launchable.contains("Sikarugir"))
+        #expect(!launchable.contains("/NotProton.app"))
     }
 
     @Test("Every packaged Sikarugir file is checked before the experimental bundle builds")
@@ -60,7 +61,7 @@ struct ExperimentalUpdateTests {
         let start = try #require(makefile.range(of: "sikarugir-payload-check:"))
         let recipe = String(makefile[start.lowerBound...].prefix(600))
         for path in RunnerPatcher.sikarugirBridge.keys { #expect(recipe.contains(path)) }
-        #expect(makefile.contains("app-sikarugir: sikarugir-payload-check app"))
+        #expect(makefile.contains("app: sikarugir-payload-check"))
     }
 
     @Test("Every detour resource on disk is declared by the package, Sikarugir ones included")

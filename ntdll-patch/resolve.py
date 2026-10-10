@@ -4,113 +4,18 @@
 import hashlib, json, pathlib, struct, sys, re, bisect
 try:
     import capstone
-    from capstone import x86 as X86, arm64 as A64
+    from capstone import x86 as X86
 except ImportError:  # PE parsing and the pin-driven patcher in apply.py work without it
-    capstone = X86 = A64 = None
+    capstone = X86 = None
 
-ARCH = {0x8664: 'x86_64-windows', 0x14c: 'i386-windows', 0xaa64: 'aarch64-windows'}
+ARCH = {0x8664: 'x86_64-windows', 0x14c: 'i386-windows'}
 
-PAYLOAD = {0x8664: 864, 0x14c: 1376, 0xaa64: 868}  # detour2.bin, detour32.bin, detour64-fex.bin
+PAYLOAD = {0x8664: 864, 0x14c: 1376}  # detour2.bin, detour32.bin size ceilings
 
-# Keyed by input sha256 so the comparison only runs against the build the tree pins, so a
-# new build will report derived values rather than a wall of expected mismatches
-PINNED = {
-    '04c7200b6645decb7c2d1ba6b0195abc9af83257072558d11aa72cc067ac3377':
-        {'hookRVA': 0x51f15, 'stolen': '4883bc24f000000000', 'caveRVA': 0x80be0, 'wm': 'rsi',
-         'resume': 0x51f1e, 'load_path': 0xd0,
-         'payload': '8504714bba0195439cb5b44c89f25c68dbb7f01bae6f72ca0a258a0daec3e244',
-         'exports': {'LdrGetDllHandle': 0x1700176d0, 'LdrLoadDll': 0x1700181f0,
-                     'NtProtectVirtualMemory': 0x17000f640}},
-    '94cc7c14c1e9dcf58ef501015c115f8405c73b2a65cefe31faa5d9e47f36e58b':
-        {'hookRVA': 0x4d828, 'stolen': 'f645bc027526', 'caveRVA': 0x7c830, 'caveSize': 2000,
-         'resume': 0x4d82e, 'wm': 'edi', 'load_path': -0x54,
-         'payload': '2758d4f6783c853c460187f83f4fb9b1105380d194126ef83fc85e2596d3036a',
-         'exports': {'LdrGetDllHandle': 0x7bc125b0, 'LdrLoadDll': 0x7bc130a0,
-                     'NtProtectVirtualMemory': 0x7bc0d764, 'NtOpenFile': 0x7bc0d594,
-                     'NtReadFile': 0x7bc0d2c4, 'NtClose': 0x7bc0d354}},
-    'f4fa556a3dc20f6e966a803f5de554359227a61a24cd5b5a2ad88a427ceeec58':
-        {'hookRVA': 0x34b2e, 'stolen': '488b842410010000', 'caveRVA': 0x79394, 'wm': 'rbx',
-         'resume': 0x34b36, 'load_path': 0x98,
-         'payload': '6af3f36658907cc94c096e432006807d6997bd970560f2579df748d6fd6e2bc6',
-         'exports': {'LdrGetDllHandle': 0x17002f530, 'LdrLoadDll': 0x17002ce70,
-                     'NtProtectVirtualMemory': 0x17005549c}},
-    '09474795d6f306163cebab6429819999fcff50e07dbc4b067a90ec4f74a3a7d7':
-        {'hookRVA': 0x2ee12, 'stolen': '8b4514a802', 'caveRVA': 0x6b2fe, 'caveSize': 3330,
-         'resume': 0x2ee17, 'wm': 'esi', 'load_path': -0x3c,
-         'payload': 'b4c697ba396ecb59125c505666ad3465d1208b8a1e3e53a0c457657b341376b9',
-         'exports': {'LdrGetDllHandle': 0x7bc2a6b0, 'LdrLoadDll': 0x7bc286d0,
-                     'NtProtectVirtualMemory': 0x7bc4d020, 'NtOpenFile': 0x7bc4ce50,
-                     'NtReadFile': 0x7bc4cb80, 'NtClose': 0x7bc4cc10}},
-    '6dff64c00793ce92124f1316985c63783f539f26b392975c70f57637458d2387':
-        {'hookRVA': 0x44972, 'stolen': '4883bc24f000000000', 'caveRVA': 0xae000, 'caveSize': 4096,
-         'wm': 'r14', 'resume': 0x4497b, 'load_path': 0xd0,
-         'payload': 'e35b834408599c45f30b23a6d2bf38acfa5c3df4d15206617c471e23a4a01bfb',
-         'exports': {'LdrGetDllHandle': 0x170014bc0, 'LdrLoadDll': 0x170015680,
-                     'NtProtectVirtualMemory': 0x17000f380}},
-    '2c60ee6b00dd13b7f6cb11017778a041ba6a321eaea194f1fa0dca7eab8403e2':
-        {'hookRVA': 0x43b40, 'stolen': 'f645c0017526', 'caveRVA': 0xaa000, 'caveSize': 4096,
-         'resume': 0x43b46, 'wm': 'esi', 'load_path': -0x54,
-         'payload': 'be465bc936cafafae4aa1b4c41f668e08848492d9858c2cf2ad483a9f1ab25e5',
-         'exports': {'LdrGetDllHandle': 0x7bc12c60, 'LdrLoadDll': 0x7bc13750,
-                     'NtProtectVirtualMemory': 0x7bc0d584, 'NtOpenFile': 0x7bc0d3b4,
-                     'NtReadFile': 0x7bc0d0e4, 'NtClose': 0x7bc0d174}},
-    '7823d71fbce6c9947163bf8b96beb299eabb02878245bcaf6759f2a22e81f071':
-        {'caveRVA': 0xf1185, 'caveSize': 61051,
-         # This image carries the loader twice, once for the native side and once for the
-         # emulated guest, and the detour has to divert both....
-         'sites': [{'hookRVA': 0x48004, 'stolen': '1f2003d5', 'resume': 0x48008,
-                    'wm': 'x27', 'load_path': -0x98},
-                   {'hookRVA': 0xa71bc, 'stolen': '1f2003d5', 'resume': 0xa71c0,
-                    'wm': 'x22', 'load_path': -0x88}],
-         # What link64.ld resolves, and the reason it is not the exports below: from the
-         # guest loader the exported LdrLoadDll takes a lock it does not hold, and the
-         # exported NtProtectVirtualMemory is a syscall thunk whose dispatcher is null.
-         'guest': {'LdrLoadDll': 0x9f698, 'LdrGetDllHandle': 0x9f698,
-                   'NtProtectVirtualMemory': 0xea8cc},
-         'payload': '68a458ec9c32041c79fdd622d18e91cfbe825a5292cae362d310930e34dd598e',
-         'exports': {'LdrGetDllHandle': 0x180043328, 'LdrLoadDll': 0x180040e94,
-                     'NtProtectVirtualMemory': 0x180065db0}},
-    '5b388fd48823e905616432fba627eb48f68dc14383963bb213d55db3f691b1b9':
-        {'hookRVA': 0x52055, 'stolen': '4883bc24f000000000', 'caveRVA': 0x815e0, 'caveSize': 2592,
-         'resume': 0x5205e, 'wm': 'rsi', 'load_path': 0xd0,
-         'payload': '660ea7c935620e620a45a46e552c0a3de9292e031bf93ef676968154d45e78d5',
-         'exports': {'LdrGetDllHandle': 0x170017710, 'LdrLoadDll': 0x170018230,
-                     'NtProtectVirtualMemory': 0x17000f690, 'NtOpenFile': 0x17000f2f0,
-                     'NtReadFile': 0x17000ed50, 'NtClose': 0x17000ee70}},
-    'e7da2a712870222942ef27a80b3bf4fa70fc8545dd1a64bdc7f2fa24a38debc3':
-        {'hookRVA': 0x4d848, 'stolen': 'f645bc027526', 'caveRVA': 0x7d1f0, 'caveSize': 3600,
-         'resume': 0x4d84e, 'wm': 'edi', 'load_path': -0x54,
-         'payload': '3eaa5021add0c8e30e324d6b1a6392a32720f5f73596418a2086b7f8081eb1bd',
-         'exports': {'LdrGetDllHandle': 0x7bc125f0, 'LdrLoadDll': 0x7bc130e0,
-                     'NtProtectVirtualMemory': 0x7bc0d7a4, 'NtOpenFile': 0x7bc0d5d4,
-                     'NtReadFile': 0x7bc0d304, 'NtClose': 0x7bc0d394}},
-    '1b02dcf6ad9d9490870f1127a421c4c0d1471c65ec1574e1e84c05d69801ac7e':
-        {'hookRVA': 0x34aae, 'stolen': '488b842410010000', 'caveRVA': 0xb5000, 'caveSize': 4096,
-         'resume': 0x34ab6, 'wm': 'rbx', 'load_path': 0x98,
-         'payload': '0084bba1d7399e749d918dba4f313f1dc1825d2a487f3169b469b57c5b161ca5',
-         'exports': {'LdrGetDllHandle': 0x17002f4e0, 'LdrLoadDll': 0x17002ce20,
-                     'NtProtectVirtualMemory': 0x170055dbc, 'NtOpenFile': 0x170055a1c,
-                     'NtReadFile': 0x17005547c, 'NtClose': 0x17005559c}},
-    '66b1a244a611795c59a93a9491d17f36c98cd8db9be495004a37864e0e5ed4a5':
-        {'hookRVA': 0x2ede2, 'stolen': '8b4514a802', 'caveRVA': 0xa4000, 'caveSize': 4096,
-         'resume': 0x2ede7, 'wm': 'esi', 'load_path': -0x3c,
-         'payload': '6ff6c7289e639c4caad85c2670bfa849d9f36baa24152b6979896caede5e249b',
-         'exports': {'LdrGetDllHandle': 0x7bc2a670, 'LdrLoadDll': 0x7bc28660,
-                     'NtProtectVirtualMemory': 0x7bc4d800, 'NtOpenFile': 0x7bc4d630,
-                     'NtReadFile': 0x7bc4d360, 'NtClose': 0x7bc4d3f0}},
-    '77ca83b2e1a3a1242f9d2d8868328262b2bcfc3f59bacf8b9389ea7e797ea852':
-        {'caveRVA': 0xf3185, 'caveSize': 52859,
-         'sites': [{'hookRVA': 0x48738, 'stolen': '1f2003d5', 'resume': 0x4873c,
-                    'wm': 'x27', 'load_path': -0x98},
-                   {'hookRVA': 0xa883c, 'stolen': '1f2003d5', 'resume': 0xa8840,
-                    'wm': 'x22', 'load_path': -0x88}],
-         'guest': {'LdrLoadDll': 0xa0aa0, 'LdrGetDllHandle': 0xa0aa0,
-                   'NtProtectVirtualMemory': 0xecf9c},
-         'payload': 'b27484eaed592366ddd3a5b3c565c2dc05e8fa255fbd7e19d9d8eb619ff57c23',
-         'exports': {'LdrGetDllHandle': 0x18004390c, 'LdrLoadDll': 0x180041344,
-                     'NtProtectVirtualMemory': 0x180067050, 'NtOpenFile': 0x180066cb0,
-                     'NtReadFile': 0x180066710, 'NtClose': 0x180066830}},
-}
+# Keyed by input sha256 so the comparison only runs against a build the tree pins; an unpinned
+# build reports derived values rather than a wall of expected mismatches.
+PINNED = {}
+
 EXPORTS = ['LdrGetDllHandle', 'LdrLoadDll', 'NtProtectVirtualMemory',
            'NtOpenFile', 'NtReadFile', 'NtClose']
 SECTION_NAME, SECTION_SIZE, SECTION_FLAGS = b'.npdet', 0x1000, 0x60000020
@@ -168,20 +73,15 @@ class PE:
     def cs(self):
         if capstone is None:
             raise SystemExit("resolving hooks needs capstone (pip install capstone in a venv)")
-        if self.machine == 0xaa64:
-            md = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
-        else:
-            md = capstone.Cs(capstone.CS_ARCH_X86,
-                             capstone.CS_MODE_64 if self.machine == 0x8664 else capstone.CS_MODE_32)
+        md = capstone.Cs(capstone.CS_ARCH_X86,
+                         capstone.CS_MODE_64 if self.machine == 0x8664 else capstone.CS_MODE_32)
         md.detail = True
         return md
 
     def pdata_starts(self):
         """Function entry RVAs from the exception directory, ascending."""
-        # aarch64 RUNTIME_FUNCTION is 8 bytes and its length is either packed into the second
-        # word or parked in .xdata, so bounds come from the next entry
         _, _, _, proff, prsize = self.sec('.pdata')
-        stride = 8 if self.machine == 0xaa64 else 12
+        stride = 12
         out = {struct.unpack_from('<I', self.d, o)[0] for o in range(proff, proff + prsize, stride)}
         return sorted(out - {0})
 
@@ -454,204 +354,9 @@ def resolve_i386(pe):
             'flags_slot': flags_slot, 'flags_bit': body[gate].operands[-1].imm}
 
 
-def aarch64_walk(md, text, tv):
-
-    off = 0
-    while off < len(text):
-        last = None
-        for i in md.disasm(text[off:], tv + off):
-            last = i
-            yield i
-        off = (last.address + last.size - tv + 4) if last else off + 4
-
-
-def aarch64_literal_refs(pe, names):
-    _, rvrva, _, rroff, rrsize = pe.sec('.rdata')
-    blob = pe.d[rroff:rroff + rrsize]
-    want = {}
-    for name in names:
-        pat = name.encode() + b'\0'
-        k = blob.find(pat)
-        while k != -1:
-            if k == 0 or blob[k - 1] == 0:
-                want[rvrva + k] = name
-            k = blob.find(pat, k + 1)
-    tv, text = pe.text()
-    out, pages = {}, {}
-    for i in aarch64_walk(pe.cs(), text, tv):
-        if i.mnemonic == 'adrp':
-            pages[i.operands[0].reg] = i.operands[1].imm
-        elif i.mnemonic == 'add' and len(i.operands) == 3 \
-                and i.operands[2].type == A64.ARM64_OP_IMM:
-            page = pages.get(i.operands[1].reg)
-            srva = None if page is None else page + i.operands[2].imm
-            if srva in want:
-                out.setdefault(srva, (want[srva], []))[1].append(i.address)
-    return out
-
-
-def aarch64_body(pe, md, lo, hi):
-    tv, text = pe.text()
-    lo, hi = max(tv, lo) & ~3, min(tv + len(text), hi)
-    return list(aarch64_walk(md, text[lo - tv:hi - tv], lo))
-
-
-def aarch64_open(pe, md, inside):
-    """Prologue RVA of the function containing `inside`."""
-    body = aarch64_body(pe, md, inside - 0x4000, inside + 4)
-    for k in range(len(body) - 1, -1, -1):
-        i = body[k]
-        if i.mnemonic == 'sub' and i.op_str.startswith('sp, sp, #') \
-                and any(n.mnemonic == 'add' and n.op_str.startswith('x29, sp, #')
-                        for n in body[k + 1:k + 13]):
-            return i.address
-    raise SystemExit(f"{pe.path}: no frame prologue above {inside:#x}")
-
-
-def aarch64_hook(pe, md, ref, allocs):
-    start = aarch64_open(pe, md, ref)
-    body = aarch64_body(pe, md, start, start + 0x2000)
-
-    def name(i, n):
-        return i.reg_name(i.operands[n].reg)
-
-    call = next((k for k, i in enumerate(body)
-                 if i.mnemonic == 'bl' and i.operands[0].imm in allocs), None)
-    if call is None:
-        raise SystemExit(f"{pe.path}: build_module at {start:#x} never calls alloc_module")
-    if body[call + 1].mnemonic != 'cbz' or name(body[call + 1], 0) != 'x0':
-        raise SystemExit(f"{pe.path}: alloc_module at {body[call].address:#x} is not null-checked")
-    join = next((i.operands[1].imm for i in body[call + 2:call + 10] if i.mnemonic == 'cbz'), None)
-    if join is None:
-        raise SystemExit(f"{pe.path}: no id test below alloc_module at {body[call].address:#x}")
-    k = next((k for k, i in enumerate(body) if i.address == join), None)
-    if k is None or body[k].bytes != NOP64:
-        raise SystemExit(f"{pe.path}: the id block from {body[call].address:#x} joins on "
-                         f"{join:#x}, which is not a nop")
-
-    # The shim takes the MODREF from x0 rather than from whichever register this copy moved it
-    # into, which only holds while nothing on the way to the join writes x0.
-    for i in body[call + 1:k]:
-        if 'x0' in {i.reg_name(w).replace('w', 'x', 1) for w in i.regs_access()[1]}:
-            raise SystemExit(f"{pe.path}: x0 no longer the MODREF at {i.address:#x}")
-    wm = next((name(i, 0) for i in body[call + 1:k] if i.mnemonic == 'mov'
-               and i.operands[1].type == A64.ARM64_OP_REG and name(i, 1) == 'x0'), None)
-    if wm is None or not any(i.mnemonic == 'add' and i.op_str.endswith('#0x118')
-                             and name(i, 1) == wm for i in body[call:k]):
-        raise SystemExit(f"{pe.path}: nothing below {body[call].address:#x} treats the result "
-                         f"as a MODREF")
-
-    def spill(src):
-        """The frame slot build_module parks an incoming argument in."""
-        for i in body[:24]:
-            if i.mnemonic == 'stur' and name(i, 0) == src \
-                    and i.operands[1].type == A64.ARM64_OP_MEM \
-                    and i.reg_name(i.operands[1].mem.base) == 'fp':
-                return i.operands[1].mem.disp
-        raise SystemExit(f"{pe.path}: build_module at {start:#x} never spills {src}")
-
-    return {'build_module': start, 'hookRVA': join, 'stolen': NOP64.hex(), 'stolen_len': 4,
-            'insn': f"{body[k].mnemonic} {body[k].op_str}".strip(), 'resume': join + 4,
-            'wm': wm, 'load_path': spill('x0'), 'flags_slot': spill('w5')}
-
-
-def aarch64_guest_syscall(pe, md, native):
-    num = next((int(i.op_str.split('#')[1], 0)
-                for i in aarch64_body(pe, md, native, native + 8)
-                if i.mnemonic == 'mov' and i.op_str.startswith('x8, #')), None)
-    if num is None:
-        raise SystemExit(f"{pe.path}: no syscall number at {native:#x}")
-    tv, text = pe.text()
-    pat = b'\x4c\x8b\xd1\xb8' + num.to_bytes(4, 'little')    # mov r10, rcx ; mov eax, num
-    k = text.find(pat)
-    if k < 0 or text.find(pat, k + 1) >= 0:
-        raise SystemExit(f"{pe.path}: guest stub for syscall {num:#x} is "
-                         f"{'missing' if k < 0 else 'not unique'}")
-    stub = tv + k
-    body = list(aarch64_walk(md, text, tv))
-    found = set()
-    for n, i in enumerate(body[:-1]):
-        nx = body[n + 1]
-        if i.mnemonic != 'adrp' or not i.op_str.startswith('x11, '):
-            continue
-        if nx.mnemonic != 'add' or not nx.op_str.startswith('x11, x11, #'):
-            continue
-        if int(i.op_str.split('#')[1], 0) + int(nx.op_str.split('#')[1], 0) != stub:
-            continue
-        entry = i.address - 8
-        head = aarch64_body(pe, md, entry, entry + 4)
-        if head and head[0].mnemonic == 'str' and head[0].op_str.startswith('x30, [sp, #-'):
-            found.add(entry)
-    if not found:
-        raise SystemExit(f"{pe.path}: no guest thunk tail branching to {stub:#x}")
-    return found
-
-
-def aarch64_twin(pe, md, native, span):
-    """RVA of the copy of the function at `native` that was compiled into `span`.
-
-    Both copies come from the same source, so the mnemonic sequence is identical even though
-    register numbers and call targets are not.
-    """
-    want = [i.mnemonic for i in aarch64_body(pe, md, native, native + 0x100)]
-    tv, text = pe.text()
-    lo, hi = span
-    opener = text[native - tv:native - tv + 4]
-    hits, k = [], text.find(opener, lo - tv, hi - tv)
-    while k != -1:
-        f = tv + k
-        if f != native and [i.mnemonic for i in aarch64_body(pe, md, f, f + 0x100)] == want:
-            hits.append(f)
-        k = text.find(opener, k + 4, hi - tv)
-    if len(hits) != 1:
-        raise SystemExit(f"{pe.path}: {len(hits)} twins of {native:#x} in {lo:#x}..{hi:#x}")
-    return hits[0]
-
-
-def resolve_aarch64(pe):
-    md = pe.cs()
-    refs = aarch64_literal_refs(pe, ('build_module', 'alloc_module'))
-    allocs = {aarch64_open(pe, md, a[0]) for n, a in refs.values() if n == 'alloc_module'}
-    sites = sorted((aarch64_hook(pe, md, a[0], allocs)
-                    for n, a in refs.values() if n == 'build_module'),
-                   key=lambda s: s['hookRVA'])
-    if len(sites) != 2:
-        raise SystemExit(f"{pe.path}: {len(sites)} build_module copies, shim64.S hooks two")
-
-    ex = pe.exports()
-    thunks = aarch64_guest_syscall(pe, md, ex['NtProtectVirtualMemory'])
-
-    def calls(s):
-        bm = s['build_module']
-        return {int(i.op_str.lstrip('#'), 0)
-                for i in aarch64_body(pe, md, bm, bm + 0x1000) if i.mnemonic == 'bl'}
-
-    reach = [calls(s) for s in sites]
-    guest = [(s, c & thunks) for s, c in zip(sites, reach)
-             if c & thunks and ex['NtProtectVirtualMemory'] not in c]
-    native = [s for s, c in zip(sites, reach)
-              if ex['NtProtectVirtualMemory'] in c and not c & thunks]
-    if len(guest) != 1 or len(native) != 1 or guest[0][0] is native[0]:
-        raise SystemExit(f"{pe.path}: cannot tell the two build_module copies apart by their "
-                         f"route to NtProtectVirtualMemory")
-    if len(guest[0][1]) != 1:
-        raise SystemExit(f"{pe.path}: guest build_module reaches {len(guest[0][1])} protect thunks")
-    thunk = guest[0][1].pop()
-
-    bm = guest[0][0]['build_module']
-    tv, text = pe.text()
-    span = (max(tv, bm - 0x10000), min(tv + len(text), bm + 0x10000))
-    # A detour running under the guest loader has to stay inside it, obviously
-    load = aarch64_twin(pe, md, ex['LdrLoadDll'], span)
-    return dict(sites[0], sites=sites,
-                guest={'LdrLoadDll': load, 'LdrGetDllHandle': load,
-                       'NtProtectVirtualMemory': thunk})
-
-
 def resolve(path):
     pe = PE(path)
-    r = (resolve_aarch64(pe) if pe.machine == 0xaa64 else
-         resolve_amd64(pe) if pe.machine == 0x8664 else resolve_i386(pe))
+    r = resolve_amd64(pe) if pe.machine == 0x8664 else resolve_i386(pe)
     r.update(pe.cave())
     if r['caveSize'] < PAYLOAD[pe.machine]:
         r.update(pe.appended())
@@ -698,7 +403,7 @@ def report(path):
         line('resume', s['resume'], 'resume', want=want)
         line('wm', s['wm'], 'wm', fmt=str, want=want)
         if s.get('load_path') is not None:
-            frame = {0x8664: 'rsp', 0x14c: 'ebp', 0xaa64: 'x29'}[machine]
+            frame = {0x8664: 'rsp', 0x14c: 'ebp'}[machine]
             slot = ((lambda v: f"{frame}+{v:#x}") if machine == 0x8664
                     else (lambda v: f"{frame}{v:+#x}"))
             line('load_path', s['load_path'], 'load_path', fmt=slot, want=want)
@@ -730,11 +435,11 @@ def report(path):
 
 
 def ntdlls(arg):
-    """Every ntdll.dll under a bundle, a CrossOver root, or a wine directory."""
+    """Every ntdll.dll under an app bundle, a wine root, or a wine directory."""
     p = pathlib.Path(arg)
     if p.is_file():
         return [str(p)]
-    for root in (p / 'Contents/SharedSupport/CrossOver/lib/wine', p / 'lib/wine', p):
+    for root in (p / 'Contents/SharedSupport/wine/lib/wine', p / 'lib/wine', p):
         archs = sorted(d for d in root.glob('*-windows') if d.is_dir())
         if not archs:
             continue
@@ -821,7 +526,7 @@ def manifest_entry(path):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        raise SystemExit(f"usage: {sys.argv[0]} [--sh | --json] <CrossOver bundle | wine dir | ntdll.dll> ...")
+        raise SystemExit(f"usage: {sys.argv[0]} [--sh | --json] <Sikarugir app | wine dir | ntdll.dll> ...")
     if sys.argv[1] == '--json':
         entries = [manifest_entry(p) for arg in sys.argv[2:] for p in ntdlls(arg)]
         print(json.dumps({'schemaVersion': 1, 'entries': entries}, indent=2))

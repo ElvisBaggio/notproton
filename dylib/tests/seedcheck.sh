@@ -14,22 +14,20 @@ cut_block() {
 }
 functions=$(cut_block '^merge_user_dir\(\) \{' '^import_prefix_settings\(\) \{' "")
 functions="$functions
-$(cut_block '^runner_id=""' '^if \[ -n ".STEAM_COMPAT_DATA_PATH" \]; then' "")"
+$(cut_block '^runner_id=' '^if \[ -n ".STEAM_COMPAT_DATA_PATH" \]; then' "")"
 functions="$functions
 $(cut_block '^without_lock_fds\(\) \{' '^\}' 1)"
 functions="$functions
 $(cut_block '^wine_exec\(\) \{' '^\}' 1)"
-np_origin=crossover
 np_build=fixture
-export np_build CX_ROOT CX_HOME wine_unix np_tool_dir WINELOADER WINESERVER
+export np_build np_runner wine_unix np_tool_dir WINELOADER WINESERVER
 export STEAM_COMPAT_DATA_PATH WINEPREFIX template_dir log seed_scratch seed_building
-CX_ROOT="$work/runner"
-CX_HOME="$work/home"
-wine_unix="$CX_ROOT/lib/wine/x86_64-unix"
+np_runner="$work/runner"
+wine_unix="$np_runner/lib/wine/x86_64-unix"
 np_tool_dir="$work/tool"
-mkdir -p "$np_tool_dir" "$CX_ROOT/share/wine"
+mkdir -p "$np_tool_dir" "$np_runner/share/wine"
 cp "$SRC" "$np_tool_dir/run"
-printf inf > "$CX_ROOT/share/wine/wine.inf"
+printf inf > "$np_runner/share/wine/wine.inf"
 WINELOADER=/usr/bin/false
 WINESERVER=/usr/bin/false
 eval "$functions"
@@ -226,7 +224,8 @@ check test "$(prefix_is_bare && echo unsafe || echo refused)" = refused
 fixture
 export WINEDLLOVERRIDES=leak WINEARCH=win32 WINEMSYNC=1 SteamAppId=123
 isolated=$(in_template_env "$WINEPREFIX" /usr/bin/env)
-check test "$(printf '%s\n' "$isolated" | grep -Ec '^(WINEDLLOVERRIDES|WINEARCH|WINEMSYNC|SteamAppId)=' || true)" = 0
+check test "$(printf '%s\n' "$isolated" | grep -Ec '^(WINEDLLOVERRIDES|WINEMSYNC|SteamAppId)=' || true)" = 0
+check test "$(printf '%s\n' "$isolated" | grep -c '^WINEARCH=win64$' || true)" = 1
 
 fixture
 prepare_prefix_directory
@@ -279,7 +278,7 @@ check test -f "$STEAM_COMPAT_DATA_PATH/pfx.replaced.123/save"
 
 fixture
 identity_before=$(template_identity)
-printf changed > "$CX_ROOT/share/wine/wine.inf"
+printf changed > "$np_runner/share/wine/wine.inf"
 check test "$identity_before" != "$(template_identity)"
 identity_before=$(template_identity)
 printf '\n' >> "$np_tool_dir/run"
@@ -329,7 +328,7 @@ check test ! -e "$STEAM_COMPAT_DATA_PATH/pfx.replaced.$$"
 first_prefix="$WINEPREFIX"
 printf first-game > "$first_prefix/system.reg"
 printf obsolete > "$template_dir/pfx/obsolete"
-printf updated-inf > "$CX_ROOT/share/wine/wine.inf"
+printf updated-inf > "$np_runner/share/wine/wine.inf"
 STEAM_COMPAT_DATA_PATH="$case_root/next-game"
 WINEPREFIX="$STEAM_COMPAT_DATA_PATH/pfx"
 mkdir -p "$WINEPREFIX"

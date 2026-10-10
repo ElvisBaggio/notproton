@@ -1,12 +1,19 @@
-// The single Sikarugir line on the Status pane, kept apart from the CrossOver rows
+// The single Sikarugir line on the Status pane
 
 import Foundation
 
 struct SikarugirRow: Equatable {
     static let title = "Sikarugir 11.0 (experimental)"
 
+    enum Copy: Equatable {
+        case none
+        case ready
+        case unpatched
+        case damaged
+    }
+
     let install: SikarugirInstall?
-    let copy: CrossOverRow.Copy
+    let copy: Copy
 
     var buildID: String { SupportedRunners.sikarugir.id }
     var canSetUp: Bool { install != nil }
@@ -19,7 +26,7 @@ struct SikarugirRow: Equatable {
         installs: [SikarugirInstall], installed: [RunnerBuild], damaged: [String], unpatched: [String]
     ) -> SikarugirRow {
         let id = SupportedRunners.sikarugir.id
-        let copy: CrossOverRow.Copy
+        let copy: Copy
         if unpatched.contains(id) {
             copy = .unpatched
         } else if installed.contains(where: { $0.id == id }) {

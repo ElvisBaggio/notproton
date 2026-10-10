@@ -5,7 +5,7 @@
 #   ./verify.sh --prune  also move anything unexpected out to scratch/bridge-attic
 #
 # The bridge is the staging area RUN_SCRIPT installs from on every launch, so what
-# sits in it ends up in the CrossOver tree, the wine prefix, and the Steam client
+# sits in it ends up in the runner copy, the wine prefix, and the Steam client
 # directory. Stray files there are not harmless:
 #
 # - legacycompat is copied by glob, so anything dropped in it is installed into the
@@ -46,7 +46,7 @@ fi
 
 # Three origins collapse to the two sections this check has always printed. The
 # manifest separates built from patched because the installer treats them
-# differently, the patched ntdlls being made from the user's own CrossOver. That
+# differently, the patched ntdlls being made from the user's own Sikarugir engine. That
 # distinction does not matter here.
 origin() {
     awk -v want="$1" '$1 == want { print $2 }' "$MANIFEST"

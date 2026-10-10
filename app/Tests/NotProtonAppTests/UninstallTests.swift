@@ -298,7 +298,7 @@ struct UninstallTests {
         let layout = try layout()
         defer { try? FileManager.default.removeItem(at: layout.root) }
         let library = SteamLibrary(root: layout.root.appending(path: "library"))
-        let build = "26.3.0.39832"
+        let build = SupportedRunners.sikarugir.id
         let templates = SupportPaths.prefixTemplates(forBuild: build, in: library)
         for template in templates {
             try FileManager.default.createDirectory(at: template, withIntermediateDirectories: true)
@@ -328,7 +328,7 @@ struct UninstallTests {
         try FileManager.default.createDirectory(at: library.compatdata, withIntermediateDirectories: true)
         let outside = layout.root.appending(path: "outside")
         try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
-        let sentinel = outside.appending(path: "crossover-26.3.0.39832-x86_64-unix")
+        let sentinel = outside.appending(path: "sikarugir-11.0-r0-x86_64-unix")
         try Data("keep".utf8).write(to: sentinel)
         try FileManager.default.createSymbolicLink(
             at: library.compatdata.appending(path: SupportPaths.prefixTemplateFolder), withDestinationURL: outside)

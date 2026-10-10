@@ -564,10 +564,10 @@ struct SteamInstallerTests {
         let work = try scratchDirectory("install-orphan")
         defer { try? FileManager.default.removeItem(at: work) }
         let fixture = try await self.fixture(into: work)
-        let runner = SupportPaths.clonedRoot(forBuild: "99.0.0.12345", runners: fixture.support.appending(path: "runners"))
+        let runner = SupportPaths.clonedRoot(forBuild: "sikarugir-99.0-r9", runners: fixture.support.appending(path: "runners"))
         try FileManager.default.createDirectory(at: runner.appending(path: "lib/wine"), withIntermediateDirectories: true)
         let error = try #require(throws: StepFailure.self) { try install(fixture, running: true) }
-        #expect(error.detail.contains("99.0.0.12345"))
+        #expect(error.detail.contains("sikarugir-99.0-r9"))
         #expect(!FileManager.default.fileExists(atPath: fixture.deployedDylib.path))
     }
 
@@ -584,7 +584,7 @@ struct SteamInstallerTests {
         let error = try #require(throws: StepFailure.self) {
             try install(fixture, verifyRunner: RunnerInstaller.verifyClone)
         }
-        #expect(error.detail.contains("does not match"))
+        #expect(error.detail.contains("engine version"))
         #expect(!FileManager.default.fileExists(atPath: fixture.bridge.path))
         #expect(!FileManager.default.fileExists(atPath: fixture.deployedDylib.path))
     }
@@ -627,8 +627,8 @@ struct SteamInstallerTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.deployedVersion.path))
     }
 
-    @Test("The signature profile guard names every origin and refuses a missing profile")
-    func signatureGuardMessageCoversEveryOrigin() throws {
+    @Test("The signature profile guard covers every tool and refuses a missing profile")
+    func signatureGuardMessageCoversEveryTool() throws {
         let work = try scratchDirectory("profile-guard")
         defer { try? FileManager.default.removeItem(at: work) }
         let profile = work.appending(path: "100.json")
@@ -639,8 +639,7 @@ struct SteamInstallerTests {
             Issue.record("a Steam build without a profile was accepted")
         } catch let failure as StepFailure {
             #expect(failure.detail.contains("exactly one matching signature profile"))
-            #expect(failure.detail.contains("CrossOver"))
-            #expect(failure.detail.contains("Sikarugir"))
+            #expect(failure.detail.contains("every compatibility tool"))
             #expect(failure.detail.contains("No hooks installed"))
         }
     }

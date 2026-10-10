@@ -146,7 +146,7 @@ struct DeploymentContentTests {
                                    iconmakerPresent: true, appinfoPresent: true, signatureDatabase: "fixture",
                                    legacyCompatPresent: 0, legacyCompatExpected: 0, manifestProblem: nil)
         status.snapshot = StatusSnapshot(steam: .notInstalled, steamRunning: false, updateBlocked: false,
-                                         crossOver: [], runner: .none, payload: payload,
+                                         runner: .none, payload: payload,
                                          installContent: .newerInstalled)
         #expect(!status.canInstall)
         status.snapshot?.installContent = .unavailable("invalid record")
@@ -163,14 +163,14 @@ struct DeploymentContentTests {
                                    iconmakerPresent: true, appinfoPresent: true, signatureDatabase: "fixture",
                                    legacyCompatPresent: 0, legacyCompatExpected: 0, manifestProblem: nil)
         status.snapshot = StatusSnapshot(steam: .notInstalled, steamRunning: false, updateBlocked: false,
-                                         crossOver: [], runner: .none, payload: payload,
+                                         runner: .none, payload: payload,
                                          installContent: .newerInstalled)
-        status.requestBuildRemoval("crossover-26.0")
+        status.requestBuildRemoval("sikarugir-11.0-r0")
         #expect(status.pendingRemoval == nil)
         #expect(status.pendingConfirmation == nil)
         status.snapshot?.installContent = .unrecorded(["notproton.dylib"])
-        status.requestBuildRemoval("crossover-26.0")
-        #expect(status.pendingRemoval == "crossover-26.0")
+        status.requestBuildRemoval("sikarugir-11.0-r0")
+        #expect(status.pendingRemoval == "sikarugir-11.0-r0")
         #expect(status.pendingConfirmation == .removeBuild)
     }
 
@@ -196,7 +196,7 @@ struct DeploymentContentTests {
         let root = try scratchDirectory("content-tools")
         defer { try? FileManager.default.removeItem(at: root) }
         let runners = root.appending(path: "runners")
-        let runner = SupportPaths.clonedRoot(forBuild: "26.3.0.39832", runners: runners)
+        let runner = SupportPaths.clonedRoot(forBuild: SupportedRunners.sikarugir.id, runners: runners)
         try FileManager.default.createDirectory(at: runner.appending(path: "lib/wine"), withIntermediateDirectories: true)
         let list = root.appending(path: "tools")
         for text in [nil, "", "incorrect"] as [String?] {

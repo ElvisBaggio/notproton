@@ -134,7 +134,7 @@ enum DeploymentContent {
             guard let runner = SupportedRunners.build(id: build) else { continue }
             for builtin in RunnerPatcher.builtins(for: runner, in: root) {
                 let relative = RunnerPatcher.builtinPath(builtin)
-                let path = runner.origin == .sikarugir ? "\(build)/\(relative)" : relative
+                let path = "\(build)/\(relative)"
                 if let entry = bridgePayload.sources.first(where: { $0.bridgePaths.contains(path) }) {
                     files.append(File(source: entry.source, destination: RunnerPatcher.builtinDestination(builtin, in: root),
                                       name: "\(SupportPaths.runnerFolder(forBuild: build))/\(relative)"))
@@ -177,7 +177,7 @@ enum DeploymentContent {
             for (arch, hash) in build.patchedNtdll {
                 let file = SupportPaths.clonedRoot(forBuild: build.id, runners: runners)
                     .appending(path: "lib/wine/\(arch.rawValue)/ntdll.dll")
-                files.append((file, hash, "crossover-\(build.id)/\(arch.rawValue)/ntdll.dll"))
+                files.append((file, hash, "\(build.id)/\(arch.rawValue)/ntdll.dll"))
                 files.append((NtdllPatcher.stagedCopy(of: arch, build: build.id, in: bridge), hash,
                               "bridge/wine/\(build.id)/\(arch.rawValue)/ntdll.dll"))
             }
