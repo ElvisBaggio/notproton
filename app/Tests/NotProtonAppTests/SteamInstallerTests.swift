@@ -45,9 +45,12 @@ struct SteamInstallerTests {
         try Data("#!/bin/sh\nexit 0\n".utf8).write(to: root.appending(path: "run"))
         try Data("100\n".utf8).write(to: root.appending(path: "build-time"))
 
-        try Data("{}".utf8).write(to: signatureDir.appending(path: "1788400362.json"))
-        try Data("{}".utf8).write(to: signatureDir.appending(path: "1788652215.json"))
+        try Data("{\"steam_build\":1788400362}".utf8).write(to: signatureDir.appending(path: "1788400362.json"))
+        try Data("{\"steam_build\":1788652215}".utf8).write(to: signatureDir.appending(path: "1788652215.json"))
 
+        let package = work.appending(path: "client/package")
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+        try Data("\"version\" \"1788400362\"".utf8).write(to: package.appending(path: "steam_client_osx.manifest"))
         return try InstallPayload.locate(root: root)
     }
 
@@ -109,6 +112,7 @@ struct SteamInstallerTests {
             deployedVersion: fixture.deployedVersion,
             backups: fixture.backups,
             compatTools: fixture.work.appending(path: "compatibilitytools.d"),
+            clientRoot: fixture.work.appending(path: "client"),
             runnerIsRunning: { _ in running },
             verifyRunner: verifyRunner,
             patchRunner: { _, _, _ in },

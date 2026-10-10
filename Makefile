@@ -522,6 +522,9 @@ app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO)
 		elif [ -f "$$dst" ]; then echo "==> keeping staged $${spec##*:}"; \
 		else echo "$$src is missing and nothing is staged at $$dst, run: $(MAKE) bridge" >&2; exit 1; fi; \
 	done
+	@if [ -d "scratch/sikarugir/bridge" ]; then \
+		python3 bridge/stage-sikarugir-payload.py "scratch/sikarugir/bridge" "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0"; \
+	fi
 	@stamp="$$(git log -1 --format=%ct 2>/dev/null)"; \
 	if [ -z "$$stamp" ]; then echo "build-time needs a git checkout" >&2; exit 1; fi; \
 	echo "$$stamp" > "$(APP_PAYLOAD)/build-time"

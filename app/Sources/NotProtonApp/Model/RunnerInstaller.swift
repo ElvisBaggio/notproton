@@ -5,7 +5,7 @@ import Foundation
 
 enum RunnerInstaller {
 
-    static let step = "Clone CrossOver"
+    static let step = "Clone runner"
 
     static func clone(
         from install: CrossOverInstall,
@@ -29,17 +29,93 @@ enum RunnerInstaller {
             let staging = target.deletingLastPathComponent()
                 .appending(path: ".\(target.lastPathComponent).new")
             try? fm.removeItem(at: staging)
+            defer { try? fm.removeItem(at: staging) }
             try copyPayload(from: install.crossOverRoot, to: staging)
-            if occupied {
-                try fm.removeItem(at: target)
-            }
-            try fm.moveItem(at: staging, to: target)
+            try verifyClone(build: build, root: staging.appending(path: "CrossOver"))
+            try publish(staging, at: target, occupied: occupied)
         }
 
         let cloned = SupportPaths.clonedRoot(forBuild: build.id, runners: runners)
         try verifyClone(build: build, root: cloned)
 
         return build
+    }
+
+    static func clone(
+        from install: SikarugirInstall,
+        replacingExisting: Bool = false,
+        runners: URL = SupportPaths.runners,
+        prepare: (RunnerBuild, URL) throws -> Void = { _, _ in }
+    ) throws -> RunnerBuild {
+        let checked = try SikarugirSource.inspect(root: install.root)
+        guard install.build.id == checked.build.id, install.build.origin == .sikarugir else {
+            throw StepFailure(step: step, detail: "Sikarugir source/build mismatch.")
+        }
+        let build = checked.build
+        let target = SupportPaths.runnerRoot(forBuild: build.id, runners: runners)
+        let fm = FileManager.default
+        let occupied = fm.fileExists(atPath: target.path)
+        if !hasClone(forBuild: build.id, runners: runners) || replacingExisting {
+            try fm.createDirectory(at: runners, withIntermediateDirectories: true)
+            let staging = runners.appending(path: ".\(build.id).\(UUID().uuidString).new")
+            defer { try? fm.removeItem(at: staging) }
+            try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+            let root = staging.appending(path: "wine")
+            let frameworks = SikarugirSource.frameworks(inRoot: install.root)
+            let frameworkInputs = try frameworkMap(frameworks)
+            try cloneTree(from: install.root, to: root)
+            try cloneTree(from: SikarugirSource.frameworks(inRoot: install.root), to: root.appending(path: "Frameworks"))
+            _ = try SikarugirSource.inspect(root: root)
+            _ = try SikarugirSource.inspect(root: install.root)
+            guard try frameworkInputs == frameworkMap(frameworks),
+                  try frameworkInputs == frameworkMap(root.appending(path: "Frameworks")) else {
+                throw StepFailure(step: step, detail: "Frameworks copy is incomplete.")
+            }
+            try JSONEncoder().encode(frameworkInputs).write(to: root.appending(path: ".notproton-frameworks.json"))
+            try prepare(build, root)
+            try verifyClone(build: build, root: root)
+            try publish(staging, at: target, occupied: occupied)
+        }
+        try verifyClone(build: build, root: SupportPaths.clonedRoot(forBuild: build.id, runners: runners))
+        return build
+    }
+
+    static func cloneTree(from source: URL, to destination: URL) throws {
+        // APFS clone only: a failed clone must not silently become a different copy strategy.
+        try Shell.check("/bin/cp", ["-c", "-R", source.path, destination.path])
+        scrubDownloadMarkers(at: destination)
+    }
+
+    static func publish(_ staging: URL, at target: URL, occupied: Bool) throws {
+        let result = occupied
+            ? renameatx_np(AT_FDCWD, staging.path, AT_FDCWD, target.path, UInt32(RENAME_SWAP))
+            : rename(staging.path, target.path)
+        guard result == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+    }
+
+    static func frameworkMap(_ root: URL) throws -> [String: String] {
+        let root = root.resolvingSymlinksInPath()
+        let fm = FileManager.default
+        var map: [String: String] = [:]
+        for key in try fm.subpathsOfDirectory(atPath: root.path) {
+            let file = root.appending(path: key)
+            let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+            if values.isSymbolicLink == true {
+                let link = try fm.destinationOfSymbolicLink(atPath: file.path)
+                let destination = URL(fileURLWithPath: link, relativeTo: file.deletingLastPathComponent())
+                    .standardizedFileURL.resolvingSymlinksInPath()
+                guard destination.path.hasPrefix(root.resolvingSymlinksInPath().path + "/") else {
+                    throw StepFailure(step: step, detail: "Frameworks symlink escapes the copy: \(key).")
+                }
+                map[key] = "link:" + link
+            } else if values.isDirectory == true {
+                map[key] = "directory"
+            } else {
+                map[key] = try Digest.sha256(of: file)
+            }
+        }
+        guard !map.isEmpty else { throw StepFailure(step: step, detail: "Frameworks is empty.") }
+        return map
     }
 
     static let removeStep = "Remove build"
@@ -91,7 +167,7 @@ enum RunnerInstaller {
     static func removeLeftoverRemovals(runners: URL) {
         let fm = FileManager.default
         let entries = (try? fm.contentsOfDirectory(at: runners, includingPropertiesForKeys: nil)) ?? []
-        for entry in entries where entry.lastPathComponent.hasPrefix(".crossover-")
+        for entry in entries where (entry.lastPathComponent.hasPrefix(".crossover-") || entry.lastPathComponent.hasPrefix(".sikarugir-"))
             && entry.lastPathComponent.hasSuffix(".removing") {
             try? fm.removeItem(at: entry)
         }
@@ -149,7 +225,7 @@ enum RunnerInstaller {
                 guard info.st_mode & S_IFMT == S_IFDIR else { throw POSIXError(.ENOTDIR) }
 
                 for name in try templateDirectoryNames(root) where !kept.contains(name) {
-                    let template = name.wholeMatch(of: #/crossover-[A-Za-z0-9.-]+-(x86_64|aarch64)-unix/#) != nil
+                    let template = name.wholeMatch(of: #/(crossover|sikarugir)-[A-Za-z0-9.-]+-(x86_64|aarch64)-unix/#) != nil
                     guard template || (builds.isEmpty && name == SupportPaths.bridgeCacheFolder) else { continue }
                     do {
                         try removeTemplateEntry(name, in: root, device: info.st_dev)
@@ -266,6 +342,18 @@ enum RunnerInstaller {
     }
 
     static func verifyClone(build: RunnerBuild, root: URL) throws {
+        if build.origin == .sikarugir {
+            _ = try SikarugirSource.inspect(root: root, hash: { file in
+                let isNtdll = file.lastPathComponent == "ntdll.dll"
+                return Digest.sha256IfPresent(isNtdll ? Clean.copy(of: file) : file)
+            })
+            let expected = try JSONDecoder().decode([String: String].self,
+                from: Data(contentsOf: root.appending(path: ".notproton-frameworks.json")))
+            guard try expected == frameworkMap(root.appending(path: "Frameworks")) else {
+                throw StepFailure(step: step, detail: "Frameworks no longer matches the copied map.")
+            }
+            return
+        }
         let loader = Clean.copy(of: CrossOverSource.unixLoader(inRoot: root))
         guard let hash = Digest.sha256IfPresent(loader) else {
             throw StepFailure(step: step, detail: "The clone has no Wine loader at \(loader.lastPathComponent).")
