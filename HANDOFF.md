@@ -2,6 +2,10 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T11 — Pré-condições PEAK preparadas (2026-10-10, Agente: claude, modelo efetivo sonnet)
+
+Somente leitura; T11 não iniciado (depende de T10). PEAK 3527290: depot único Windows 3527291 (sem macOS), launch DX12/DX11 (`-force-d3d11`)/Vulkan, Auto-Cloud `LocalLow/LandCrab/PEAK/*.peak`; posse não verificável localmente, confirmar com Elvis. Detalhes e riscos em `docs/evidence/game-launch.md`, branch `claude/t11-peak-prep`, issue #15.
+
 ## T05 — Passo 3 PASS real, revisão pendente (2026-10-09 22:34 -03:00, Agente: codex)
 
 **Estado.** Cliente Codex, papel bridge_probe, modelo efetivo gpt-6.1-sol, branch codex/t05-steam-probe, base cdf3be5. Steam aberto/logado por Elvis; processo confirmado antes/depois, build content_log 1791415817. Comando exato autorizado: STEAM_INIT=ok / APP_ID=3527290 / AUTHENTICATED=yes, exit0; trace real CreateSteamPipe/ConnectToGlobalUser/GetISteamUser/GetISteamUtils/GetAppID/BLoggedOn. Gate de viabilidade técnica observado PASS, ainda sem aceite independente. Logs públicos allowlist sem dados de conta; brutos só scratch. Cinco hashes wrapper + 965 entradas Frameworks + steamclient.dylib antes/depois/baseline MATCH; zero processos da engine isolada restantes. Sem controle do Steam ou mudanças originais.
