@@ -354,6 +354,19 @@ struct StatusView: View {
                 }
             }
 
+            Section {
+                sikarugirRow(snapshot)
+            } header: {
+                Text(SikarugirRow.title)
+            } footer: {
+                HStack {
+                    Spacer()
+                    Button("Add Sikarugir\u{2026}") { Task { await status.addSikarugir() } }
+                        .disabled(!status.canInstall)
+                        .help("Select a Sikarugir 11.0 revision 0 app to copy and set up. CrossOver is not needed.")
+                }
+            }
+
             componentsSection(snapshot.payload)
 
             dangerSection
@@ -569,6 +582,84 @@ struct StatusView: View {
                 ) { Task { await status.requestCompatibilityTool() } }
             )
         }
+    }
+
+    @ViewBuilder
+    private func sikarugirRow(_ snapshot: StatusSnapshot) -> some View {
+        let row = status.sikarugirRow
+        StatusRow(
+            title: SikarugirRow.title,
+            value: sikarugirValue(row),
+            tone: sikarugirTone(row),
+            detail: sikarugirDetail(row),
+            trailing: row.copy == .ready ? buildSize(row.buildID) : nil,
+            action: sikarugirAction(row),
+            menu: sikarugirMenu(row)
+        )
+    }
+
+    private func sikarugirValue(_ row: SikarugirRow) -> String {
+        switch row.copy {
+        case .ready: return "Ready"
+        case .none:
+            return row.install == nil
+                ? "Not found. Add a Sikarugir 11.0 revision 0 app (x86_64/Rosetta)."
+                : "Found, not set up"
+        case .unpatched: return "Copy is not patched"
+        case .damaged: return "Copy damaged"
+        case .unsupported: return "Not supported"
+        }
+    }
+
+    private func sikarugirTone(_ row: SikarugirRow) -> StatusTone {
+        switch row.copy {
+        case .ready: return .ok
+        case .none: return .neutral
+        case .unpatched, .damaged, .unsupported: return .warning
+        }
+    }
+
+    private func sikarugirDetail(_ row: SikarugirRow) -> String? {
+        var lines = ["Needs no CrossOver. A Steam signature profile must match the installed Steam build (all tools)."]
+        if let install = row.install {
+            lines.append(install.root.path(percentEncoded: false))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func sikarugirAction(_ row: SikarugirRow) -> StatusAction? {
+        guard let install = row.install else { return nil }
+        switch row.copy {
+        case .none:
+            return StatusAction(
+                label: "Set Up", isProminent: true,
+                help: "Copy Sikarugir and set up its compatibility tool.",
+                isEnabled: status.canInstall
+            ) { Task { await status.setUpSikarugir(from: install) } }
+        case .unpatched, .damaged:
+            return StatusAction(
+                label: "Repair", isProminent: true,
+                help: "Copy Sikarugir again.",
+                isEnabled: status.canInstall
+            ) { Task { await status.setUpSikarugir(from: install, replacingExisting: true) } }
+        default:
+            return nil
+        }
+    }
+
+    private func sikarugirMenu(_ row: SikarugirRow) -> [StatusAction] {
+        var items: [StatusAction] = []
+        if row.copy == .ready, let install = row.install {
+            items.append(StatusAction(
+                label: "Reinstall", help: "Copy Sikarugir again.", isEnabled: status.canInstall
+            ) { Task { await status.setUpSikarugir(from: install, replacingExisting: true) } })
+        }
+        if [.ready, .unpatched, .damaged].contains(row.copy) {
+            var remove = removeCopyAction(row.buildID, label: "Remove Copy\u{2026}")
+            remove.startsGroup = !items.isEmpty
+            items.append(remove)
+        }
+        return items
     }
 
     private func crossOverValue(_ row: CrossOverRow) -> String {

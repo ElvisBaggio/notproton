@@ -31,7 +31,11 @@ struct PrefixToolsTests {
     func matchesRunScript() throws {
         // A tool under a stale copy of the runner layout writes registry keys the game side then
         // reads under different rules, and nothing else would notice the drift.
-        let source = try Self.compatSource()
+        // The CrossOver branch only: the Sikarugir branch exports its own layout (T08).
+        let full = try Self.compatSource()
+        let start = try #require(full.range(of: "# cxcompatdb"))
+        let end = try #require(full.range(of: #"np_runner="$CX_ROOT""#))
+        let source = String(full[start.lowerBound..<end.lowerBound])
 
         // Written in compat_run.sh as: export WINELOADER="$CX_ROOT/lib/wine/..."
         func exported(_ name: String) throws -> String {
@@ -1050,7 +1054,9 @@ struct PrefixToolsTests {
 
         // CrossOver fixes the profile name, so crossover is the link and steamuser is
         // the real directory holding the files Steam syncs.
-        #expect(source.contains(#"ln -s steamuser "$users/crossover""#))
+        // The name is crossover by default; the Sikarugir origin swaps in the macOS user (T08).
+        #expect(source.contains("profile_user=crossover"))
+        #expect(source.contains(#"ln -s steamuser "$users/$profile_user""#))
         // The reverse direction is what routed cloud saves out to the mac home.
         #expect(!source.contains(#"ln -s "$profile" "$users/steamuser""#))
     }

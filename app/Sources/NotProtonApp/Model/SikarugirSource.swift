@@ -48,6 +48,28 @@ enum SikarugirSource {
         return SikarugirInstall(root: root, build: SupportedRunners.sikarugir)
     }
 
+    static let unsupportedAdvice =
+        "NotProton supports only Sikarugir 11.0 revision 0 (x86_64/Rosetta). Select that Sikarugir app, or its wine folder."
+
+    // A picked Sikarugir app holds the engine at Contents/SharedSupport/wine; the wine
+    // folder itself is accepted too.
+    static func engineRoot(forPicked url: URL) -> URL {
+        if FileManager.default.fileExists(atPath: url.appending(path: "version").path(percentEncoded: false)) {
+            return url
+        }
+        return url.appending(path: "Contents/SharedSupport/wine")
+    }
+
+    static func pick(_ url: URL) throws -> SikarugirInstall {
+        do {
+            return try inspect(root: engineRoot(forPicked: url))
+        } catch let failure as StepFailure {
+            throw StepFailure(
+                step: failure.step,
+                detail: "\(url.lastPathComponent) cannot be used. \(failure.detail) \(unsupportedAdvice)")
+        }
+    }
+
     static func discover(searchRoots: [URL] = [
         URL(filePath: "/Applications"), SupportPaths.home.appending(path: "Applications"),
         SupportPaths.home.appending(path: "Applications/Sikarugir"),

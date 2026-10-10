@@ -626,4 +626,22 @@ struct SteamInstallerTests {
         #expect(!FileManager.default.fileExists(atPath: DeploymentContent.record(beside: fixture.deployedVersion).path))
         #expect(!FileManager.default.fileExists(atPath: fixture.deployedVersion.path))
     }
+
+    @Test("The signature profile guard names every origin and refuses a missing profile")
+    func signatureGuardMessageCoversEveryOrigin() throws {
+        let work = try scratchDirectory("profile-guard")
+        defer { try? FileManager.default.removeItem(at: work) }
+        let profile = work.appending(path: "100.json")
+        try Data(#"{"steam_build": 100}"#.utf8).write(to: profile)
+        try SteamInstaller.requireSignatureProfile(activeBuild: 100, profiles: [profile])
+        do {
+            try SteamInstaller.requireSignatureProfile(activeBuild: 200, profiles: [profile])
+            Issue.record("a Steam build without a profile was accepted")
+        } catch let failure as StepFailure {
+            #expect(failure.detail.contains("exactly one matching signature profile"))
+            #expect(failure.detail.contains("CrossOver"))
+            #expect(failure.detail.contains("Sikarugir"))
+            #expect(failure.detail.contains("No hooks installed"))
+        }
+    }
 }

@@ -33,6 +33,18 @@ struct CrossOverRowTests {
         )
     }
 
+    @Test func testSikarugirNotListedAsCrossOver() {
+        let sikarugir = SupportedRunners.sikarugir
+        let rows = rows([], installed: [sikarugir], damaged: [sikarugir.id], unpatched: [sikarugir.id])
+        #expect(rows.isEmpty)
+        #expect(rows.allSatisfy { $0.buildID != sikarugir.id })
+
+        // A CrossOver row still comes out alongside a Sikarugir copy.
+        let release = install("CrossOver", Self.release)
+        let mixed = self.rows([release], installed: [sikarugir, Self.release])
+        #expect(mixed.map(\.buildID) == [Self.release.id])
+    }
+
     @Test("Each app gets its own row, tied to its own build")
     func oneRowPerApp() {
         let preview = install("CrossOver Preview", Self.preview)

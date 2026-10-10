@@ -74,4 +74,13 @@ struct ShimAgreementTests {
             Issue.record("RUN_SCRIPT writes into the runner: \(line.trimmingCharacters(in: .whitespaces))")
         }
     }
+
+    @Test("The no-patched-ntdll notice is CrossOver only, since a Sikarugir clone is patched in place")
+    func missingBridgeNtdllNoticeIsConditionedByOrigin() throws {
+        let block = try Self.verifyRunnerBlock()
+        let notice = try #require(block.split(separator: "\n").firstIndex { $0.contains("no patched ntdll") })
+        let lines = block.split(separator: "\n")
+        let guardLine = try #require(lines[..<notice].last { $0.contains(#"[ ! -d "$bridge_src/wine/$np_build" ]"#) })
+        #expect(guardLine.contains(#""${np_origin:-crossover}" != sikarugir"#))
+    }
 }

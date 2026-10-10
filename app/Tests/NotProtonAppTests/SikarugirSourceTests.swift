@@ -78,4 +78,48 @@ struct SikarugirSourceTests {
         let search = fixture.root.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         #expect(SikarugirSource.discover(searchRoots: [search]).isEmpty)
     }
+    @Test func testUnsupportedSikarugirShowsActionableError() throws {
+        let fixture = try Fixture(wrapper: true)
+        let wrapper = fixture.directory.appending(path: "Wrapper.app")
+        // A wine folder that is not 11.0 r0 says what is supported and what to pick.
+        try "wine sikarugir 10.0".write(to: fixture.root.appending(path: "version"), atomically: true, encoding: .utf8)
+        do {
+            _ = try SikarugirSource.pick(wrapper)
+            Issue.record("an unsupported engine was accepted")
+        } catch let failure as StepFailure {
+            #expect(failure.detail.contains("Wrapper.app"))
+            #expect(failure.detail.contains("11.0 revision 0"))
+            #expect(failure.detail.contains("x86_64/Rosetta"))
+        }
+        // Not an engine at all.
+        #expect(throws: StepFailure.self) { try SikarugirSource.pick(fixture.directory) }
+    }
+
+    @Test func testEngineRootAcceptsAppOrWineFolder() throws {
+        let fixture = try Fixture(wrapper: true)
+        let wrapper = fixture.directory.appending(path: "Wrapper.app")
+        #expect(SikarugirSource.engineRoot(forPicked: wrapper).path == fixture.root.path)
+        #expect(SikarugirSource.engineRoot(forPicked: fixture.root).path == fixture.root.path)
+    }
+
+    @Test func testSikarugirRowStatesAreSeparateFromCrossOver() throws {
+        let id = SupportedRunners.sikarugir.id
+        let build = SupportedRunners.sikarugir
+        #expect(SikarugirRow.row(installs: [], installed: [], damaged: [], unpatched: []).copy == .none)
+        #expect(SikarugirRow.row(installs: [], installed: [build], damaged: [], unpatched: []).copy == .ready)
+        #expect(SikarugirRow.row(installs: [], installed: [build], damaged: [], unpatched: [id]).copy == .unpatched)
+        #expect(SikarugirRow.row(installs: [], installed: [], damaged: [id], unpatched: []).copy == .damaged)
+        #expect(SikarugirRow.title == "Sikarugir 11.0 (experimental)")
+    }
+
+    @MainActor
+    @Test func testRefusedSikarugirChoiceSurfacesTheError() async throws {
+        let directory = try scratchDirectory("sikarugir-refused")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let status = SystemStatus()
+        await status.setUpSikarugir(picked: directory)
+        let message = try #require(status.failure)
+        #expect(message.contains("11.0 revision 0"))
+        #expect(status.outcome == nil)
+    }
 }

@@ -57,7 +57,7 @@ struct LaunchEnvTests {
                 "\(name) must not fall back to what it inherits, which a launch option now sets")
         }
 
-        let path = try Self.line(containing: "export PATH=")
+        let path = try Self.line(containing: "export PATH=", "$CX_ROOT/bin")
         let runner = try #require(path.range(of: "$CX_ROOT/bin"))
         let inherited = try #require(path.range(of: ":$PATH"))
         #expect(

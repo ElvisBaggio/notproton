@@ -567,6 +567,15 @@ app: app-payload $(ICON_CAR)
 		"Set :CFBundleShortVersionString $(APP_VERSION)" -c \
 		"Set :CFBundleVersion $(APP_VERSION)" \
 		"$(APP_BUNDLE)/Contents/Info.plist"
+	@if [ -n "$(APP_EXPERIMENTAL)" ]; then \
+		/usr/libexec/PlistBuddy \
+			-c "Set :CFBundleIdentifier $(APP_SIKARUGIR_ID)" \
+			-c "Set :CFBundleName NotProton Sikarugir" \
+			-c "Delete :SUFeedURL" -c "Delete :SUPublicEDKey" \
+			-c "Add :NPExperimental bool true" \
+			"$(APP_BUNDLE)/Contents/Info.plist" || exit 1; \
+		echo "==> Experimental bundle: $(APP_SIKARUGIR_ID), upstream updater disabled"; \
+	fi
 	cp "$$(swift build --package-path app -c release --show-bin-path)/NotProtonApp" \
 		"$(APP_BUNDLE)/Contents/MacOS/NotProtonApp"
 	@mkdir -p "$(APP_BUNDLE)/Contents/Frameworks"
@@ -592,6 +601,24 @@ app: app-payload $(ICON_CAR)
 	codesign -f -s "$(APP_SIGN_ID)" "$(APP_BUNDLE)"
 	codesign --verify --strict "$(APP_BUNDLE)"
 	@echo "==> Built $(APP_BUNDLE) ($(APP_VERSION))"
+
+# The experimental Sikarugir bundle: its own name and bundle id, no Sparkle feed, and a payload
+# that must carry the pinned Sikarugir bridge. It never writes to NotProton.app, and 'deploy'
+# (LAUNCHABLE_BUNDLES) only looks at NotProton.app.
+APP_SIKARUGIR_ID := com.notproton.NotProton.sikarugir
+
+.PHONY: app-sikarugir
+app-sikarugir: APP_BUNDLE := $(OUT_DIR)/NotProton Sikarugir.app
+app-sikarugir: APP_BUNDLE_PAYLOAD := $(OUT_DIR)/NotProton Sikarugir.app/Contents/Resources/NotProtonApp_NotProtonApp.bundle/Contents/Resources/payload
+app-sikarugir: APP_EXPERIMENTAL := 1
+app-sikarugir: sikarugir-payload-check app
+
+.PHONY: sikarugir-payload-check
+sikarugir-payload-check: app-payload
+	@for f in steam.exe x86_64-windows/lsteamclient.dll x86_64-unix/lsteamclient.so; do \
+		[ -s "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f" ] || { \
+			echo "app-sikarugir: $(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f is missing; run: $(MAKE) bridge-sikarugir && $(MAKE) app-payload" >&2; exit 1; }; \
+	done
 
 app-zip: app
 	rm -f "$(APP_ZIP)"

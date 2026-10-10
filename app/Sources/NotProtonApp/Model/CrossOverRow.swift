@@ -69,7 +69,9 @@ struct CrossOverRow: Identifiable, Equatable {
             }
         }
 
-        let copies = installed.map(\.id) + damaged
+        // Sikarugir has its own section; its copies never become a CrossOver row.
+        let isCrossOver: (String) -> Bool = { SupportedRunners.build(id: $0)?.origin != .sikarugir }
+        let copies = installed.map(\.id).filter(isCrossOver) + damaged.filter(isCrossOver)
         for build in copies where seen.insert(build).inserted {
             rows.append(CrossOverRow(
                 buildID: build, install: nil, copy: copy(of: build), licensed: nil, unsupportedVersion: nil

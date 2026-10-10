@@ -112,4 +112,54 @@ struct InstallPayloadTests {
         try FileManager.default.removeItem(at: root.appending(path: "run"))
         #expect(throws: StepFailure.self) { try InstallPayload.locate(root: root) }
     }
+
+    @Test("The packaged run script is the launcher with the Sikarugir origin")
+    func packagedRunCarriesSikarugirLauncher() throws {
+        let located = try InstallPayload.locate()
+        let packaged = try String(contentsOf: located.run, encoding: .utf8)
+        let repo = URL(filePath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: repo.appending(path: "dylib/feats/compat_run.sh"), encoding: .utf8)
+        #expect(packaged == source, "the staged run is stale: run make app-payload")
+        #expect(packaged.contains("np_origin=sikarugir"))
+    }
+
+    @Test func testPayloadContainsOnlyPinnedSikarugirBridge() throws {
+        let located = try InstallPayload.locate()
+        let folder = located.run.deletingLastPathComponent()
+            .appending(path: "bridge/\(SupportedRunners.sikarugir.id)")
+        guard FileManager.default.fileExists(atPath: folder.path) else {
+            // Optional by contract (T07): absence keeps the CrossOver-only package. The
+            // experimental bundle is gated by the Makefile's sikarugir-payload-check.
+            return
+        }
+        var found: [String] = []
+        for case let url as URL in FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.isRegularFileKey])! {
+            guard (try url.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { continue }
+            found.append(String(url.path.dropFirst(folder.path.count + 1)))
+        }
+        #expect(found.sorted() == RunnerPatcher.sikarugirBridge.keys.sorted())
+        for (path, hash) in RunnerPatcher.sikarugirBridge {
+            #expect(Digest.sha256IfPresent(folder.appending(path: path)) == hash)
+        }
+    }
+
+    @Test("A Sikarugir bridge file with unknown bytes is refused")
+    func unknownSikarugirBridgeIsRefused() throws {
+        let work = try scratchDirectory("bridge-sikarugir")
+        defer { try? FileManager.default.removeItem(at: work) }
+        let bridge = work.appending(path: "bridge")
+        for entry in BridgePayload.entries {
+            try FileManager.default.createDirectory(at: bridge, withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: bridge.appending(path: entry.resource))
+        }
+        let folder = bridge.appending(path: SupportedRunners.sikarugir.id)
+        for path in RunnerPatcher.sikarugirBridge.keys {
+            let file = folder.appending(path: path)
+            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("not pinned".utf8).write(to: file)
+        }
+        #expect(throws: StepFailure.self) { try BridgePayload.locate(root: bridge) }
+    }
 }
