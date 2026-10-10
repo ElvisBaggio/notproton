@@ -24,3 +24,22 @@ cat >> "$tmp/tool/run" <<'CHECK'
 CHECK
 sh "$tmp/tool/run"
 echo 'sikarugircheck: launcher isolation/layout PASS'
+
+# verify_runner: the missing-bridge ntdll notice is CrossOver noise, not a Sikarugir one.
+sed -n '/^verify_runner() {/,/^}/p' "$SRC" > "$tmp/verify.sh"
+[ -s "$tmp/verify.sh" ] || { echo 'FAIL: verify_runner not found'; exit 1; }
+mkdir -p "$tmp/vr/bridge" "$tmp/vr/runner/lib/wine/x86_64-windows" "$tmp/vr/runner/lib/wine/x86_64-unix"
+for origin in sikarugir crossover; do
+  : > "$tmp/vr/log-$origin"
+  (
+    . "$tmp/verify.sh"
+    bridge_src="$tmp/vr/bridge" np_build=test np_origin=$origin np_runner="$tmp/vr/runner"
+    wine_unix="$tmp/vr/runner/lib/wine/x86_64-unix" log="$tmp/vr/log-$origin"
+    verify_runner
+  )
+done
+if grep -q 'no patched ntdll' "$tmp/vr/log-sikarugir"; then echo 'FAIL: Sikarugir logged the bridge ntdll notice'; exit 1; fi
+grep -q 'no patched ntdll' "$tmp/vr/log-crossover" || { echo 'FAIL: CrossOver lost the bridge ntdll notice'; exit 1; }
+grep -q 'missing x86_64-windows/lsteamclient.dll' "$tmp/vr/log-sikarugir" || { echo 'FAIL: Sikarugir builtin check is gone'; exit 1; }
+if grep -q 'i386-windows' "$tmp/vr/log-sikarugir"; then echo 'FAIL: Sikarugir expects an i386 bridge'; exit 1; fi
+echo 'sikarugircheck: verify_runner origin notice PASS'

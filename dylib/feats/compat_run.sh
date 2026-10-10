@@ -961,7 +961,9 @@ fi
 bridge_src="$np_support/bridge"
 prefix_steam="$WINEPREFIX/drive_c/Program Files (x86)/Steam"
 verify_runner() {
-  if [ ! -d "$bridge_src/wine/$np_build" ]; then
+  # A Sikarugir clone already carries its patched ntdll (T07 patches the copy), so a missing
+  # bridge/wine/<build> staging folder is expected there and is not reported.
+  if [ ! -d "$bridge_src/wine/$np_build" ] && [ "${np_origin:-crossover}" != sikarugir ]; then
     echo "=== no patched ntdll for build $np_build in the bridge, set it up in NotProton ===" >> "$log" 2>&1 || true
     return
   fi
@@ -975,9 +977,9 @@ verify_runner() {
       echo "=== runner $arch ntdll is not the patched copy, set up the runner in NotProton ===" >> "$log" 2>&1 || true
     fi
   done
-  arches="i386-windows x86_64-windows ${wine_unix##*/}"
-  [ "${np_origin:-crossover}" != sikarugir ] || arches="x86_64-windows x86_64-unix"
-  for arch in $arches; do
+  for arch in i386-windows x86_64-windows "${wine_unix##*/}"; do
+    # Sikarugir ships no i386 bridge (T03), so only the x86_64 pair is expected there.
+    [ "${np_origin:-crossover}" != sikarugir ] || [ "$arch" != i386-windows ] || continue
     case "$arch" in
       *-unix) name="lsteamclient.so" ;;
       *) name="lsteamclient.dll" ;;

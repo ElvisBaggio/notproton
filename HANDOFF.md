@@ -1,9 +1,9 @@
 # Handoff
 
-Atualizado: 2026-10-10 · Agente: claude · Modelo efetivo: sonnet · Branch: codex/t08-sikarugir-launcher.
+Atualizado: 2026-10-10 · Agente: claude · Modelo efetivo: sonnet · Branch: codex/t09-sikarugir-ui.
 
-**Estado.** T08 implementado para revisão (launcher por origem, prefixos/ferramentas na engine copiada, Perfil A D3DMetal, ensaio integrado com Steam fechado até `CreateSteamPipe`). Evidência: docs/evidence/launcher.md.
+**Estado.** T09 implementado para revisão: seção Sikarugir na UI, `app-sikarugir` (bundle experimental sem Sparkle), guarda de perfil documentada para todas as origens, aviso ntdll só CrossOver. Suíte Swift real: 518 testes, 517 PASS, 0 falhas, 1 SKIP. Evidência: docs/evidence/ui-packaging.md.
 
-**Próximo passo.** Revisão Claude Code Opus 5.5 na issue #12 (modelo do revisor pendente); prova de sessão real com Steam logado (comando em launcher.md); depois T09 (suíte Swift em Xcode/CI, UI/pacote, instalar `run` novo) e T10/T11.
+**Próximo passo.** Revisão Claude Code Opus 5.5 na issue #13; depois T10 (deploy→rollback→readback→redeploy, convivência com a 1.1.0, `run` novo via SteamInstaller) e prova de sessão real do T08.
 
-**Limites.** Swift completo NOT RUN (sem Xcode); runcheck/scriptcheck SKIP (shellcheck ausente). AUTHENTICATED=yes no launcher integrado não provado.
+**Limites.** Payload local montado com binários do app 1.1.0 (dobby ausente); runcheck/scriptcheck SKIP (sem shellcheck); GUI não exercitada por clique.

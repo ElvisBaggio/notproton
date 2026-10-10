@@ -18,6 +18,7 @@ struct StatusSnapshot: Sendable {
     var steamRunning: Bool
     var updateBlocked: Bool
     var crossOver: [CrossOverInstall]
+    var sikarugir: [SikarugirInstall] = []
     var crossOverLicense: [String: CrossOverLicense.Status] = [:]
     var runner: RunnerState
     var payload: PayloadState
@@ -41,6 +42,7 @@ struct StatusSnapshot: Sendable {
             steamRunning: SteamBundle.isRunning,
             updateBlocked: UpdateBlock.isPresent(),
             crossOver: installs,
+            sikarugir: SikarugirSource.discover(),
             crossOverLicense: licenses,
             runner: runner,
             payload: PayloadInspector.inspect(builds: installed),
@@ -152,6 +154,15 @@ final class SystemStatus {
             orphaned: snapshot.orphanedRunners,
             unpatched: unpatched
         )
+    }
+
+    var sikarugirRow: SikarugirRow {
+        guard let snapshot else { return SikarugirRow(install: nil, copy: .none) }
+        var unpatched: [String] = []
+        if case .unpatched(let builds, _) = snapshot.runner { unpatched = builds }
+        return SikarugirRow.row(
+            installs: snapshot.sikarugir, installed: snapshot.installedRunners,
+            damaged: snapshot.damagedRunners, unpatched: unpatched)
     }
 
     var repairSource: CrossOverInstall? {
@@ -282,6 +293,52 @@ final class SystemStatus {
         CrossOverSource.addManualBundle(picked)
         AppLog.note("crossOver added: \(picked.path(percentEncoded: false))")
         await refresh()
+    }
+
+    func addSikarugir() async {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Add"
+        panel.message = "Select a Sikarugir 11.0 revision 0 app (or its wine folder)."
+        panel.directoryURL = URL(filePath: "/Applications", directoryHint: .isDirectory)
+
+        guard panel.runModal() == .OK, let picked = panel.url else { return }
+        await setUpSikarugir(picked: picked)
+    }
+
+    // Everything after the file picker, so it can run without one.
+    func setUpSikarugir(picked: URL, replacingExisting: Bool = false) async {
+        guard canInstall else { return }
+        clearFailure()
+        outcome = nil
+        let install: SikarugirInstall
+        do {
+            install = try await Task.detached(priority: .userInitiated) {
+                try SikarugirSource.pick(picked)
+            }.value
+        } catch {
+            setFailure(error)
+            AppLog.note("sikarugir choice refused: \(picked.path(percentEncoded: false))")
+            return
+        }
+        await setUpSikarugir(from: install, replacingExisting: replacingExisting)
+    }
+
+    func setUpSikarugir(from install: SikarugirInstall, replacingExisting: Bool = false) async {
+        guard canInstall else { return }
+        await perform(from: RunnerSetup.Phase.cloning.label) { progress in
+            let lock = try DeploymentContent.acquireInstallationLock(for: SupportPaths.Steam.app)
+            defer { close(lock) }
+            try await requireInstallableContent()
+            let result = try await Task.detached(priority: .userInitiated) {
+                try RunnerSetup.run(from: install, replacingExisting: replacingExisting) {
+                    progress($0.label)
+                }
+            }.value
+            return runnerOutcome(result)
+        }
     }
 
     private func highlight(_ row: CrossOverRow) {
