@@ -333,6 +333,9 @@ let root = SupportPaths.clonedRoot(forBuild: build.id, runners: URL(filePath: "/
 
 **Gate do épico:** T10–T12 concluídos; sessão >=15 minutos, estado persistente reaberto (save quando suportado; dados pertinentes/configuração caso contrário) e rollback comprovados.
 
+
+> **Decisão Elvis 2026-10-10 — remover CrossOver do código.** O fork passa a ser só Sikarugir: catálogo, licença, ponte/ntdll CrossOver, `CrossOverSource`/`CrossOverRow`, ramo CrossOver do `compat_run.sh`, testes e builds CrossOver/FEX/aarch64 saem. Card T09b executa antes do T10. Consequências aceitas: o fork deixa de ser mesclável com o upstream; o NotProton 1.1.0 instalado (CrossOver) não é tocado pelo código e só é tratado no T10 (backup/rollback/convivência).
+
 ### T10: Implantar com backup e testar retorno ao estado anterior
 
 **Executor:** `deployment_validation` / `gpt-6.1-sol`. **Alternativa:** Claude Code `sonnet`, no mesmo papel. **Revisor:** Astra; execução física com Elvis quando exigida.
