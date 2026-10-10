@@ -42,3 +42,5 @@ else
 	echo "==> envcheck: $fails failed"
 	exit 1
 fi
+
+sh "$(dirname "$0")/sikarugircheck.sh" "$SRC"

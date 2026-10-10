@@ -18,9 +18,6 @@ case "$verb" in
 esac
 
 np_support="$HOME/Library/Application Support/notproton"
-# cxcompatdb resolves its database through CX_HOME and logs an error for
-# every module loaded without it :(
-export CX_HOME="$HOME/Library/Application Support/CrossOver"
 np_flavor=""
 np_build=""
 CDPATH=''
@@ -35,6 +32,28 @@ case "$np_build" in *[!A-Za-z0-9.-]*) np_build="" ;; esac
 np_display=$(sed -n 's/.*"display_name"[[:space:]]*"\(.*\)".*/\1/p' \
   "$np_tool_dir/compatibilitytool.vdf" 2>/dev/null | head -1) || np_display=""
 [ -n "$np_display" ] || np_display="CrossOver build ${np_build:-unknown}"
+np_origin=crossover
+case "$np_build" in sikarugir-*) np_origin=sikarugir ;; esac
+if [ "${np_origin:-crossover}" = sikarugir ]; then
+  # Sikarugir must not inherit a renderer, loader or CrossOver installation.
+  for name in $(env | sed -nE 's/^((CX_|DYLD_|WINEDLLPATH)[A-Za-z0-9_]*|WINELOADER|WINESERVER|WINELOADERNOEXEC|WINEPATH|WINEPREFIX|WINEDLLOVERRIDES)=.*/\1/p'); do
+    unset "$name"
+  done
+  case "$STEAM_COMPAT_DATA_PATH" in
+    /*) ;;
+    *) echo "Sikarugir requires absolute STEAM_COMPAT_DATA_PATH" >&2; exit 1 ;;
+  esac
+  np_runner="$np_support/runners/$np_build/wine"
+  wine_unix="$np_runner/lib/wine/x86_64-unix"
+  export WINELOADER="$np_runner/bin/wine" WINESERVER="$np_runner/bin/wineserver"
+  export SikarugirAppWine11=1 WINEARCH=win64
+  export WINEDLLPATH="$np_runner/Frameworks/renderer/d3dmetal/wine"
+  export CX_APPLEGPTK_LIBD3DSHARED_PATH="$np_runner/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
+  export PATH="$np_runner/bin:$PATH"
+else
+# cxcompatdb resolves its database through CX_HOME and logs an error for
+# every module loaded without it :(
+export CX_HOME="$HOME/Library/Application Support/CrossOver"
 CX_ROOT="$np_support/runners/crossover-$np_build/CrossOver"
 export CX_ROOT
 
@@ -49,14 +68,30 @@ if [ "$np_flavor" = rosetta ] || [ ! -x "$WINELOADER" ] || [ ! -x "$WINESERVER" 
 fi
 export WINELOADER WINESERVER
 
-# Keeps Wine from inheriting the prefix and template locks (fd 8 and 9).
-without_lock_fds() {
-  "$@" 8>&- 9>&-
-}
-
 # If two WINEDLLPATH directories have the same DLL, Wine uses the one listed first.
 export WINEDLLPATH="$CX_ROOT/lib/wine/x86_64-windows:$wine_unix${WINEDLLPATH:+:$WINEDLLPATH}"
 export PATH="$CX_ROOT/bin:$PATH"
+
+  np_runner="$CX_ROOT"
+fi
+
+# arch strips inherited DYLD variables; set the copied Frameworks after it.
+wine_exec() {
+  if [ "${np_origin:-crossover}" = sikarugir ]; then
+    /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" "$@"
+  else
+    "$@"
+  fi
+}
+
+# Keeps Wine from inheriting the prefix and template locks (fd 8 and 9).
+without_lock_fds() {
+  if [ "${np_origin:-crossover}" = sikarugir ]; then
+    /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" "$@" 8>&- 9>&-
+  else
+    "$@" 8>&- 9>&-
+  fi
+}
 
 if [ -n "$STEAM_COMPAT_DATA_PATH" ]; then
   log="$STEAM_COMPAT_DATA_PATH/notproton-run.log"
@@ -163,7 +198,7 @@ last_wine_build() {
   # Wine ends the line with CRLF.
   updated=${updated%"$(printf '\r')"}
   case "$updated" in '' | *[!0-9]*) return 0 ;; esac
-  [ "$updated" = "$(stat -f %m "$CX_ROOT/share/wine/wine.inf" 2>/dev/null)" ] && return 0
+  [ "$updated" = "$(stat -f %m "${np_runner:-$CX_ROOT}/share/wine/wine.inf" 2>/dev/null)" ] && return 0
   had_build=other
   had_display="another version of CrossOver"
   for inf in "$np_support"/runners/crossover-*/CrossOver/share/wine/wine.inf; do
@@ -342,7 +377,9 @@ migrate_user_paths() {
 
 lay_out_proton_profile() {
   users="${1:-$WINEPREFIX}/drive_c/users"
-  if [ -d "$users/crossover" ] && [ ! -L "$users/crossover" ]; then
+  profile_user=crossover
+  [ "${np_origin:-crossover}" != sikarugir ] || profile_user="$(id -un)"
+  if [ -d "$users/$profile_user" ] && [ ! -L "$users/$profile_user" ]; then
     echo "=== prefix predates the steamuser layout, rebuild it for cloud saves ===" \
       >> "$log" 2>&1 || true
     return 0
@@ -359,11 +396,11 @@ lay_out_proton_profile() {
     mkdir -p "$profile/$folder" 2>/dev/null || true
   done
   migrate_user_paths "$profile" || return 1
-  if [ -L "$users/crossover" ] && [ ! -e "$users/crossover" ]; then
-    rm -f "$users/crossover" 2>/dev/null || true
+  if [ -L "$users/$profile_user" ] && [ ! -e "$users/$profile_user" ]; then
+    rm -f "$users/$profile_user" 2>/dev/null || true
   fi
-  if [ ! -e "$users/crossover" ] \
-    && ln -s steamuser "$users/crossover" 2>/dev/null; then
+  if [ ! -e "$users/$profile_user" ] \
+    && ln -s steamuser "$users/$profile_user" 2>/dev/null; then
     echo "=== pointed crossover at steamuser ===" >> "$log" 2>&1 || true
   fi
 }
@@ -487,21 +524,29 @@ import_prefix_settings() {
 }
 
 stage_step="runner check"
-if [ -z "$np_build" ] || [ ! -d "$CX_ROOT/lib/wine" ]; then
+if [ -z "$np_build" ] || [ ! -d "$np_runner/lib/wine" ]; then
   echo "=== build ${np_build:-(none recorded)} behind this compatibility tool is not set up, set it up in NotProton ===" >> "$log" 2>&1 || true
   show_alert "CrossOver is not set up" "The CrossOver build behind $(alert_safe "$np_display") is not set up. Set it up in NotProton, or pick another compatibility tool for this game."
   exit 1
 fi
-echo "runner: build $np_build ($np_display) at $CX_ROOT" >> "$log" 2>&1 || true
+echo "runner: build $np_build ($np_display) at $np_runner" >> "$log" 2>&1 || true
 
 # Each CrossOver build needs its own template.
 # FEX builds need two, one for FEX/arm64 Wine and one for Rosetta/AMD64 Wine
 runner_id=""
 [ -z "$np_build" ] || runner_id="crossover-$np_build-${wine_unix##*/}"
+[ "${np_origin:-crossover}" != sikarugir ] || runner_id="$np_build-${wine_unix##*/}"
 
 in_template_env() {
   prefix="$1"
   shift
+  if [ "${np_origin:-crossover}" = sikarugir ]; then
+    without_lock_fds /usr/bin/env -i HOME="$HOME" USER="${USER:-}" LOGNAME="${LOGNAME:-}" TMPDIR="${TMPDIR:-/tmp}" \
+      LANG="${LANG:-}" LC_ALL="${LC_ALL:-}" PATH="$np_runner/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+      SikarugirAppWine11=1 WINEARCH=win64 WINELOADER="$WINELOADER" WINESERVER="$WINESERVER" \
+      DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" WINEPREFIX="$prefix" "$@"
+    return
+  fi
   without_lock_fds \
     env -i HOME="$HOME" USER="${USER:-}" LOGNAME="${LOGNAME:-}" TMPDIR="${TMPDIR:-/tmp}" \
     LANG="${LANG:-}" LC_ALL="${LC_ALL:-}" \
@@ -703,9 +748,9 @@ prefix_is_bare() (
 )
 
 template_identity() (
-  stat -f '%d:%i:%c' "$CX_ROOT" || return 1
+  stat -f '%d:%i:%c' "${np_runner:-$CX_ROOT}" || return 1
   /usr/bin/shasum -a 256 < "$np_tool_dir/run" || return 1
-  cd "$CX_ROOT" || return 1
+  cd "${np_runner:-$CX_ROOT}" || return 1
   set -- "$WINELOADER" "$WINESERVER" share/wine/wine.inf
   for file in lib/wine/*-windows/ntdll.dll lib/wine/*-windows/lsteamclient.dll \
     lib/wine/*-unix/lsteamclient.so; do
@@ -922,7 +967,7 @@ verify_runner() {
   fi
   for arch in x86_64-windows i386-windows aarch64-windows; do
     staged="$bridge_src/wine/$np_build/$arch/ntdll.dll"
-    live="$CX_ROOT/lib/wine/$arch/ntdll.dll"
+    live="$np_runner/lib/wine/$arch/ntdll.dll"
     [ -f "$staged" ] || continue
     if [ ! -f "$live" ]; then
       echo "=== runner has no $arch ntdll, set up the runner in NotProton ===" >> "$log" 2>&1 || true
@@ -930,16 +975,19 @@ verify_runner() {
       echo "=== runner $arch ntdll is not the patched copy, set up the runner in NotProton ===" >> "$log" 2>&1 || true
     fi
   done
-  for arch in i386-windows x86_64-windows "${wine_unix##*/}"; do
+  arches="i386-windows x86_64-windows ${wine_unix##*/}"
+  [ "${np_origin:-crossover}" != sikarugir ] || arches="x86_64-windows x86_64-unix"
+  for arch in $arches; do
     case "$arch" in
       *-unix) name="lsteamclient.so" ;;
       *) name="lsteamclient.dll" ;;
     esac
-    [ -f "$CX_ROOT/lib/wine/$arch/$name" ] && continue
+    [ -f "$np_runner/lib/wine/$arch/$name" ] && continue
     echo "=== runner is missing $arch/$name, set up the runner in NotProton ===" >> "$log" 2>&1 || true
   done
 }
 install_lsteamclient_trigger() {
+  [ "${np_origin:-crossover}" != sikarugir ] || return 0
   src="$bridge_src/i386-windows/lsteamclient.dll"
   dst="$WINEPREFIX/drive_c/windows/syswow64/lsteamclient.dll"
   [ -f "$src" ] && [ -d "$WINEPREFIX/drive_c/windows/syswow64" ] || return 0
@@ -954,6 +1002,7 @@ install_lsteamclient_trigger() {
 
 # A fix to match Proton
 install_legacy_steam_dll() {
+  [ "${np_origin:-crossover}" != sikarugir ] || return 0
   src="$bridge_src/legacycompat/Steam.dll"
   dst="$WINEPREFIX/drive_c/windows/syswow64/Steam.dll"
   [ -f "$src" ] && [ -d "$WINEPREFIX/drive_c/windows/syswow64" ] || return 0
@@ -969,6 +1018,7 @@ install_legacy_steam_dll() {
 # evaluator through the compat tool, the same way the linux client does, but
 # the binaries are missing on macOS, so...
 install_legacycompat() {
+  [ "${np_origin:-crossover}" != sikarugir ] || return 0
   src="$bridge_src/legacycompat"
   dst="$STEAM_COMPAT_CLIENT_INSTALL_PATH/legacycompat"
   [ -d "$src" ] && [ -n "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] || return 0
@@ -987,10 +1037,14 @@ install_legacycompat() {
 
 bridge_files="steamclient64.dll steamclient.dll tier0_s64.dll vstdlib_s64.dll"
 bridge_files="$bridge_files lsteamclient.dll lsteamclient.so steam.exe"
+[ "${np_origin:-crossover}" != sikarugir ] || bridge_files="steamclient64.dll lsteamclient.dll lsteamclient.so steam.exe"
 # A clone cannot cross drives, so a prefix on another drive clones from a copy of the
 # bridge kept beside that drive's templates.
 bridge_origin() {
   origin="$bridge_src/$1"
+  case "${np_origin:-crossover}:$1" in
+    sikarugir:steam.exe|sikarugir:x86_64-windows/lsteamclient.dll|sikarugir:x86_64-unix/lsteamclient.so) origin="$bridge_src/$np_build/$1" ;;
+  esac
   [ -n "$bridge_cache" ] || return 0
   cached="$bridge_cache/$1"
   for d in "${bridge_cache%/*}" "$bridge_cache" "${cached%/*}"; do
@@ -1007,7 +1061,11 @@ bridge_origin() {
 }
 place_bridge_file() {
   bridge_origin "$1"
-  cp -c -fp "$origin" "$2" 2>/dev/null || cp -fp "$bridge_src/$1" "$2" 2>> "$log"
+  if [ "${np_origin:-crossover}" = sikarugir ]; then
+    cp -c -fp "$origin" "$2" 2>/dev/null || cp -fp "$origin" "$2" 2>> "$log"
+  else
+    cp -c -fp "$origin" "$2" 2>/dev/null || cp -fp "$bridge_src/$1" "$2" 2>> "$log"
+  fi
 }
 if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
   stage_step="bridge staging"
@@ -1016,12 +1074,20 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
   if [ -n "$STEAM_COMPAT_DATA_PATH" ] && ! same_volume "$bridge_src" "$STEAM_COMPAT_DATA_PATH" \
     && volume_clones "$STEAM_COMPAT_DATA_PATH"; then
     bridge_cache="$(dirname "$STEAM_COMPAT_DATA_PATH")/notproton-template/bridge"
+    [ "${np_origin:-crossover}" != sikarugir ] || bridge_cache="$bridge_cache/$np_build"
   fi
   bridge_matches=1
   for f in $bridge_files; do
     src="$bridge_src/$f"
     if [ "$f" = lsteamclient.so ]; then
       src="$bridge_src/${wine_unix##*/}/$f"
+    fi
+    if [ "${np_origin:-crossover}" = sikarugir ]; then
+      case "$f" in
+        steam.exe) src="$bridge_src/$np_build/steam.exe" ;;
+        lsteamclient.dll) src="$bridge_src/$np_build/x86_64-windows/$f" ;;
+        lsteamclient.so) src="$bridge_src/$np_build/x86_64-unix/$f" ;;
+      esac
     fi
     if ! cmp -s "$src" "$prefix_steam/$f"; then
       bridge_matches=0
@@ -1037,9 +1103,12 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
       if [ "$f" = lsteamclient.so ]; then
         rel="${wine_unix##*/}/$f"
       fi
-      src="$bridge_src/$rel"
+      if [ "${np_origin:-crossover}" = sikarugir ] && [ "$f" = lsteamclient.dll ]; then rel="x86_64-windows/$f"; fi
+      bridge_origin "$rel"
+      src="$origin"
       if [ ! -f "$src" ]; then
         echo "=== bridge missing $f ===" >> "$log" 2>&1 || true
+        [ "${np_origin:-crossover}" != sikarugir ] || unstaged=1
         continue
       fi
       cmp -s "$src" "$prefix_steam/$f" && continue
@@ -1066,7 +1135,11 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
     exit 1
   fi
   install_legacy_steam_dll
-  export WINEDLLPATH="$prefix_steam:$WINEDLLPATH"
+  if [ "${np_origin:-crossover}" = sikarugir ]; then
+    export WINEPATH="C:\\Program Files (x86)\\Steam"
+  else
+    export WINEDLLPATH="$prefix_steam:$WINEDLLPATH"
+  fi
   # If the same DLL appears twice in WINEDLLOVERRIDES, the last entry wins.
   export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}steamclient=n;steamclient64=n;lsteamclient=b"
   native_client="$STEAM_COMPAT_CLIENT_INSTALL_PATH"
@@ -1102,16 +1175,31 @@ if [ "$foreground" = 0 ]; then
     # runinprefix is the one verb the Linux client keeps on the raw loader.
     runinprefix)
       echo "=== running helper on raw loader: $* ===" >> "$log" 2>&1 || true
-      "$WINELOADER" "$@" >> "$log" 2>&1 || status=$?
+      wine_exec "$WINELOADER" "$@" >> "$log" 2>&1 || status=$?
       ;;
     *)
       # A helper target can be a URL, which steam.exe resolves.
       echo "=== running helper through the shim: $* ===" >> "$log" 2>&1 || true
-      "$WINELOADER" "$shim_exe" "$@" >> "$log" 2>&1 || status=$?
+      wine_exec "$WINELOADER" "$shim_exe" "$@" >> "$log" 2>&1 || status=$?
       ;;
   esac
   echo "=== helper exited status=$status ===" >> "$log" 2>&1 || true
   exit $status
+fi
+
+if [ "${np_origin:-crossover}" = sikarugir ]; then
+  # Keep the copied engine's relative layout; bundle/Game Mode is CrossOver-only.
+  terminate_sikarugir() {
+    wine_exec "$WINESERVER" -k >> "$log" 2>&1 || true
+  }
+  trap terminate_sikarugir TERM INT HUP
+  status=0
+  wine_exec "$WINELOADER" "$shim_exe" "$@" >> "$log" 2>&1 &
+  wait $! || status=$?
+  wine_exec "$WINESERVER" -w >> "$log" 2>&1 || true
+  trap - TERM INT HUP
+  echo "=== Sikarugir shim exited status=$status ===" >> "$log" 2>&1 || true
+  exit "$status"
 fi
 
 # Fixes CrossOver window focus issues

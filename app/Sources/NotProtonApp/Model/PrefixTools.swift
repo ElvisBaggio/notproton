@@ -106,6 +106,22 @@ enum PrefixTools {
     ) -> [String: String] {
         let root = runner.path(percentEncoded: false)
         var environment = ProcessInfo.processInfo.environment
+        if isSikarugir(runner: runner) {
+            environment = environment.filter { key, _ in
+                !key.hasPrefix("CX_") && !key.hasPrefix("DYLD_") && !key.hasPrefix("WINEDLLPATH")
+                    && !["WINELOADER", "WINESERVER", "WINELOADERNOEXEC", "WINEPATH", "WINEDLLOVERRIDES"].contains(key)
+            }
+            environment["SikarugirAppWine11"] = "1"
+            environment["WINEARCH"] = "win64"
+            environment["WINELOADER"] = runner.appending(path: "bin/wine").path(percentEncoded: false)
+            environment["WINESERVER"] = runner.appending(path: "bin/wineserver").path(percentEncoded: false)
+            environment["WINEDLLPATH"] = "\(root)/Frameworks/renderer/d3dmetal/wine"
+            environment["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = "\(root)/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
+            environment["WINEPREFIX"] = prefix.pfx.path(percentEncoded: false)
+            environment["WINEMSYNC"] = syncBackend(prefix: prefix)
+            environment["PATH"] = "\(root)/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
+            return environment
+        }
         environment["CX_ROOT"] = root
         environment["CX_HOME"] = SupportPaths.applicationSupport
             .appending(path: "CrossOver").path(percentEncoded: false)
@@ -118,6 +134,20 @@ enum PrefixTools {
         environment["WINEMSYNC"] = syncBackend(prefix: prefix)
         environment["PATH"] = "\(root)/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
         return environment
+    }
+
+    static func isSikarugir(runner: URL) -> Bool {
+        runner.lastPathComponent == "wine"
+            && runner.deletingLastPathComponent().lastPathComponent.hasPrefix("sikarugir-")
+    }
+
+    static func command(loader: URL, arguments: [String], runner: URL) -> (executable: String, arguments: [String]) {
+        guard isSikarugir(runner: runner) else {
+            return (loader.path(percentEncoded: false), arguments)
+        }
+        return ("/usr/bin/arch", ["-x86_64", "/usr/bin/env",
+            "DYLD_FALLBACK_LIBRARY_PATH=\(runner.path(percentEncoded: false))/Frameworks:/usr/lib",
+            loader.path(percentEncoded: false)] + arguments)
     }
 
     static func loader(runner: URL, flavor: CompatTool.Flavor = .fex) -> URL {
@@ -135,6 +165,11 @@ enum PrefixTools {
         let bin = runner.appending(path: "bin")
         func executable(_ url: URL) -> Bool {
             fm.isExecutableFile(atPath: url.path(percentEncoded: false))
+        }
+
+        if isSikarugir(runner: runner) {
+            return WineLayout(loader: bin.appending(path: "wine"), server: bin.appending(path: "wineserver"),
+                              unixDir: runner.appending(path: "lib/wine/x86_64-unix"))
         }
 
         let arm = runner.appending(path: "lib/wine/aarch64-unix")
@@ -187,9 +222,10 @@ enum PrefixTools {
         let loader = try readyLoader(
             step: "Open \(tool.label)", prefix: prefix, runner: runner, flavor: flavor
         )
+        let command = command(loader: loader, arguments: [tool.rawValue], runner: runner)
         try Shell.detach(
-            loader.path(percentEncoded: false),
-            [tool.rawValue],
+            command.executable,
+            command.arguments,
             environment: environment(prefix: prefix, runner: runner, flavor: flavor)
         )
     }
@@ -221,9 +257,10 @@ enum PrefixTools {
             )
         }
 
+        let command = command(loader: loader, arguments: arguments, runner: runner)
         try Shell.detach(
-            loader.path(percentEncoded: false),
-            arguments,
+            command.executable,
+            command.arguments,
             environment: environment(prefix: prefix, runner: runner, flavor: flavor),
             currentDirectory: executable.deletingLastPathComponent()
         )

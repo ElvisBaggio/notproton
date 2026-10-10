@@ -65,8 +65,9 @@ extension PrefixTools {
 
         var environment = environment(prefix: prefix, runner: runner, flavor: flavor)
         environment["WINEPREFIX"] = fresh.path(percentEncoded: false)
-        layOutProfile(in: fresh)
-        _ = try Shell.check(loader.path(percentEncoded: false), ["wineboot", "--init"], environment: environment)
+        layOutProfile(in: fresh, user: isSikarugir(runner: runner) ? NSUserName() : "crossover")
+        let command = command(loader: loader, arguments: ["wineboot", "--init"], runner: runner)
+        _ = try Shell.check(command.executable, command.arguments, environment: environment)
 
         let carry = Carry(from: prefix.pfx, to: fresh)
         carry.userData()
@@ -141,7 +142,7 @@ extension PrefixTools {
         return slot
     }
 
-    private static func layOutProfile(in fresh: URL) {
+    private static func layOutProfile(in fresh: URL, user: String) {
         let fm = FileManager.default
         let users = fresh.appending(path: "drive_c/users")
         let profile = users.appending(path: "steamuser")
@@ -167,7 +168,7 @@ extension PrefixTools {
                 atPath: link.path(percentEncoded: false), withDestinationPath: target)
         }
         try? fm.createSymbolicLink(
-            atPath: users.appending(path: "crossover").path(percentEncoded: false),
+            atPath: users.appending(path: user).path(percentEncoded: false),
             withDestinationPath: "steamuser")
     }
 }
