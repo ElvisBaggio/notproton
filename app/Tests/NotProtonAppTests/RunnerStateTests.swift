@@ -16,12 +16,27 @@ struct RunnerStateTests {
         }
 
         func makeClone(build: String, withWine: Bool = true) throws {
-            let root = runners.appending(path: "crossover-\(build)/CrossOver")
+            let root = SupportPaths.clonedRoot(forBuild: build, runners: runners)
             let leaf = withWine ? root.appending(path: "lib/wine") : root
             try FileManager.default.createDirectory(at: leaf, withIntermediateDirectories: true)
         }
 
         deinit { try? FileManager.default.removeItem(at: runners) }
+    }
+
+    @Test("Sikarugir clones are visible, damaged and orphaned by identity")
+    func sikarugirClones() throws {
+        let fixture = try Fixture()
+        let id = "sikarugir-11.0-r0"
+        try fixture.makeClone(build: id)
+        try fixture.makeClone(build: "sikarugir-unknown")
+        #expect(RunnerStore.state(runners: fixture.runners, verify: { _, root in
+            root.lastPathComponent == "wine" ? [] : ["wrong root"]
+        }) == .ready(builds: [id]))
+        #expect(RunnerStore.orphanedClones(in: fixture.runners) == ["sikarugir-unknown"])
+        try FileManager.default.removeItem(at: SupportPaths.clonedRoot(forBuild: id, runners: fixture.runners)
+            .appending(path: "lib/wine"))
+        #expect(RunnerStore.damagedClones(in: fixture.runners) == [id])
     }
 
     @Test("No clone means nothing is set up")
@@ -33,7 +48,7 @@ struct RunnerStateTests {
     @Test("Every patched clone is reported ready")
     func reportsReadyClones() throws {
         let fixture = try Fixture()
-        let ids = SupportedRunners.all.prefix(2).map(\.id)
+        let ids = SupportedRunners.all.map(\.id)
         for id in ids { try fixture.makeClone(build: id) }
 
         #expect(RunnerStore.state(runners: fixture.runners, verify: { _, _ in [] })
@@ -52,25 +67,13 @@ struct RunnerStateTests {
             == .unpatched(builds: [version], problems: ["\(version): ntdll is stock"]))
     }
 
-    @Test("Every unpatched clone is reported, not just the first")
-    func reportsEveryUnpatchedClone() throws {
-        let fixture = try Fixture()
-        let ids = SupportedRunners.all.prefix(3).map(\.id).sorted()
-        for id in ids { try fixture.makeClone(build: id) }
-        let stock = Set(ids.dropFirst())
-
-        #expect(RunnerStore.state(runners: fixture.runners, verify: { build, _ in
-            stock.contains(build.id) ? ["ntdll is stock"] : []
-        }) == .unpatched(builds: Array(ids.dropFirst()), problems: ids.dropFirst().map { "\($0): ntdll is stock" }))
-    }
-
     @Test("A clone outside the allow list is orphaned, not ready")
     func reportsUnsupportedClone() throws {
         let fixture = try Fixture()
-        try fixture.makeClone(build: "1.0.0.1")
+        try fixture.makeClone(build: "sikarugir-10.0-r3")
 
         #expect(RunnerStore.state(runners: fixture.runners) == .none)
-        #expect(RunnerStore.orphanedClones(in: fixture.runners) == ["1.0.0.1"])
+        #expect(RunnerStore.orphanedClones(in: fixture.runners) == ["sikarugir-10.0-r3"])
     }
 
     @Test("A supported clone with no lib/wine is damaged, not ready")
@@ -83,12 +86,15 @@ struct RunnerStateTests {
         #expect(RunnerStore.damagedClones(in: fixture.runners) == [version])
     }
 
-    @Test("Clones are listed by version")
+    @Test("Clones are listed by build, and folders from the previous product are ignored")
     func listsClones() throws {
         let fixture = try Fixture()
-        try fixture.makeClone(build: "27.0.0.40921")
-        try fixture.makeClone(build: "26.0.0.1")
+        try fixture.makeClone(build: "sikarugir-11.0-r0")
+        try fixture.makeClone(build: "sikarugir-10.0-r3")
+        try FileManager.default.createDirectory(
+            at: fixture.runners.appending(path: "crossover-27.0.0.40921/CrossOver/lib/wine"),
+            withIntermediateDirectories: true)
 
-        #expect(RunnerStore.clonedBuilds(in: fixture.runners) == ["26.0.0.1", "27.0.0.40921"])
+        #expect(RunnerStore.clonedBuilds(in: fixture.runners) == ["sikarugir-10.0-r3", "sikarugir-11.0-r0"])
     }
 }

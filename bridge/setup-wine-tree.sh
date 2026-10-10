@@ -3,12 +3,11 @@
 #
 #   ./setup-wine-tree.sh   create and configure, skipping whatever is already done
 #
-# CrossOver ships a runtime-only Wine with no winegcc or winebuild, so lsteamclient
+# The Sikarugir engine is a runtime-only Wine with no winegcc or winebuild, so lsteamclient
 # and the steam.exe shim are built in a wine source tree and staged into the bridge
 # unsigned.
 #
-# The base is stock Wine 11.15, the version the CrossOver runtime is built from
-# (wine-11.15-8895-g32f409fef6a). ntdll from a different vintage speaks a different
+# The base is the stock Wine release the engine is built from (see build-sikarugir.sh). ntdll from a different vintage speaks a different
 # server protocol and the shipped loader refuses to boot it.
 #
 # A unix half loads into the wine loader's own process and has to match its arch. The
@@ -37,11 +36,15 @@ HOST_CC="${HOST_CC:-clang -arch x86_64}"
 HOST_CXX="${HOST_CXX:-clang++ -arch x86_64}"
 
 # The bison and autoconf macOS ships are too old for wine's configure.
-PATH="/opt/homebrew/bin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/autoconf/bin:$PATH"
+if [ "${SIKARUGIR:-0}" != 1 ]; then
+    PATH="/opt/homebrew/bin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/autoconf/bin:$PATH"
+fi
 export PATH
 
 missing=""
-for tool in git make bison flex i686-w64-mingw32-gcc x86_64-w64-mingw32-gcc; do
+tools="git make bison flex x86_64-w64-mingw32-gcc"
+[ "${SIKARUGIR:-0}" = 1 ] || tools="$tools i686-w64-mingw32-gcc"
+for tool in $tools; do
     command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
 done
 if [ -n "$missing" ]; then
@@ -69,20 +72,31 @@ echo "==> source tree at pinned $WINE_COMMIT"
 if grep -q 'WINE_CONFIG_MAKEFILE(dlls/lsteamclient)' "$WINE_SRC/configure.ac"; then
     echo "==> components already registered with configure"
 else
-    echo "==> registering dlls/lsteamclient and programs/steam.exe with configure"
-    ( cd "$WINE_SRC" && git apply "$here/register-components.diff" )
+    echo "==> registering components with configure"
+    patch="$here/register-components.diff"
+    [ "${SIKARUGIR:-0}" != 1 ] || patch="$here/register-lsteamclient-11.0.diff"
+    ( cd "$WINE_SRC" && git apply "$patch" )
 fi
 
 "$repo/lsteamclient/fetch.sh"
-"$repo/steam-shim/fetch-headers.sh"
+if [ "${SIKARUGIR:-0}" != 1 ]; then
+    "$repo/steam-shim/fetch-headers.sh"
+fi
 
 # Whole trees, not just the two Makefile.in files: makedep reads the SOURCES each one
 # lists and fails the entire configure if any of those files is absent.
-mkdir -p "$WINE_SRC/dlls/lsteamclient" "$WINE_SRC/programs/steam.exe"
-rsync -a "$repo/build/lsteamclient/" "$WINE_SRC/dlls/lsteamclient/"
-rsync -a --exclude build.sh --exclude gen-implib.sh --exclude fetch-headers.sh \
-    "$repo/steam-shim/" "$WINE_SRC/programs/steam.exe/"
-echo "==> placed sources for dlls/lsteamclient and programs/steam.exe"
+mkdir -p "$WINE_SRC/dlls/lsteamclient"
+rsync -a "${TREE:-$repo/build/lsteamclient}/" "$WINE_SRC/dlls/lsteamclient/"
+if [ "${SIKARUGIR:-0}" = 1 ]; then
+    # Wine 11.0 does not scan .cpp Unix pragmas; the existing manual Unix build owns them.
+    sed '/\.cpp/d' "$TREE/Makefile.in" > "$WINE_SRC/dlls/lsteamclient/Makefile.in"
+fi
+if [ "${SIKARUGIR:-0}" != 1 ]; then
+    mkdir -p "$WINE_SRC/programs/steam.exe"
+    rsync -a --exclude build.sh --exclude gen-implib.sh --exclude fetch-headers.sh \
+        "$repo/steam-shim/" "$WINE_SRC/programs/steam.exe/"
+fi
+echo "==> placed component sources"
 
 # A configure that dies in config.status still leaves config.status behind, so that
 # is not the thing to test for. The Makefile is what has to exist.

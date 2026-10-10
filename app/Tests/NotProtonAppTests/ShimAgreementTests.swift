@@ -55,9 +55,12 @@ struct ShimAgreementTests {
         let arches = try #require(lists.last)
         let unix = "\"${wine_unix##*/}\""
         #expect(arches.contains(unix))
-        #expect(arches.subtracting([unix]) == Set(RunnerPatcher.windowsBuiltins.map(\.arch)))
+        let builtins = RunnerPatcher.builtins(for: SupportedRunners.sikarugir, in: URL(filePath: "/unused"))
+        let windows = builtins.filter { !$0.arch.isEmpty && !$0.arch.hasSuffix("-unix") }
+        #expect(arches.subtracting([unix]) == Set(windows.map(\.arch)))
+        #expect(builtins.contains { $0.arch == "x86_64-unix" })
 
-        for builtin in RunnerPatcher.windowsBuiltins {
+        for builtin in builtins where builtin.name.hasSuffix(".dll") {
             #expect(block.contains(builtin.name))
         }
         #expect(block.contains("lsteamclient.so"))
@@ -70,8 +73,15 @@ struct ShimAgreementTests {
         let script = try Self.runScript()
         for line in script.split(separator: "\n") {
             let writes = line.contains("cp -f") || line.contains("codesign ")
-            guard writes, line.contains("$CX_ROOT") else { continue }
+            guard writes, line.contains("$np_runner") else { continue }
             Issue.record("RUN_SCRIPT writes into the runner: \(line.trimmingCharacters(in: .whitespaces))")
         }
+    }
+
+    @Test("The shim does not report a missing bridge ntdll folder, since a Sikarugir clone is patched in place")
+    func missingBridgeNtdllIsNotReported() throws {
+        let block = try Self.verifyRunnerBlock()
+        #expect(!block.contains("no patched ntdll"))
+        #expect(!block.contains("np_origin"))
     }
 }

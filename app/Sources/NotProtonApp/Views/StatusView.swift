@@ -170,7 +170,7 @@ struct StatusView: View {
     var body: some View {
         Group {
             if let snapshot = status.snapshot {
-                statusForm(snapshot)
+                form(snapshot)
             } else {
                 ProgressView("Checking")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -224,7 +224,7 @@ struct StatusView: View {
             }
             Button("Cancel", role: .cancel) { status.cancelBuildRemoval() }
         } message: {
-            Text("CrossOver itself is not removed.")
+            Text("The Sikarugir app itself is not removed.")
         }
         .confirmationDialog(
             "Remove everything NotProton has created?",
@@ -242,32 +242,7 @@ struct StatusView: View {
                     + "and Steam Play prefixes are not removed."
             )
         }
-        .confirmationDialog(
-            CrossOverLicense.notActivatedTitle,
-            isPresented: asking(.installUnlicensed),
-            titleVisibility: .visible
-        ) {
-            Button("Continue Anyway") {
-                Task { await status.installIntoSteam() }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                CrossOverLicense.notActivatedAdvice
-                    + " NotProton can be deployed, but the CrossOver compatibility tool "
-                    + "cannot be installed without a valid license."
-            )
-        }
         .task { if status.snapshot == nil { await status.refresh() } }
-        .confirmationDialog(
-            CrossOverLicense.notActivatedTitle,
-            isPresented: asking(.toolUnlicensed),
-            titleVisibility: .visible
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(CrossOverLicense.notActivatedAdvice)
-        }
     }
 
     private func asking(_ confirmation: SystemStatus.Confirmation) -> Binding<Bool> {
@@ -279,16 +254,6 @@ struct StatusView: View {
                 }
             }
         )
-    }
-
-    private func statusForm(_ snapshot: StatusSnapshot) -> some View {
-        ScrollViewReader { proxy in
-            form(snapshot)
-                .onChange(of: status.highlightedRow) { _, row in
-                    guard let row else { return }
-                    withAnimation { proxy.scrollTo(row, anchor: .center) }
-                }
-        }
     }
 
     private func form(_ snapshot: StatusSnapshot) -> some View {
@@ -342,15 +307,15 @@ struct StatusView: View {
             }
 
             Section {
-                crossOverSection(snapshot)
+                sikarugirRow(snapshot)
             } header: {
-                Text("CrossOver")
+                Text(SikarugirRow.title)
             } footer: {
                 HStack {
                     Spacer()
-                    Button("Add CrossOver\u{2026}") { Task { await status.addCrossOver() } }
-                        .disabled(!status.isIdle)
-                        .help("Add a copy of CrossOver from another folder.")
+                    Button("Add Sikarugir\u{2026}") { Task { await status.addSikarugir() } }
+                        .disabled(!status.canInstall)
+                        .help("Select a Sikarugir 11.0 revision 0 app to copy and set up.")
                 }
             }
 
@@ -527,35 +492,17 @@ struct StatusView: View {
     }
 
     @ViewBuilder
-    private func crossOverSection(_ snapshot: StatusSnapshot) -> some View {
-        let rows = status.crossOverRows
-        if rows.isEmpty {
-            StatusRow(
-                title: "CrossOver",
-                value: "Not found. Supported: \(SupportedRunners.versionList).",
-                tone: .bad
-            )
-        }
-        let tools = SupportedRunners.tools(for: snapshot.installedRunners)
-        ForEach(rows) { row in
-            StatusRow(
-                title: row.title,
-                value: crossOverValue(row),
-                tone: crossOverTone(row),
-                detail: crossOverDetail(row, tools: tools),
-                trailing: row.copy == .ready ? buildSize(row.buildID) : nil,
-                action: crossOverAction(row, prominent: snapshot.runner == .none),
-                menu: crossOverMenu(row)
-            )
-            .background {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.accentColor.opacity(0.2))
-                    .padding(-6)
-                    .opacity(status.highlightedRow == row.id ? 1 : 0)
-            }
-            .animation(.easeInOut(duration: 0.3), value: status.highlightedRow == row.id)
-            .id(row.id)
-        }
+    private func sikarugirRow(_ snapshot: StatusSnapshot) -> some View {
+        let row = status.sikarugirRow
+        StatusRow(
+            title: SikarugirRow.title,
+            value: sikarugirValue(row),
+            tone: sikarugirTone(row),
+            detail: sikarugirDetail(row),
+            trailing: row.copy == .ready ? buildSize(row.buildID) : nil,
+            action: sikarugirAction(row),
+            menu: sikarugirMenu(row)
+        )
         if case .ready = snapshot.runner, !snapshot.payload.missing(origin: .patched).isEmpty {
             StatusRow(
                 title: "Compatibility Tool",
@@ -565,125 +512,83 @@ struct StatusView: View {
                     label: "Repair",
                     isProminent: true,
                     help: "Set up the compatibility tool again.",
-                    isEnabled: status.isIdle && status.setupSource != nil
+                    isEnabled: status.canInstall && status.setupSource != nil
                 ) { Task { await status.requestCompatibilityTool() } }
             )
         }
     }
 
-    private func crossOverValue(_ row: CrossOverRow) -> String {
-        if let version = row.unsupportedVersion {
-            return "Version \(version) not supported (supported: \(SupportedRunners.versionList))"
-        }
-        let build = "Build \(SupportedRunners.displayVersion(forID: row.buildID))"
+    private func sikarugirValue(_ row: SikarugirRow) -> String {
         switch row.copy {
-        case .ready: return build
-        case .none: return build + (row.licensed == false ? ", not set up or activated" : ", not set up")
-        case .unpatched: return build + ", not patched"
-        case .damaged: return build + ", copy damaged"
-        case .unsupported: return build + ", not supported"
+        case .ready: return "Ready"
+        case .none:
+            return row.install == nil
+                ? "Not found. Add a Sikarugir 11.0 revision 0 app (x86_64/Rosetta)."
+                : "Found, not set up"
+        case .unpatched: return "Copy is not patched"
+        case .damaged: return "Copy damaged"
         }
     }
 
-    private func crossOverTone(_ row: CrossOverRow) -> StatusTone {
-        if row.unsupportedVersion != nil { return .neutral }
+    private func sikarugirTone(_ row: SikarugirRow) -> StatusTone {
         switch row.copy {
-        case .none: return row.licensed == false ? .warning : .neutral
         case .ready: return .ok
-        case .unpatched, .damaged, .unsupported: return .warning
+        case .none: return .neutral
+        case .unpatched, .damaged: return .warning
         }
     }
 
-    private func crossOverDetail(_ row: CrossOverRow, tools: [InstalledTool]) -> String? {
-        var lines: [String] = []
-        if row.copy == .ready || row.copy == .unpatched {
-            let names = tools.filter { $0.build == row.buildID }.map(\.display)
-            lines.append(contentsOf: names)
-        }
-        if row.copy == .none, row.licensed == false { lines.append("Open CrossOver to activate it.") }
+    private func sikarugirDetail(_ row: SikarugirRow) -> String? {
+        var lines = ["A Steam signature profile must match the installed Steam build."]
         if let install = row.install {
-            var path = install.bundle.path(percentEncoded: false)
-            if path.count > 1, path.hasSuffix("/") { path.removeLast() }
-            lines.append(path)
-        } else if row.copy != .unsupported {
-            lines.append("CrossOver app not found.")
+            lines.append(install.root.path(percentEncoded: false))
         }
-        return lines.isEmpty ? nil : lines.joined(separator: "\n")
+        return lines.joined(separator: "\n")
     }
 
-    private func crossOverAction(_ row: CrossOverRow, prominent: Bool) -> StatusAction? {
-        let install = row.install
+    private func sikarugirAction(_ row: SikarugirRow) -> StatusAction? {
+        guard let install = row.install else { return nil }
         switch row.copy {
-        case .none where row.canSetUp:
+        case .none:
             return StatusAction(
-                label: "Set Up",
-                isProminent: prominent,
-                help: "Copy \(row.title) and set up its compatibility tool.",
+                label: "Set Up", isProminent: true,
+                help: "Copy Sikarugir and set up its compatibility tool.",
                 isEnabled: status.canInstall
-            ) { Task { await status.requestCompatibilityTool(from: install) } }
-        case .unpatched where row.canSetUp, .damaged where row.canSetUp:
+            ) { Task { await status.setUpSikarugir(from: install) } }
+        case .unpatched, .damaged:
             return StatusAction(
-                label: "Repair",
-                isProminent: true,
-                help: "Copy \(row.title) again.",
+                label: "Repair", isProminent: true,
+                help: "Copy Sikarugir again.",
                 isEnabled: status.canInstall
-            ) { Task { await status.requestCompatibilityTool(from: install) } }
-        case .unsupported:
-            return removeCopyAction(row.buildID, label: "Remove\u{2026}")
+            ) { Task { await status.setUpSikarugir(from: install, replacingExisting: true) } }
         default:
             return nil
         }
     }
 
-    private func crossOverMenu(_ row: CrossOverRow) -> [StatusAction] {
+    private func sikarugirMenu(_ row: SikarugirRow) -> [StatusAction] {
         var items: [StatusAction] = []
-        let install = row.install
-        if row.copy == .ready {
+        if row.copy == .ready, let install = row.install {
             items.append(StatusAction(
-                label: "Reinstall",
-                help: "Copy \(row.title) again.",
-                isEnabled: status.canInstall && row.canSetUp
-            ) { Task { await status.requestCompatibilityTool(from: install, replacingExisting: true) } })
-        }
-        let shown = install?.bundle
-            ?? (row.copy == .none ? nil : SupportPaths.runnerRoot(forBuild: row.buildID))
-        if let shown {
-            items.append(StatusAction(label: "Show in Finder") {
-                NSWorkspace.shared.activateFileViewerSelecting([shown])
-            })
+                label: "Reinstall", help: "Copy Sikarugir again.", isEnabled: status.canInstall
+            ) { Task { await status.setUpSikarugir(from: install, replacingExisting: true) } })
         }
         if [.ready, .unpatched, .damaged].contains(row.copy) {
             var remove = removeCopyAction(row.buildID, label: "Remove Copy\u{2026}")
-            remove.startsGroup = true
+            remove.startsGroup = !items.isEmpty
             items.append(remove)
-        }
-        if let install, row.isManual {
-            items.append(StatusAction(
-                label: "Remove from List",
-                isEnabled: status.isIdle,
-                startsGroup: !items.contains(where: \.startsGroup)
-            ) { Task { await status.removeFromList(install) } })
         }
         return items
     }
 
     private func buildSize(_ build: String) -> String? {
         guard let runner = status.runnerSizes[build] else { return nil }
-        let flavors = SupportedRunners.build(id: build)?.tools.map(\.flavor) ?? []
-        return Self.sizeText(runner: runner, templates: status.templateSizes[build] ?? [:], flavors: flavors)
+        return Self.sizeText(runner: runner, templates: status.templateSizes[build] ?? [:])
     }
 
-    nonisolated static func sizeText(runner: Int64, templates: [CompatTool.Flavor: Int64], flavors: [CompatTool.Flavor]) -> String {
-        let lines: [String]
-        if flavors.count > 1 {
-            lines = flavors.compactMap { flavor in
-                guard let bytes = templates[flavor], bytes > 0 else { return nil }
-                return "\(flavor.name) templates \(bytes.formatted(.byteCount(style: .file)))"
-            }
-        } else {
-            let bytes = templates.values.reduce(0, +)
-            lines = bytes > 0 ? ["Templates \(bytes.formatted(.byteCount(style: .file)))"] : []
-        }
+    nonisolated static func sizeText(runner: Int64, templates: [CompatTool.Flavor: Int64]) -> String {
+        let bytes = templates.values.reduce(0, +)
+        let lines = bytes > 0 ? ["Templates \(bytes.formatted(.byteCount(style: .file)))"] : []
         return (["Runner \(runner.formatted(.byteCount(style: .file)))"] + lines).joined(separator: "\n")
     }
 

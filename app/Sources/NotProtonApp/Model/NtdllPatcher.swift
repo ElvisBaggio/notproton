@@ -1,4 +1,4 @@
-// Patches CrossOver's ntdll.dll so that lsteamclient is loaded.
+// Patches the Sikarugir ntdll.dll so that lsteamclient is loaded.
 
 import Foundation
 
@@ -48,209 +48,24 @@ enum NtdllPatcher {
     private static let sectionName: [UInt8] = Array(".npdet".utf8) + [0, 0]
     private static let sectionSize = 0x1000
     private static let sectionFlags: UInt32 = 0x6000_0020
-    private static let machineARM64: UInt16 = 0xaa64
 
 
     static let byBuild: [String: [NtdllPatch]] = [
-        "27.0.0.40921": [
-            NtdllPatch(
-                arch: .x86_64Windows,
-                payloadResource: "detour2",
-                payloadSHA256: "8504714bba0195439cb5b44c89f25c68dbb7f01bae6f72ca0a258a0daec3e244",
-                caveRVA: 0x80be0,
-                payloadRVA: 0x80be0,
-                hooks: [
-                    NtdllHook(rva: 0x51f15,
-                              stolen: [0x48, 0x83, 0xbc, 0x24, 0xf0, 0x00, 0x00, 0x00, 0x00]),
-                ],
-                caveSize: 1056,
-                cavePad: 0x00,
-                machine: 0x8664,
-                magic: 0x20b,
-                imageBase: 0x1_7000_0000
-            ),
-            NtdllPatch(
-                arch: .i386Windows,
-                payloadResource: "detour32",
-                payloadSHA256: "2758d4f6783c853c460187f83f4fb9b1105380d194126ef83fc85e2596d3036a",
-                caveRVA: 0x7c830,
-                payloadRVA: 0x7c830,
-                hooks: [
-                    NtdllHook(rva: 0x4d828, stolen: [0xf6, 0x45, 0xbc, 0x02, 0x75, 0x26]),
-                ],
-                caveSize: 2000,
-                cavePad: 0x00,
-                machine: 0x14c,
-                magic: 0x10b,
-                imageBase: 0x7bc0_0000
-            ),
-        ],
-        "26.3.0.39832": [
-            NtdllPatch(
-                arch: .x86_64Windows,
-                payloadResource: "detour2-cx26",
-                payloadSHA256: "e35b834408599c45f30b23a6d2bf38acfa5c3df4d15206617c471e23a4a01bfb",
-                caveRVA: 0xae000,
-                payloadRVA: 0xae000,
-                hooks: [
-                    NtdllHook(rva: 0x44972,
-                              stolen: [0x48, 0x83, 0xbc, 0x24, 0xf0, 0x00, 0x00, 0x00, 0x00]),
-                ],
-                caveSize: 0x1000,
-                cavePad: 0x00,
-                machine: 0x8664,
-                magic: 0x20b,
-                imageBase: 0x1_7000_0000,
-                placement: .section
-            ),
-            NtdllPatch(
-                arch: .i386Windows,
-                payloadResource: "detour32-cx26",
-                payloadSHA256: "be465bc936cafafae4aa1b4c41f668e08848492d9858c2cf2ad483a9f1ab25e5",
-                caveRVA: 0xaa000,
-                payloadRVA: 0xaa000,
-                hooks: [
-                    NtdllHook(rva: 0x43b40, stolen: [0xf6, 0x45, 0xc0, 0x01, 0x75, 0x26]),
-                ],
-                caveSize: 0x1000,
-                cavePad: 0x00,
-                machine: 0x14c,
-                magic: 0x10b,
-                imageBase: 0x7bc0_0000,
-                placement: .section
-            ),
-        ],
-        // FEX patches
-        "27.0.0.40921-fex": [
-            NtdllPatch(
-                arch: .x86_64Windows,
-                payloadResource: "detour2-fex",
-                payloadSHA256: "6af3f36658907cc94c096e432006807d6997bd970560f2579df748d6fd6e2bc6",
-                caveRVA: 0x79394,
-                payloadRVA: 0x793a0,
-                hooks: [
-                    NtdllHook(rva: 0x34b2e, stolen: [0x48, 0x8b, 0x84, 0x24, 0x10, 0x01, 0x00, 0x00]),
-                ],
-                caveSize: 3180,
-                cavePad: 0xcc,
-                machine: 0x8664,
-                magic: 0x20b,
-                imageBase: 0x1_7000_0000
-            ),
-            NtdllPatch(
-                arch: .i386Windows,
-                payloadResource: "detour32-fex",
-                payloadSHA256: "b4c697ba396ecb59125c505666ad3465d1208b8a1e3e53a0c457657b341376b9",
-                caveRVA: 0x6b2fe,
-                payloadRVA: 0x6b300,
-                hooks: [
-                    NtdllHook(rva: 0x2ee12, stolen: [0x8b, 0x45, 0x14, 0xa8, 0x02]),
-                ],
-                caveSize: 3330,
-                cavePad: 0xcc,
-                machine: 0x14c,
-                magic: 0x10b,
-                imageBase: 0x7bc0_0000
-            ),
-            NtdllPatch(
-                arch: .aarch64Windows,
-                payloadResource: "detour64-fex",
-                payloadSHA256: "68a458ec9c32041c79fdd622d18e91cfbe825a5292cae362d310930e34dd598e",
-                caveRVA: 0xf1185,
-                payloadRVA: 0xf1190,
-                hooks: [
-                    NtdllHook(rva: 0x48004, stolen: [0x1f, 0x20, 0x03, 0xd5]),
-                    NtdllHook(rva: 0xa71bc, stolen: [0x1f, 0x20, 0x03, 0xd5]),
-                ],
-                caveSize: 61051,
-                cavePad: 0xcc,
-                machine: 0xaa64,
-                magic: 0x20b,
-                imageBase: 0x1_8000_0000
-            ),
-        ],
-        "27.0.0.41069": [
-            NtdllPatch(
-                arch: .x86_64Windows,
-                payloadResource: "detour2-41069",
-                payloadSHA256: "660ea7c935620e620a45a46e552c0a3de9292e031bf93ef676968154d45e78d5",
-                caveRVA: 0x815e0,
-                payloadRVA: 0x815e0,
-                hooks: [
-                    NtdllHook(rva: 0x52055,
-                              stolen: [0x48, 0x83, 0xbc, 0x24, 0xf0, 0x00, 0x00, 0x00, 0x00]),
-                ],
-                caveSize: 2592,
-                cavePad: 0x00,
-                machine: 0x8664,
-                magic: 0x20b,
-                imageBase: 0x1_7000_0000
-            ),
-            NtdllPatch(
-                arch: .i386Windows,
-                payloadResource: "detour32-41069",
-                payloadSHA256: "3eaa5021add0c8e30e324d6b1a6392a32720f5f73596418a2086b7f8081eb1bd",
-                caveRVA: 0x7d1f0,
-                payloadRVA: 0x7d1f0,
-                hooks: [
-                    NtdllHook(rva: 0x4d848, stolen: [0xf6, 0x45, 0xbc, 0x02, 0x75, 0x26]),
-                ],
-                caveSize: 3600,
-                cavePad: 0x00,
-                machine: 0x14c,
-                magic: 0x10b,
-                imageBase: 0x7bc0_0000
-            ),
-        ],
-        "27.0.0.41069-fex": [
-            NtdllPatch(
-                arch: .x86_64Windows,
-                payloadResource: "detour2-fex-41069",
-                payloadSHA256: "0084bba1d7399e749d918dba4f313f1dc1825d2a487f3169b469b57c5b161ca5",
-                caveRVA: 0xb5000,
-                payloadRVA: 0xb5000,
-                hooks: [
-                    NtdllHook(rva: 0x34aae, stolen: [0x48, 0x8b, 0x84, 0x24, 0x10, 0x01, 0x00, 0x00]),
-                ],
-                caveSize: 0x1000,
-                cavePad: 0x00,
-                machine: 0x8664,
-                magic: 0x20b,
-                imageBase: 0x1_7000_0000,
-                placement: .section
-            ),
-            NtdllPatch(
-                arch: .i386Windows,
-                payloadResource: "detour32-fex-41069",
-                payloadSHA256: "6ff6c7289e639c4caad85c2670bfa849d9f36baa24152b6979896caede5e249b",
-                caveRVA: 0xa4000,
-                payloadRVA: 0xa4000,
-                hooks: [
-                    NtdllHook(rva: 0x2ede2, stolen: [0x8b, 0x45, 0x14, 0xa8, 0x02]),
-                ],
-                caveSize: 0x1000,
-                cavePad: 0x00,
-                machine: 0x14c,
-                magic: 0x10b,
-                imageBase: 0x7bc0_0000,
-                placement: .section
-            ),
-            NtdllPatch(
-                arch: .aarch64Windows,
-                payloadResource: "detour64-fex-41069",
-                payloadSHA256: "b27484eaed592366ddd3a5b3c565c2dc05e8fa255fbd7e19d9d8eb619ff57c23",
-                caveRVA: 0xf3185,
-                payloadRVA: 0xf3190,
-                hooks: [
-                    NtdllHook(rva: 0x48738, stolen: [0x1f, 0x20, 0x03, 0xd5]),
-                    NtdllHook(rva: 0xa883c, stolen: [0x1f, 0x20, 0x03, 0xd5]),
-                ],
-                caveSize: 52859,
-                cavePad: 0xcc,
-                machine: 0xaa64,
-                magic: 0x20b,
-                imageBase: 0x1_8000_0000
-            ),
+        "sikarugir-11.0-r0": [
+            NtdllPatch(arch: .x86_64Windows, payloadResource: "detour2-sikarugir",
+                payloadSHA256: "d73b0f846a13e062b8da4acc0fbbac62c9e43a3ad531afcf0434d1417085e15f",
+                caveRVA: 0x70855, payloadRVA: 0x70860,
+                hooks: [NtdllHook(rva: 0x34f40, stolen: [0x48, 0x8b, 0x85, 0x90, 0x00, 0x00, 0x00])],
+                caveSize: 1963, cavePad: 0xcc, machine: 0x8664,
+                magic: 0x20b, imageBase: 0x170000000,
+                placement: .padding),
+            NtdllPatch(arch: .i386Windows, payloadResource: "detour32-sikarugir",
+                payloadSHA256: "a1305ebed9e42cc6a37a5df333d42da17de8012cca8e4deeb72f6b4a8cb5b620",
+                caveRVA: 0x9a000, payloadRVA: 0x9a000,
+                hooks: [NtdllHook(rva: 0x2eba0, stolen: [0x8b, 0x45, 0x14, 0xa8, 0x01])],
+                caveSize: 4096, cavePad: 0x0, machine: 0x14c,
+                magic: 0x10b, imageBase: 0x7bc00000,
+                placement: .section)
         ],
     ]
 
@@ -314,7 +129,7 @@ enum NtdllPatcher {
                 )
             }
             branches.append(
-                (offset, try branch(patch, from: hook.rva, filling: hook.stolen.count))
+                (offset, try relativeJump(from: hook.rva, to: patch.payloadRVA, filling: hook.stolen.count))
             )
         }
 
@@ -325,33 +140,6 @@ enum NtdllPatcher {
 
         return Data(bytes)
     }
-
-    private static func branch(_ patch: NtdllPatch, from hookRVA: Int, filling width: Int) throws -> [UInt8] {
-        patch.machine == machineARM64
-            ? try branchLink(from: hookRVA, to: patch.payloadRVA, filling: width)
-            : try relativeJump(from: hookRVA, to: patch.payloadRVA, filling: width)
-    }
-
-    private static func branchLink(from hookRVA: Int, to payloadRVA: Int, filling width: Int) throws -> [UInt8] {
-        guard width == 4 else {
-            throw StepFailure(
-                step: step, detail: "A hook site of \(width) bytes cannot hold a branch and link."
-            )
-        }
-
-        let delta = payloadRVA - hookRVA
-        guard delta % 4 == 0, (-0x800_0000 ..< 0x800_0000).contains(delta) else {
-            throw StepFailure(
-                step: step,
-                detail: "The detour is \(delta) bytes from the hook site, which a branch and link "
-                    + "cannot reach."
-            )
-        }
-
-        let encoded = UInt32(0x9400_0000) | (UInt32(bitPattern: Int32(delta) >> 2) & 0x03ff_ffff)
-        return withUnsafeBytes(of: encoded.littleEndian, Array.init)
-    }
-
 
     private static func relativeJump(from hookRVA: Int, to caveRVA: Int, filling width: Int) throws -> [UInt8] {
         guard width >= 5 else {
@@ -593,7 +381,7 @@ enum NtdllPatcher {
                 step: step,
                 detail: "The \(patch.arch.rawValue) ntdll at \(source.path(percentEncoded: false)) hashes "
                     + "\(inputHash.prefix(16)) and build \(build.bundleVersion) expects "
-                    + "\(expectedInput.prefix(16)). It is already patched, or from another CrossOver build."
+                    + "\(expectedInput.prefix(16)). It is already patched, or from another build."
             )
         }
 
@@ -664,16 +452,14 @@ enum NtdllPatcher {
         bridge.appending(path: "wine/\(build)/\(arch.rawValue)/ntdll.dll")
     }
 
-    // Also clears the wine/<arch> copies 1.0/1.0.1 left behind.
-    static func pruneBuilds(
-        keeping builds: Set<String>, in bridge: URL = SupportPaths.bridge, keepingLegacy: Bool = false
-    ) {
+    // Only sikarugir-* folders are NotProton's to clear. The wine/<build> and wine/<arch> folders
+    // of the previous product belong to the app that installed it.
+    static func pruneBuilds(keeping builds: Set<String>, in bridge: URL = SupportPaths.bridge) {
         let wine = bridge.appending(path: "wine")
         let fm = FileManager.default
-        let legacy = keepingLegacy ? Set(WineArch.allCases.map(\.rawValue)) : []
         let entries = (try? fm.contentsOfDirectory(at: wine, includingPropertiesForKeys: nil)) ?? []
         for entry in entries
-        where !builds.contains(entry.lastPathComponent) && !legacy.contains(entry.lastPathComponent) {
+        where entry.lastPathComponent.hasPrefix("sikarugir-") && !builds.contains(entry.lastPathComponent) {
             try? fm.removeItem(at: entry)
         }
     }

@@ -42,16 +42,14 @@ enum SupportPaths {
     // Read by the dylib at Steam launch, in np_compat_load_tool_list.
     static var toolList: URL { support.appending(path: "tools") }
 
-    static func runnerRoot(forBuild build: String, runners: URL = SupportPaths.runners) -> URL {
-        runners.appending(path: "crossover-\(build)")
-    }
+    static func runnerFolder(forBuild build: String) -> String { build }
 
-    static func crossOverRoot(inBundle bundle: URL) -> URL {
-        bundle.appending(path: "Contents/SharedSupport/CrossOver")
+    static func runnerRoot(forBuild build: String, runners: URL = SupportPaths.runners) -> URL {
+        runners.appending(path: runnerFolder(forBuild: build))
     }
 
     static func clonedRoot(forBuild build: String, runners: URL = SupportPaths.runners) -> URL {
-        runnerRoot(forBuild: build, runners: runners).appending(path: "CrossOver")
+        runnerRoot(forBuild: build, runners: runners).appending(path: "wine")
     }
 
     static func prefixTemplates(forBuild build: String, in library: SteamLibrary) -> [URL] {
@@ -59,7 +57,7 @@ enum SupportPaths {
     }
 
     static func prefixTemplate(forBuild build: String, flavor: CompatTool.Flavor, in library: SteamLibrary) -> URL {
-        library.compatdata.appending(path: prefixTemplateFolder).appending(path: "crossover-\(build)-\(flavor.unixDir)")
+        library.compatdata.appending(path: prefixTemplateFolder).appending(path: "\(runnerFolder(forBuild: build))-\(flavor.unixDir)")
     }
 
     static let prefixTemplateFolder = "notproton-template"

@@ -59,11 +59,11 @@ TARGET      := $(OUT_DIR)/notproton.dylib
 OBJS := $(patsubst %.c,$(OUT_DIR)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all clean rebuild dobby deploy dylib dylib-install sigcheck app-payload app app-zip \
+.PHONY: all clean rebuild dobby deploy dylib dylib-install sigcheck app-payload app app-sikarugir app-zip \
         anchorcheck callscheck sigdb-fixtures webpatch-fixtures peicon-fixtures panel-behavior app-tests \
         tests-list overlay-shim overlay-shim-install overlay-shim-tests \
         overlay-shim-bench iconmaker icon \
-        appinfo helpers-install ntdll-resolve bridge runcheck compatcheck \
+        appinfo helpers-install ntdll-resolve bridge-sikarugir runcheck compatcheck \
         compatsvc-check scriptcheck envcheck buildcheck settingscheck routecheck bridgecheck gamedrivecheck launch-shell FORCE
 
 APP_PAYLOAD := app/Sources/NotProtonApp/Resources/payload
@@ -316,16 +316,15 @@ panel-behavior:
 	node $(PANEL_TESTS)/migration.js $(OUT_DIR)/panel-emit && \
 	echo "==> panel behavior: renders as expected, no stale arguments"
 
-CX_ROOT ?= /Applications/CrossOver Preview.app
-
+# Resolves the hook sites of an ntdll.dll and prints the pins (needs capstone).
 ntdll-resolve:
 	@if [ ! -f ntdll-patch/resolve.py ]; then \
 		$(call SKIP,ntdll-resolve,ntdll-patch/resolve.py); exit 0; fi; \
 	if ! python3 -c 'import capstone' >/dev/null 2>&1; then \
 		echo "==> ntdll-resolve: capstone not found, skipped (pip3 install capstone)"; exit 0; fi; \
-	if [ ! -d "$(CX_ROOT)" ]; then \
-		echo "==> ntdll-resolve: $(CX_ROOT) not present, skipped (set CX_ROOT)"; exit 0; fi; \
-	python3 ntdll-patch/resolve.py "$(CX_ROOT)"
+	if [ -z "$(NTDLL)" ]; then \
+		echo "==> ntdll-resolve: set NTDLL to a Sikarugir ntdll.dll, skipped"; exit 0; fi; \
+	python3 ntdll-patch/resolve.py "$(NTDLL)"
 
 $(ARM64_DYLIB): $(OBJS)
 	@mkdir -p $(dir $@)
@@ -468,7 +467,7 @@ sigdb-install:
 	cp -f signatures/macos.arm64/*.json "$(SUPPORT_DIR)/signatures/macos.arm64/"
 	@echo "==> Installed: $(SUPPORT_DIR)/signatures/macos.arm64"
 
-LAUNCHABLE_BUNDLES := $(HOME)/Desktop/NotProton.app /Applications/NotProton.app
+LAUNCHABLE_BUNDLES := $(HOME)/Desktop/NotProton\ Sikarugir.app /Applications/NotProton\ Sikarugir.app
 
 deploy: $(TARGET) dylib-install sigdb-install helpers-install
 	@if [ ! -d "$(STEAM_APP)" ]; then \
@@ -483,25 +482,9 @@ deploy: $(TARGET) dylib-install sigdb-install helpers-install
 		echo "==> warning: launching it reverts this deploy, so rebuild it with 'make app'"; \
 	done
 
-WINE_BUILD := scratch/wine-build-dual
-
-WINE_BUILD_ARM64 := scratch/wine-build-arm64
-
-BRIDGE_FILES := \
-	$(WINE_BUILD)/programs/steam.exe/x86_64-windows/steam.exe:steam.exe \
-	$(WINE_BUILD)/dlls/lsteamclient/x86_64-windows/lsteamclient.dll:x86_64-windows-lsteamclient.dll \
-	$(WINE_BUILD)/dlls/lsteamclient/lsteamclient.so:x86_64-unix-lsteamclient.so \
-	$(WINE_BUILD_ARM64)/dlls/lsteamclient/lsteamclient.so:aarch64-unix-lsteamclient.so \
-	$(WINE_BUILD)/dlls/lsteamclient/i386-windows/lsteamclient.dll:i386-windows-lsteamclient.dll
-
-bridge:
-	bridge/setup-wine-tree.sh
-	WINE_BUILD="$(CURDIR)/$(WINE_BUILD_ARM64)" HOST=aarch64-apple-darwin \
-		HOST_CC="clang -arch arm64" HOST_CXX="clang++ -arch arm64" bridge/setup-wine-tree.sh
-	lsteamclient/build.sh
-	UNIX_ARCH=arm64 WINE_BUILD="$(CURDIR)/$(WINE_BUILD_ARM64)" lsteamclient/build.sh --unix
-	steam-shim/build.sh
-	@echo "==> Built the bridge, now run: $(MAKE) app-payload"
+.PHONY: bridge-sikarugir
+bridge-sikarugir:
+	bridge/build-sikarugir.sh
 
 app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO)
 	@mkdir -p "$(APP_PAYLOAD)/signatures/macos.arm64"
@@ -512,20 +495,23 @@ app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO)
 	cp -f $(APPINFO) "$(APP_PAYLOAD)/appinfo"
 	cp -f dylib/feats/compat_run.sh "$(APP_PAYLOAD)/run"
 	cp -f signatures/macos.arm64/*.json "$(APP_PAYLOAD)/signatures/macos.arm64/"
-	@set -e; for spec in $(BRIDGE_FILES); do \
-		src="$${spec%%:*}"; dst="$(APP_PAYLOAD)/bridge/$${spec##*:}"; \
-		if [ -f "$$src" ]; then cp -f "$$src" "$$dst"; \
-		elif [ -f "$$dst" ]; then echo "==> keeping staged $${spec##*:}"; \
-		else echo "$$src is missing and nothing is staged at $$dst, run: $(MAKE) bridge" >&2; exit 1; fi; \
-	done
+	@if [ -d "scratch/sikarugir/bridge" ]; then \
+		python3 bridge/stage-sikarugir-payload.py "scratch/sikarugir/bridge" "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0"; \
+	elif [ ! -s "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/steam.exe" ]; then \
+		echo "app-payload: scratch/sikarugir/bridge is missing and nothing is staged, run: $(MAKE) bridge-sikarugir" >&2; exit 1; \
+	fi
 	@stamp="$$(git log -1 --format=%ct 2>/dev/null)"; \
 	if [ -z "$$stamp" ]; then echo "build-time needs a git checkout" >&2; exit 1; fi; \
 	echo "$$stamp" > "$(APP_PAYLOAD)/build-time"
 	@echo "==> Staged app payload in $(APP_PAYLOAD)"
 
-APP_BUNDLE  := $(OUT_DIR)/NotProton.app
+# The only app: NotProton for Sikarugir 11.0 r0. Its own name and bundle id (never the previous
+# NotProton's), and no Sparkle feed, so it cannot update itself over another install.
+APP_NAME    := NotProton Sikarugir
+APP_ID      := com.notproton.NotProton.sikarugir
+APP_BUNDLE  := $(OUT_DIR)/$(APP_NAME).app
 APP_BUNDLE_PAYLOAD := $(APP_BUNDLE)/Contents/Resources/NotProtonApp_NotProtonApp.bundle/Contents/Resources/payload
-APP_ZIP     := $(OUT_DIR)/NotProton.zip
+APP_ZIP     := $(OUT_DIR)/$(APP_NAME).zip
 APP_VERSION := $(shell sed -n 's/^\#define NOTPROTON_VERSION "\(.*\)"/\1/p' dylib/version.h)
 
 APP_SIGN_ID ?= -
@@ -551,7 +537,7 @@ $(ICON_CAR): $(ICONGEN)
 		--output-partial-info-plist "$(ICON_DIR)/partial.plist" >/dev/null
 	@echo "==> Built $@"
 
-app: app-payload $(ICON_CAR)
+app: sikarugir-payload-check $(ICON_CAR)
 	swift build --package-path app -c release
 	rm -rf "$(APP_BUNDLE)"
 	@mkdir -p "$(APP_BUNDLE)/Contents/MacOS" "$(APP_BUNDLE)/Contents/Resources"
@@ -559,6 +545,12 @@ app: app-payload $(ICON_CAR)
 	/usr/libexec/PlistBuddy -c \
 		"Set :CFBundleShortVersionString $(APP_VERSION)" -c \
 		"Set :CFBundleVersion $(APP_VERSION)" \
+		"$(APP_BUNDLE)/Contents/Info.plist"
+	/usr/libexec/PlistBuddy \
+		-c "Set :CFBundleIdentifier $(APP_ID)" \
+		-c "Set :CFBundleName $(APP_NAME)" \
+		-c "Delete :SUFeedURL" -c "Delete :SUPublicEDKey" \
+		-c "Add :NPExperimental bool true" \
 		"$(APP_BUNDLE)/Contents/Info.plist"
 	cp "$$(swift build --package-path app -c release --show-bin-path)/NotProtonApp" \
 		"$(APP_BUNDLE)/Contents/MacOS/NotProtonApp"
@@ -585,6 +577,16 @@ app: app-payload $(ICON_CAR)
 	codesign -f -s "$(APP_SIGN_ID)" "$(APP_BUNDLE)"
 	codesign --verify --strict "$(APP_BUNDLE)"
 	@echo "==> Built $(APP_BUNDLE) ($(APP_VERSION))"
+
+# app-sikarugir is the same bundle under the name the first Sikarugir builds used.
+.PHONY: app-sikarugir sikarugir-payload-check
+app-sikarugir: app
+
+sikarugir-payload-check: app-payload
+	@for f in steam.exe x86_64-windows/lsteamclient.dll x86_64-unix/lsteamclient.so; do \
+		[ -s "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f" ] || { \
+			echo "app: $(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f is missing; run: $(MAKE) bridge-sikarugir && $(MAKE) app-payload" >&2; exit 1; }; \
+	done
 
 app-zip: app
 	rm -f "$(APP_ZIP)"

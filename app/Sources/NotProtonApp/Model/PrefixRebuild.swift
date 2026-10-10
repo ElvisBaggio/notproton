@@ -13,7 +13,7 @@ extension PrefixTools {
     ) throws -> URL? {
         let kept = try recreate(
             prefix, runner: SupportPaths.clonedRoot(forBuild: tool.build, runners: runners),
-            flavor: tool.tool.flavor, now: now, keepBackup: keepBackup
+            now: now, keepBackup: keepBackup
         )
         try writeBuildRecord(tool, for: prefix)
         return kept
@@ -23,7 +23,6 @@ extension PrefixTools {
     static func recreate(
         _ prefix: WinePrefix,
         runner: URL,
-        flavor: CompatTool.Flavor = .fex,
         now: Date = .now,
         keepBackup: Bool = true
     ) throws -> URL? {
@@ -46,7 +45,7 @@ extension PrefixTools {
             )
         }
 
-        let loader = loader(runner: runner, flavor: flavor)
+        let loader = loader(runner: runner)
         guard FileManager.default.isExecutableFile(atPath: loader.path(percentEncoded: false)) else {
             throw StepFailure(
                 step: "Recreate prefix",
@@ -63,10 +62,11 @@ extension PrefixTools {
         defer { try? fm.removeItem(at: fresh) }
         try fm.createDirectory(at: fresh, withIntermediateDirectories: true)
 
-        var environment = environment(prefix: prefix, runner: runner, flavor: flavor)
+        var environment = environment(prefix: prefix, runner: runner)
         environment["WINEPREFIX"] = fresh.path(percentEncoded: false)
-        layOutProfile(in: fresh)
-        _ = try Shell.check(loader.path(percentEncoded: false), ["wineboot", "--init"], environment: environment)
+        layOutProfile(in: fresh, user: NSUserName())
+        let command = command(loader: loader, arguments: ["wineboot", "--init"], runner: runner)
+        _ = try Shell.check(command.executable, command.arguments, environment: environment)
 
         let carry = Carry(from: prefix.pfx, to: fresh)
         carry.userData()
@@ -141,7 +141,7 @@ extension PrefixTools {
         return slot
     }
 
-    private static func layOutProfile(in fresh: URL) {
+    private static func layOutProfile(in fresh: URL, user: String) {
         let fm = FileManager.default
         let users = fresh.appending(path: "drive_c/users")
         let profile = users.appending(path: "steamuser")
@@ -167,7 +167,7 @@ extension PrefixTools {
                 atPath: link.path(percentEncoded: false), withDestinationPath: target)
         }
         try? fm.createSymbolicLink(
-            atPath: users.appending(path: "crossover").path(percentEncoded: false),
+            atPath: users.appending(path: user).path(percentEncoded: false),
             withDestinationPath: "steamuser")
     }
 }
@@ -230,6 +230,8 @@ private final class Carry {
 
     private func landing(forProfile profile: URL, under users: URL) -> URL {
         let name = profile.lastPathComponent
+        // "crossover" is the profile folder of prefixes made by the previous NotProton, which
+        // rebuilds still have to carry into steamuser so their saves survive.
         let shared = name == "crossover" || name == "steamuser"
         return users.appending(path: shared ? "steamuser" : name)
     }

@@ -235,12 +235,12 @@ static void tool_list_cases(void) {
         check(0, "the tool list fixture can be written");
         return;
     }
-    fputs("notproton\t27.0.0.40921-fex\tfex\tCrossOver Preview (FEX)\n"
-          "notproton-fex-rosetta\t27.0.0.40921-fex\trosetta\tCrossOver Preview (Rosetta)\n"
-          "notproton-26.3\t26.3.0.39832\trosetta\tCrossOver 26.3\n"
-          "notproton\t26.3.0.39832\trosetta\tDuplicate\n"
+    fputs("notproton\tsikarugir-11.0-r0\trosetta\tSikarugir 11.0\n"
+          "notproton-b\tsikarugir-11.0-r0\trosetta\tSikarugir 11.0 B\n"
+          "notproton-26.3\tsikarugir-10.0-r3\trosetta\tSikarugir 10.0\n"
+          "notproton\tsikarugir-9.0-r1\trosetta\tDuplicate\n"
           "proton-other\t1\trosetta\tForeign\n"
-          "notproton-x\t1\tarm\tBad flavor\n"
+          "notproton-x\t1\tfex\tBad flavor\n"
           "notproton-q\t1\trosetta\tQuote\"d\n"
           "notproton-short\t1\trosetta\n"
           "\n", f);
@@ -251,8 +251,8 @@ static void tool_list_cases(void) {
 
     check(kept == 3, "only well-formed, unique, notproton-named lines are kept");
     check(strcmp(g_tools[0].name, "notproton") == 0
-          && strcmp(g_tools[0].flavor, "fex") == 0, "the first line stays first");
-    check(strcmp(g_tools[2].build, "26.3.0.39832") == 0
+          && strcmp(g_tools[0].flavor, "rosetta") == 0, "the first line stays first");
+    check(strcmp(g_tools[2].build, "sikarugir-10.0-r3") == 0
           && strcmp(g_tools[2].dir, "/tools/notproton-26.3") == 0,
           "each tool carries its build and directory");
 
@@ -287,7 +287,7 @@ static void tool_launch_cases(void) {
     static const char *tool[] = {
         "'/tools/compatibilitytools.d/notproton/.'/run waitforexitandrun  '/g/game.exe'",
         "A=1 '/tools/compatibilitytools.d/notproton-26.3/.'/run waitforexitandrun  '/g/game.exe' -x",
-        "'/tools/compatibilitytools.d/notproton-fex-rosetta/.'/run run ",
+        "'/tools/compatibilitytools.d/notproton-b/.'/run run ",
         "'/tools/compatibilitytools.d/notproton'/run waitforexitandrun  '/g/game.exe'",
         "'/Volumes/Ext/Steam/compatibilitytools.d/notproton/.'/run waitforexitandrun '/g/game.exe'",
     };
@@ -335,12 +335,12 @@ static void stale_tool_cases(void) {
     for (size_t i = 0; i < 4; i++) mkdir(dirs[i], 0755);
 
     put(current, "flavor", "rosetta\n");
-    put(current, "run", "#!/bin/sh\n# notproton CrossOver compatibility tool shim\n");
-    put(legacy, "run", "#!/bin/sh\n# notproton CrossOver compatibility tool shim\nset -e\n");
+    put(current, "run", "#!/bin/sh\n# notproton Sikarugir compatibility tool shim\n");
+    put(legacy, "run", "#!/bin/sh\n# notproton Sikarugir compatibility tool shim\nset -e\n");
     put(legacy, "toolmanifest.vdf", "\"manifest\" {}\n");
     put(legacy, "compatibilitytool.vdf", "\"compatibilitytools\" {}\n");
     put(user, "run", "#!/bin/sh\nexec my-wine \"$@\"\n");
-    put(lookalike, "run", "#!/bin/sh\n# notproton CrossOver compatibility tool shim\n");
+    put(lookalike, "run", "#!/bin/sh\n# notproton Sikarugir compatibility tool shim\n");
     put(lookalike, "notes.txt", "mine\n");
 
     g_tool_count = 0;

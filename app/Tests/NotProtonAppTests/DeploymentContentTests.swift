@@ -146,7 +146,7 @@ struct DeploymentContentTests {
                                    iconmakerPresent: true, appinfoPresent: true, signatureDatabase: "fixture",
                                    legacyCompatPresent: 0, legacyCompatExpected: 0, manifestProblem: nil)
         status.snapshot = StatusSnapshot(steam: .notInstalled, steamRunning: false, updateBlocked: false,
-                                         crossOver: [], runner: .none, payload: payload,
+                                         runner: .none, payload: payload,
                                          installContent: .newerInstalled)
         #expect(!status.canInstall)
         status.snapshot?.installContent = .unavailable("invalid record")
@@ -163,14 +163,14 @@ struct DeploymentContentTests {
                                    iconmakerPresent: true, appinfoPresent: true, signatureDatabase: "fixture",
                                    legacyCompatPresent: 0, legacyCompatExpected: 0, manifestProblem: nil)
         status.snapshot = StatusSnapshot(steam: .notInstalled, steamRunning: false, updateBlocked: false,
-                                         crossOver: [], runner: .none, payload: payload,
+                                         runner: .none, payload: payload,
                                          installContent: .newerInstalled)
-        status.requestBuildRemoval("crossover-26.0")
+        status.requestBuildRemoval("sikarugir-11.0-r0")
         #expect(status.pendingRemoval == nil)
         #expect(status.pendingConfirmation == nil)
         status.snapshot?.installContent = .unrecorded(["notproton.dylib"])
-        status.requestBuildRemoval("crossover-26.0")
-        #expect(status.pendingRemoval == "crossover-26.0")
+        status.requestBuildRemoval("sikarugir-11.0-r0")
+        #expect(status.pendingRemoval == "sikarugir-11.0-r0")
         #expect(status.pendingConfirmation == .removeBuild)
     }
 
@@ -196,7 +196,7 @@ struct DeploymentContentTests {
         let root = try scratchDirectory("content-tools")
         defer { try? FileManager.default.removeItem(at: root) }
         let runners = root.appending(path: "runners")
-        let runner = SupportPaths.clonedRoot(forBuild: "26.3.0.39832", runners: runners)
+        let runner = SupportPaths.clonedRoot(forBuild: SupportedRunners.sikarugir.id, runners: runners)
         try FileManager.default.createDirectory(at: runner.appending(path: "lib/wine"), withIntermediateDirectories: true)
         let list = root.appending(path: "tools")
         for text in [nil, "", "incorrect"] as [String?] {
@@ -254,5 +254,32 @@ struct DeploymentContentTests {
         fat[43] = 32
         fat.replaceSubrange(48..<52, with: [0xcf, 0xfa, 0xed, 0xfe])
         #expect(MachOBuild.unsignedSlices(fat) == nil)
+    }
+
+    @Test("The Sikarugir tool is deployed with the new run script")
+    func sikarugirToolGetsTheRunScript() throws {
+        let work = try scratchDirectory("content-sikarugir")
+        defer { try? FileManager.default.removeItem(at: work) }
+        let root = work.appending(path: "payload")
+        try FileManager.default.createDirectory(at: root.appending(path: "signatures/macos.arm64"), withIntermediateDirectories: true)
+        for name in [SupportPaths.dylibName, "overlay-shim.dylib", "iconmaker", "appinfo", "run"] {
+            try Data(name.utf8).write(to: root.appending(path: name))
+        }
+        try Data("100\n".utf8).write(to: root.appending(path: "build-time"))
+        try Data("{}".utf8).write(to: root.appending(path: "signatures/macos.arm64/1.json"))
+        let payload = try InstallPayload.locate(root: root)
+
+        let tools = SupportedRunners.tools(for: [SupportedRunners.sikarugir])
+        let compatTools = work.appending(path: "compatibilitytools.d")
+        let files = DeploymentContent.files(
+            payload: payload, bridgePayload: .init(sources: []),
+            app: work.appending(path: "Steam.app"), bridge: work.appending(path: "bridge"),
+            signatures: work.appending(path: "sig"), overlayShim: work.appending(path: "shim"),
+            iconmaker: work.appending(path: "iconmaker"), appinfo: work.appending(path: "appinfo"),
+            compatTools: compatTools, tools: tools, runners: work.appending(path: "runners"))
+        let run = try #require(files.first { $0.name == "notproton-sikarugir-11.0-r0/run" })
+        #expect(run.source == payload.run)
+        #expect(run.executable)
+        #expect(run.destination == compatTools.appending(path: "notproton-sikarugir-11.0-r0/run"))
     }
 }

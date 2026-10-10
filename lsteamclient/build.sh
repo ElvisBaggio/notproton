@@ -12,7 +12,7 @@
 # below therefore names its arch explicitly.
 #
 # A unix half runs inside the wine loader's own process, so UNIX_ARCH is whichever
-# arch that loader is: x86_64 for the rosetta CrossOver build, arm64 for the FEX one.
+# arch that loader is: x86_64 for the Sikarugir engine.
 # It has to match the tree WINE_BUILD points at, because the ntdll.so it links
 # against comes from there.
 #
@@ -21,8 +21,7 @@
 # An x86_64 unix half must be unsigned, because wine builtins fail to load once
 # codesigned. arm64 is the other way round: the platform will not map an unsigned
 # arm64 image at all, so the linker signs its output as it produces it and that
-# signature has to survive. CrossOver's own arm64 builtins are signed for the same
-# reason. PE files carry no Mach-O signature, so none of this applies to them.
+# signature has to survive. PE files carry no Mach-O signature, so none of this applies to them.
 #
 # Reproducibility differs between the halves. A PE rebuild from unchanged source
 # is byte-identical except for two header fields, TimeDateStamp and the optional
@@ -38,9 +37,8 @@
 #   ./build.sh                 build and verify both halves
 #   ./build.sh --pe            PE halves only
 #   ./build.sh --unix          unix half only
-#   ./build.sh --install       also install to the CrossOver tree and bridge
 #
-# Overridable: WINE_BUILD, WINE_SRC_REL, CX_ROOT, BRIDGE_DIR, UNIX_ARCH
+# Overridable: WINE_BUILD, WINE_SRC_REL, UNIX_ARCH
 
 set -eu
 
@@ -61,28 +59,10 @@ esac
 WINE_SRC_REL=${WINE_SRC_REL:-../wine}
 # The complete tree, unlike $here, which holds only the authored files.
 TREE=${TREE:-$repo/build/lsteamclient}
-# The cloned runner, not the user's installed CrossOver. --install writes into this
-# tree, and the installed app has to stay stock: it is the only clean copy on the
-# machine and it is what the clone and the ntdll patcher are both taken from.
-if [ -z "${CX_ROOT:-}" ]; then
-	for clone in "$HOME/Library/Application Support/notproton/runners"/crossover-*/CrossOver; do
-		[ -d "$clone" ] || continue
-		if [ -n "${CX_ROOT:-}" ]; then
-			echo "==> more than one runner clone is set up, set CX_ROOT to one of them" >&2
-			exit 1
-		fi
-		CX_ROOT=$clone
-	done
-fi
-CX_ROOT=${CX_ROOT:-$HOME/Library/Application Support/notproton/runners/(none set up)}
-BRIDGE_DIR=${BRIDGE_DIR:-$HOME/Library/Application Support/notproton/bridge}
-
-install=0
 do_pe=1
 do_unix=1
 for arg in "$@"; do
 	case "$arg" in
-		--install) install=1 ;;
 		--pe) do_unix=0 ;;
 		--unix) do_pe=0 ;;
 		*) echo "==> unknown argument $arg"; exit 1 ;;
@@ -96,7 +76,7 @@ out=$dll/lsteamclient.so
 
 if [ ! -d "$WINE_BUILD/$dll" ]; then
 	echo "==> no wine build tree at $WINE_BUILD/$dll"
-	echo "    the tree is a configured CrossOver 11.0 source drop, see ALIGNMENT.md"
+	echo "    the tree is a configured Wine 11.0 source drop, see ALIGNMENT.md"
 	exit 1
 fi
 
@@ -112,23 +92,32 @@ echo "==> syncing the assembled tree into $WINE_SRC_REL/$dll"
 # Unchanged files keep their mtime so the staleness checks below do not rebuild the
 # world.
 rsync -a --delete "$TREE/" "$src/"
+if [ "${SIKARUGIR:-0}" = 1 ]; then
+	# Keep C++ out of Wine 11.0's PE SOURCES; it cannot scan their Unix pragmas.
+	sed '/\.cpp/d' "$TREE/Makefile.in" > "$src/Makefile.in"
+	./config.status Makefile >/dev/null
+fi
 
 pe_info=$here/../bridge/pe-info.py
 
 pe_i386=$dll/i386-windows/lsteamclient.dll
 pe_x86_64=$dll/x86_64-windows/lsteamclient.dll
+pe_targets="$pe_i386 $pe_x86_64"
+[ "${SIKARUGIR:-0}" != 1 ] || pe_targets="$pe_x86_64"
 
 if [ "$do_pe" -eq 1 ]; then
-	for cc in i686-w64-mingw32-gcc x86_64-w64-mingw32-gcc; do
+	compilers="i686-w64-mingw32-gcc x86_64-w64-mingw32-gcc"
+	[ "${SIKARUGIR:-0}" != 1 ] || compilers="x86_64-w64-mingw32-gcc"
+	for cc in $compilers; do
 		command -v "$cc" >/dev/null || { echo "==> missing $cc, install mingw-w64"; exit 1; }
 	done
 
-	for target in "$pe_i386" "$pe_x86_64"; do
+	for target in $pe_targets; do
 		echo "==> building $target"
 		make "$target" >/dev/null
 	done
 
-	for target in "$pe_i386" "$pe_x86_64"; do
+	for target in $pe_targets; do
 		want=${target#"$dll/"}
 		want=${want%%-windows/*}
 		size=$(stat -f %z "$target")
@@ -157,6 +146,10 @@ if [ "$do_unix" -eq 1 ]; then
 	CXXFLAGS="-arch $UNIX_ARCH -I$dll -I$src -Iinclude -I$WINE_SRC_REL/include \
 -D__WINESRC__ -DSTEAM_API_EXPORTS -Dprivate=public -Dprotected=public -DWINE_UNIX_LIB \
 -fPIC -fasynchronous-unwind-tables -g -O2"
+	if [ "${SIKARUGIR:-0}" = 1 ]; then
+		# Include libc first, before Wine 11.0's forbidden-wcsncpy macro reaches libc++.
+		CXXFLAGS="${CXXFLAGS% -g -O2} -O2 -include wchar.h -DNOMINMAX"
+	fi
 
 	built=0
 	for cpp in $objs; do
@@ -178,6 +171,8 @@ if [ "$do_unix" -eq 1 ]; then
 	done
 
 	echo "==> linking $out"
+	# No -no_uuid: dyld refuses a dylib without LC_UUID, and ld64 already derives the UUID
+	# from the output's content, so the build stays reproducible with it.
 	# shellcheck disable=SC2086
 	gcc -std=gnu23 -arch "$UNIX_ARCH" -o "$out" -dynamiclib \
 		-install_name @rpath/lsteamclient.so -Wl,-rpath,@loader_path/ \
@@ -207,68 +202,3 @@ if [ "$do_unix" -eq 1 ]; then
 	fi
 	echo "==> built $out  $arch  $size bytes  $(shasum -a 256 "$out" | cut -c1-16)  $state"
 fi
-
-[ "$install" -eq 1 ] || { echo "==> not installing, pass --install to deploy"; exit 0; }
-
-[ -d "$CX_ROOT/lib/wine" ] || { echo "==> no CrossOver tree at $CX_ROOT"; exit 1; }
-
-# Refuse to write into an installed CrossOver, whatever CX_ROOT says. That copy is
-# the source the runner clone and the ntdll patcher are both taken from, and
-# CrossOver ships no lsteamclient, so anything added there is a modification of the
-# user's application that nothing would ever clean up.
-case "$CX_ROOT" in
-	/Applications/*)
-		echo "==> refusing to install into $CX_ROOT" >&2
-		echo "    that is an installed CrossOver and it has to stay stock." >&2
-		echo "    point CX_ROOT at the runner clone under the support directory." >&2
-		exit 1
-		;;
-esac
-
-# Each half goes to three places.
-#
-# The bridge arch directories are what RUN_SCRIPT's install_lsteamclient copies
-# into the CrossOver tree on every launch, so they are the real source of truth.
-# Writing the CrossOver tree here as well only makes the current build testable
-# without launching a game first; the next launch overwrites it from the bridge
-# either way, which means skipping the bridge copy silently reverts the install.
-#
-# The flat bridge copies are separate consumers, not duplicates: RUN_SCRIPT
-# stages them into the prefix Steam directory as the load trigger for the 64 bit
-# side, alongside the 32 bit trigger it puts in syswow64. Wrong-arch flat PEs
-# abort builtin lookup outright, so the flat copy is the x86_64 one.
-install_one() {
-	from=$1
-	shift
-	for dst in "$@"; do
-		mkdir -p "$(dirname "$dst")"
-		cp -f "$from" "$dst"
-		case "$dst" in
-			*.so)
-				if [ "$UNIX_ARCH" = x86_64 ]; then
-					codesign --remove-signature "$dst" 2>/dev/null || true
-				fi
-				;;
-		esac
-		cmp -s "$from" "$dst" || { echo "==> install verify failed: $dst differs from $from"; exit 1; }
-		echo "==> installed $dst"
-	done
-}
-
-if [ "$do_pe" -eq 1 ]; then
-	install_one "$pe_i386" \
-		"$BRIDGE_DIR/i386-windows/lsteamclient.dll" \
-		"$CX_ROOT/lib/wine/i386-windows/lsteamclient.dll"
-	install_one "$pe_x86_64" \
-		"$BRIDGE_DIR/x86_64-windows/lsteamclient.dll" \
-		"$BRIDGE_DIR/lsteamclient.dll" \
-		"$CX_ROOT/lib/wine/x86_64-windows/lsteamclient.dll"
-fi
-
-if [ "$do_unix" -eq 1 ]; then
-	install_one "$out" \
-		"$BRIDGE_DIR/$unix_dir/lsteamclient.so" \
-		"$CX_ROOT/lib/wine/$unix_dir/lsteamclient.so"
-fi
-
-echo "==> done. prefixes refresh their copy from the bridge on next launch."

@@ -9,23 +9,44 @@ ntdll="${1:?usage: build32.sh <target ntdll.dll> [variant]}"
 variant="${2:-rosetta}"
 [ "$variant" = rosetta ] && out=detour32.bin || out="detour32-$variant.bin"
 
-eval "$(python3 resolve.py --sh "$ntdll")"
+pins="$("${PYTHON:-python3}" "$here/resolve.py" --sh "$ntdll")"
+eval "$pins"
 [ "$NP_MACHINE" = 0x14c ] || { echo "$ntdll is machine $NP_MACHINE, not i386" >&2; exit 1; }
 
 CC=i686-w64-mingw32-gcc
 LD=i686-w64-mingw32-ld
 OBJCOPY=i686-w64-mingw32-objcopy
 
+if [ -n "${LLVM_MINGW:-}" ]; then
+  CC="$LLVM_MINGW/bin/clang"
+  LD="$LLVM_MINGW/bin/ld.lld"
+  OBJCOPY="$LLVM_MINGW/bin/llvm-objcopy"
+  # ELF is only the link container; the payload keeps the Windows calling ABI.
+  target_flags="--target=i386-unknown-linux-gnu -fno-pic -fno-pie"
+  target_flags="$target_flags -D_detour_build_module32=detour_build_module32"
+else
+  target_flags=""
+fi
+
+if [ -n "${BUILD_DIR:-}" ]; then
+  mkdir -p "$BUILD_DIR"
+  cd "$BUILD_DIR"
+fi
+
+if [ "${NP_SIKARUGIR_WINE11:-}" = 1 ]; then
+  target_flags="$target_flags -DNP_SIKARUGIR_WINE11"
+fi
+
 CFLAGS="-Os -fno-asynchronous-unwind-tables -ffreestanding -fno-stack-protector \
 -fno-ident -mno-stack-arg-probe"
 
 # shellcheck disable=SC2086 # CFLAGS carries several flags and has to split
-"$CC" -c $CFLAGS detour32.c -o detour32_c.o \
+"$CC" $target_flags -c $CFLAGS "$here/detour32.c" -o detour32_c.o \
   "-DFLAGS_SLOT=$NP_FLAGS_SLOT" "-DFLAGS_BIT=$NP_FLAGS_BIT" "-DLOAD_PATH_SLOT=$NP_LOAD_PATH"
-"$CC" -c -x assembler-with-cpp shim32.S -o shim32.o \
+"$CC" $target_flags -c -x assembler-with-cpp "$here/shim32.S" -o shim32.o \
   "-DWM_REG=$NP_WM" "-DSTOLEN_HEAD_BYTES=$NP_STOLEN_HEAD_BYTES" \
   "-DSTOLE_BRANCH=${NP_STOLE_BRANCH:-0}"
-"$LD" -T link32.ld shim32.o detour32_c.o -o detour32_linked.elf \
+"$LD" -T "$here/link32.ld" shim32.o detour32_c.o -o detour32_linked.elf \
   --defsym "CAVE_VA=$NP_PAYLOAD_VA" \
   --defsym "BM_RESUME=$NP_RESUME_VA" \
   --defsym "BM_SKIP=$NP_SKIP_VA" \
@@ -36,6 +57,9 @@ CFLAGS="-Os -fno-asynchronous-unwind-tables -ffreestanding -fno-stack-protector 
   --defsym "NT_READFILE=$NP_NT_READ_FILE" \
   --defsym "NT_CLOSE=$NP_NT_CLOSE"
 "$OBJCOPY" -O binary -j .cave detour32_linked.elf "$out"
+
+size="$(wc -c < "$out")"
+[ "$size" -le "$NP_CAVE_ROOM" ] || { echo "error: payload $size exceeds cave $NP_CAVE_ROOM" >&2; exit 1; }
 
 got="$(shasum -a 256 "$out" | cut -d' ' -f1)"
 if [ -n "${NP_PAYLOAD_SHA256:-}" ]; then
@@ -52,7 +76,7 @@ echo "built $out ($(wc -c < "$out") bytes) for $NP_ARCH $NP_SHA256"
 echo "  cave $NP_CAVE_RVA fill $NP_FILL, payload at $NP_PAYLOAD_RVA, room $NP_CAVE_ROOM"
 echo "  hook $NP_HOOK_RVA stolen $NP_STOLEN, wm $NP_WM, load_path ebp$NP_LOAD_PATH"
 
-app_copy=../app/Sources/NotProtonApp/Resources/$out
+app_copy="$here/../app/Sources/NotProtonApp/Resources/$out"
 if [ -f "$app_copy" ] && ! cmp -s "$out" "$app_copy"; then
   echo "warning: $app_copy is stale" >&2
   echo "         cp $out $app_copy" >&2
@@ -61,5 +85,5 @@ if [ -f "$app_copy" ] && ! cmp -s "$out" "$app_copy"; then
 fi
 
 if [ "${APPLY:-}" != "" ]; then
-  python3 apply.py "$ntdll" "$APPLY" "$out"
+  "${PYTHON:-python3}" "$here/apply.py" "$ntdll" "$APPLY" "$out"
 fi

@@ -11,6 +11,9 @@ case "$body" in
   *) echo "FAIL: the routing no longer decides on the verb"; exit 1 ;;
 esac
 
+body="$(sed -n '/^wine_exec() {$/,/^}$/p' "$SRC")
+$body"
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 

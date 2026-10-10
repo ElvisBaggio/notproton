@@ -4,7 +4,7 @@ import Testing
 @testable import NotProtonApp
 
 // A stand-in PE with one file-backed section and one with nothing behind it, so the section
-// walk and every refusal run without CrossOver. Deliberately not an identity mapping.
+// walk and every refusal run without a Sikarugir engine. Deliberately not an identity mapping.
 private struct StubPE {
     static let peOffset = 0x80
     static let sectionVirtualAddress = 0x1000
@@ -323,15 +323,13 @@ struct NtdllPatcherTests {
     // MARK: - Against the real thing
 
     // The point of the port: the same input has to come out as the bytes apply.py and
-    // apply32.py produced, which SupportedRunners records. Needs an unpatched CrossOver.
+    // apply32.py produced, which SupportedRunners records. Needs a Sikarugir 11.0 r0 app.
     @Test("Patching the unpatched ntdll reproduces the recorded hashes",
-          arguments: ["CrossOver Preview", "CrossOver"])
-    func realNtdllReproducesRecordedHashes(app: String) throws {
-        let root = URL(filePath: "/Applications/\(app).app/Contents/SharedSupport/CrossOver")
-        guard FileManager.default.fileExists(atPath: root.path(percentEncoded: false)),
-              let installed = Digest.sha256IfPresent(CrossOverSource.unixLoader(inRoot: root)),
-              let build = SupportedRunners.build(loaderSHA256: installed)
-        else { return }
+          .enabled(if: !SikarugirSource.discover().isEmpty))
+    func realNtdllReproducesRecordedHashes() throws {
+        let install = try #require(SikarugirSource.discover().first)
+        let root = install.root
+        let build = install.build
 
         var reproduced: [WineArch] = []
         for patch in NtdllPatcher.patches(for: build) {
@@ -347,8 +345,8 @@ struct NtdllPatcherTests {
             reproduced.append(patch.arch)
         }
 
-        // The bundle was identified by its loader, so every arch with a clean hash is present
-        // and a run that reproduced fewer skipped rather than passed.
+        // The engine was identified by its pinned hashes, so every arch with a clean hash is
+        // present and a run that reproduced fewer skipped rather than passed.
         #expect(reproduced.count == build.cleanNtdll.count)
     }
 
@@ -395,7 +393,7 @@ struct NtdllPatcherTests {
 
     // The bridge here came out of apply.py and apply32.py, so staging from the same clone has
     // to be byte identical. A clean ntdll cannot be a fixture, so no runner means skip.
-    private static func cleanRunnerRoot(for build: RunnerBuild) -> URL? {
+    static func cleanRunnerRoot(for build: RunnerBuild) -> URL? {
         let root = SupportPaths.clonedRoot(forBuild: build.id)
         guard FileManager.default.fileExists(
             atPath: root.appending(path: "lib/wine").path(percentEncoded: false)
@@ -410,10 +408,11 @@ struct NtdllPatcherTests {
         return root
     }
 
-    @Test("Staging reproduces the bridge the python patcher produced")
+    @Test("Staging reproduces the bridge the python patcher produced",
+          .enabled(if: NtdllStagingEnvironment.hasCleanRunner))
     func stagingReproducesExistingBridge() throws {
         for build in SupportedRunners.all {
-            guard let root = Self.cleanRunnerRoot(for: build) else { continue }
+            let root = try #require(Self.cleanRunnerRoot(for: build))
             try Self.expectStagingReproducesBridge(build: build, root: root)
         }
     }
@@ -447,10 +446,11 @@ struct NtdllPatcherTests {
         }
     }
 
-    @Test("Staging a second time writes nothing, so it is safe on every install")
+    @Test("Staging a second time writes nothing, so it is safe on every install",
+          .enabled(if: NtdllStagingEnvironment.hasCleanRunner))
     func stagingIsIdempotent() throws {
         for build in SupportedRunners.all {
-            guard let root = Self.cleanRunnerRoot(for: build) else { continue }
+            let root = try #require(Self.cleanRunnerRoot(for: build))
             let fm = FileManager.default
 
             let scratch = URL(filePath: NSTemporaryDirectory()).appending(path: "notproton-stage-\(UUID().uuidString)")
@@ -483,6 +483,11 @@ struct NtdllPatcherTests {
     }
 }
 
+// Explicit skip, not a pass, when no clean cloned runner is installed on this machine.
+enum NtdllStagingEnvironment {
+    static let hasCleanRunner = SupportedRunners.all.contains { NtdllPatcherTests.cleanRunnerRoot(for: $0) != nil }
+}
+
 @Suite("ntdll staging")
 struct NtdllStagingTests {
 
@@ -494,7 +499,7 @@ struct NtdllStagingTests {
 
         var hashes: [WineArch: String] = [:]
         for arch in WineArch.allCases {
-            let directory = bridge.appending(path: "wine/27.0.0.40921/\(arch.rawValue)")
+            let directory = bridge.appending(path: "wine/\(SupportedRunners.sikarugir.id)/\(arch.rawValue)")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let file = directory.appending(path: "ntdll.dll")
             try Data("staged \(arch.rawValue)".utf8).write(to: file)
@@ -502,9 +507,8 @@ struct NtdllStagingTests {
         }
 
         let build = RunnerBuild(
-            bundleVersion: "27.0.0.40921",
-            releaseVersion: "20260821",
-            flavor: nil,
+            bundleVersion: SupportedRunners.sikarugir.id,
+            releaseVersion: "11.0",
             loaderSHA256: "unused",
             cleanNtdll: [:],
             patchedNtdll: [
@@ -515,8 +519,8 @@ struct NtdllStagingTests {
         return (bridge, build)
     }
 
-    @Test("Staging drops an ntdll left in the bridge for an arch this build does not patch")
-    func stagingPrunesForeignArches() throws {
+    @Test("Staging leaves the copies in the bridge alone when they already match")
+    func stagingKeepsMatchingCopies() throws {
         let (bridge, build) = try stagedBridge()
         defer { try? FileManager.default.removeItem(at: bridge) }
 
@@ -526,20 +530,19 @@ struct NtdllStagingTests {
         #expect(written.isEmpty)
 
         let fm = FileManager.default
-        for arch in [WineArch.x86_64Windows, .i386Windows] {
+        for arch in WineArch.allCases {
             let kept = NtdllPatcher.stagedCopy(of: arch, build: build.id, in: bridge)
             #expect(fm.fileExists(atPath: kept.path(percentEncoded: false)))
         }
-
-        let foreign = NtdllPatcher.stagedCopy(of: .aarch64Windows, build: build.id, in: bridge)
-        #expect(!fm.fileExists(atPath: foreign.path(percentEncoded: false)))
     }
 
     @Test("Restaging installed builds reports a build it cannot stage and carries on")
     func stageInstalledCollectsFailures() throws {
         let (bridge, build) = try stagedBridge()
         defer { try? FileManager.default.removeItem(at: bridge) }
-        let broken = SupportedRunners.all[0]
+        // The pinned build, whose real hashes match nothing in this bridge and which has no
+        // clean ntdll to patch from.
+        let broken = SupportedRunners.sikarugir
 
         let failures = NtdllPatcher.stageInstalled(
             builds: [broken, build], runners: bridge.appending(path: "runners"), bridge: bridge
@@ -550,14 +553,14 @@ struct NtdllStagingTests {
             of: .x86_64Windows, build: build.id, in: bridge).path(percentEncoded: false)))
     }
 
-    @Test("Pruning keeps the listed builds and drops every other entry under wine")
+    @Test("Pruning keeps the listed builds and drops the other Sikarugir ones, but never what it did not stage")
     func pruneKeepsListedBuilds() throws {
         let (bridge, build) = try stagedBridge()
         defer { try? FileManager.default.removeItem(at: bridge) }
         let fm = FileManager.default
-        let other = bridge.appending(path: "wine/26.3.0.39832")
-        let legacy = bridge.appending(path: "wine/x86_64-windows")
-        for directory in [other, legacy] {
+        let other = bridge.appending(path: "wine/sikarugir-10.0-r3")
+        let foreign = [bridge.appending(path: "wine/x86_64-windows"), bridge.appending(path: "wine/27.0.0.40921")]
+        for directory in [other] + foreign {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         }
 
@@ -566,7 +569,7 @@ struct NtdllStagingTests {
         #expect(fm.fileExists(atPath: NtdllPatcher.stagedCopy(
             of: .x86_64Windows, build: build.id, in: bridge).path(percentEncoded: false)))
         #expect(!fm.fileExists(atPath: other.path(percentEncoded: false)))
-        #expect(!fm.fileExists(atPath: legacy.path(percentEncoded: false)))
+        for directory in foreign { #expect(fm.fileExists(atPath: directory.path(percentEncoded: false))) }
     }
 }
 

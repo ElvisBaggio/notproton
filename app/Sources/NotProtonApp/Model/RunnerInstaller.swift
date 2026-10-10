@@ -1,45 +1,87 @@
-// Clones CrossOver's Wine runtime into ~/Library/Application Support/notproton/runners
+// Clones the Sikarugir Wine runtime into ~/Library/Application Support/notproton/runners
 
 import Darwin
 import Foundation
 
 enum RunnerInstaller {
 
-    static let step = "Clone CrossOver"
+    static let step = "Clone runner"
 
     static func clone(
-        from install: CrossOverInstall,
+        from install: SikarugirInstall,
         replacingExisting: Bool = false,
-        runners: URL = SupportPaths.runners
+        runners: URL = SupportPaths.runners,
+        prepare: (RunnerBuild, URL) throws -> Void = { _, _ in }
     ) throws -> RunnerBuild {
-        guard case .supported(let build) = install.support else {
-            throw StepFailure(
-                step: step,
-                detail: "\(install.name) is not a supported build. Supported: \(SupportedRunners.versionList)."
-            )
+        let checked = try SikarugirSource.inspect(root: install.root)
+        guard install.build.id == checked.build.id else {
+            throw StepFailure(step: step, detail: "Sikarugir source/build mismatch.")
         }
-
-        let fm = FileManager.default
+        let build = checked.build
         let target = SupportPaths.runnerRoot(forBuild: build.id, runners: runners)
-
-        let existing = hasClone(forBuild: build.id, runners: runners)
-        let occupied = fm.fileExists(atPath: target.path(percentEncoded: false))
-
-        if !existing || replacingExisting {
-            let staging = target.deletingLastPathComponent()
-                .appending(path: ".\(target.lastPathComponent).new")
-            try? fm.removeItem(at: staging)
-            try copyPayload(from: install.crossOverRoot, to: staging)
-            if occupied {
-                try fm.removeItem(at: target)
+        let fm = FileManager.default
+        let occupied = fm.fileExists(atPath: target.path)
+        if !hasClone(forBuild: build.id, runners: runners) || replacingExisting {
+            try fm.createDirectory(at: runners, withIntermediateDirectories: true)
+            let staging = runners.appending(path: ".\(build.id).\(UUID().uuidString).new")
+            defer { try? fm.removeItem(at: staging) }
+            try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+            let root = staging.appending(path: "wine")
+            let frameworks = SikarugirSource.frameworks(inRoot: install.root)
+            let frameworkInputs = try frameworkMap(frameworks)
+            try cloneTree(from: install.root, to: root)
+            try cloneTree(from: SikarugirSource.frameworks(inRoot: install.root), to: root.appending(path: "Frameworks"))
+            _ = try SikarugirSource.inspect(root: root)
+            _ = try SikarugirSource.inspect(root: install.root)
+            guard try frameworkInputs == frameworkMap(frameworks),
+                  try frameworkInputs == frameworkMap(root.appending(path: "Frameworks")) else {
+                throw StepFailure(step: step, detail: "Frameworks copy is incomplete.")
             }
-            try fm.moveItem(at: staging, to: target)
+            try JSONEncoder().encode(frameworkInputs).write(to: root.appending(path: ".notproton-frameworks.json"))
+            try prepare(build, root)
+            try verifyClone(build: build, root: root)
+            try publish(staging, at: target, occupied: occupied)
         }
-
-        let cloned = SupportPaths.clonedRoot(forBuild: build.id, runners: runners)
-        try verifyClone(build: build, root: cloned)
-
+        try verifyClone(build: build, root: SupportPaths.clonedRoot(forBuild: build.id, runners: runners))
         return build
+    }
+
+    static func cloneTree(from source: URL, to destination: URL) throws {
+        // APFS clone only: a failed clone must not silently become a different copy strategy.
+        try Shell.check("/bin/cp", ["-c", "-R", source.path, destination.path])
+        scrubDownloadMarkers(at: destination)
+    }
+
+    static func publish(_ staging: URL, at target: URL, occupied: Bool) throws {
+        let result = occupied
+            ? renameatx_np(AT_FDCWD, staging.path, AT_FDCWD, target.path, UInt32(RENAME_SWAP))
+            : rename(staging.path, target.path)
+        guard result == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+    }
+
+    static func frameworkMap(_ root: URL) throws -> [String: String] {
+        let root = root.resolvingSymlinksInPath()
+        let fm = FileManager.default
+        var map: [String: String] = [:]
+        for key in try fm.subpathsOfDirectory(atPath: root.path) {
+            let file = root.appending(path: key)
+            let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+            if values.isSymbolicLink == true {
+                let link = try fm.destinationOfSymbolicLink(atPath: file.path)
+                let destination = URL(fileURLWithPath: link, relativeTo: file.deletingLastPathComponent())
+                    .standardizedFileURL.resolvingSymlinksInPath()
+                guard destination.path.hasPrefix(root.resolvingSymlinksInPath().path + "/") else {
+                    throw StepFailure(step: step, detail: "Frameworks symlink escapes the copy: \(key).")
+                }
+                map[key] = "link:" + link
+            } else if values.isDirectory == true {
+                map[key] = "directory"
+            } else {
+                map[key] = try Digest.sha256(of: file)
+            }
+        }
+        guard !map.isEmpty else { throw StepFailure(step: step, detail: "Frameworks is empty.") }
+        return map
     }
 
     static let removeStep = "Remove build"
@@ -50,7 +92,6 @@ enum RunnerInstaller {
         runners: URL = SupportPaths.runners,
         bridge: URL = SupportPaths.bridge,
         toolList: URL = SupportPaths.toolList,
-        compatTools: URL = SupportPaths.Steam.compatTools,
         libraries: [SteamLibrary] = PrefixStore.libraries(),
         running: (URL) -> Bool = { RunnerInstaller.isRunning(from: $0) }
     ) throws -> Bool {
@@ -74,7 +115,7 @@ enum RunnerInstaller {
         let changed: Bool
         do {
             changed = try CompatToolList.sync(
-                runners: runners, bridge: bridge, file: toolList, compatTools: compatTools
+                runners: runners, bridge: bridge, file: toolList
             )
         } catch {
             try? fm.moveItem(at: trash, to: target)
@@ -91,14 +132,14 @@ enum RunnerInstaller {
     static func removeLeftoverRemovals(runners: URL) {
         let fm = FileManager.default
         let entries = (try? fm.contentsOfDirectory(at: runners, includingPropertiesForKeys: nil)) ?? []
-        for entry in entries where entry.lastPathComponent.hasPrefix(".crossover-")
+        for entry in entries where entry.lastPathComponent.hasPrefix(".sikarugir-")
             && entry.lastPathComponent.hasSuffix(".removing") {
             try? fm.removeItem(at: entry)
         }
     }
 
     // Also catches templates left on a drive that was not present (unplugged or unmounted)
-    // at the time the deployed copy of CrossOver was removed.
+    // at the time the copied runner was removed.
     static func removeStalePrefixTemplates(
         runners: URL, libraries: [SteamLibrary], reportBusy: Bool = true
     ) -> [StepFailure] {
@@ -149,7 +190,7 @@ enum RunnerInstaller {
                 guard info.st_mode & S_IFMT == S_IFDIR else { throw POSIXError(.ENOTDIR) }
 
                 for name in try templateDirectoryNames(root) where !kept.contains(name) {
-                    let template = name.wholeMatch(of: #/crossover-[A-Za-z0-9.-]+-(x86_64|aarch64)-unix/#) != nil
+                    let template = name.wholeMatch(of: #/sikarugir-[A-Za-z0-9.-]+-x86_64-unix/#) != nil
                     guard template || (builds.isEmpty && name == SupportPaths.bridgeCacheFolder) else { continue }
                     do {
                         try removeTemplateEntry(name, in: root, device: info.st_dev)
@@ -234,31 +275,6 @@ enum RunnerInstaller {
         )
     }
 
-    static func copyPayload(from payload: URL, to target: URL) throws {
-        let fm = FileManager.default
-        try fm.createDirectory(at: target, withIntermediateDirectories: true)
-
-        let source = payload.path(percentEncoded: false)
-        let landing = target.appending(path: "CrossOver")
-        let destination = landing.path(percentEncoded: false)
-
-        let cloned = try Shell.run("/bin/cp", ["-c", "-R", source, destination])
-        if cloned.status == 0 {
-            scrubDownloadMarkers(at: landing)
-            return
-        }
-
-        try? fm.removeItem(at: landing)
-        let copied = try Shell.run("/bin/cp", ["-R", source, destination])
-        guard copied.status == 0 else {
-            throw StepFailure(
-                step: step,
-                detail: "Copying \(source) failed. \(copied.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
-            )
-        }
-        scrubDownloadMarkers(at: landing)
-    }
-
     static func scrubDownloadMarkers(at payload: URL) {
         for marker in ["com.apple.quarantine", "com.apple.provenance"] {
             _ = try? Shell.run("/usr/bin/xattr", ["-r", "-d", marker, payload.path(percentEncoded: false)])
@@ -266,18 +282,14 @@ enum RunnerInstaller {
     }
 
     static func verifyClone(build: RunnerBuild, root: URL) throws {
-        let loader = Clean.copy(of: CrossOverSource.unixLoader(inRoot: root))
-        guard let hash = Digest.sha256IfPresent(loader) else {
-            throw StepFailure(step: step, detail: "The clone has no Wine loader at \(loader.lastPathComponent).")
+        _ = try SikarugirSource.inspect(root: root, hash: { file in
+            let isNtdll = file.lastPathComponent == "ntdll.dll"
+            return Digest.sha256IfPresent(isNtdll ? Clean.copy(of: file) : file)
+        })
+        let expected = try JSONDecoder().decode([String: String].self,
+            from: Data(contentsOf: root.appending(path: ".notproton-frameworks.json")))
+        guard try expected == frameworkMap(root.appending(path: "Frameworks")) else {
+            throw StepFailure(step: step, detail: "Frameworks no longer matches the copied map.")
         }
-        guard hash == build.loaderSHA256 else {
-            throw StepFailure(
-                step: step,
-                detail: "The cloned Wine loader at \(loader.lastPathComponent) does not match build "
-                    + "\(build.id). Expected \(build.loaderSHA256.prefix(16)), found \(hash.prefix(16))."
-            )
-        }
-
-        try CrossOverSource.verifyPatchInputs(root: root, build: build)
     }
 }

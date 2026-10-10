@@ -1,43 +1,19 @@
 // The Bridge Payload consists of the components Proton uses to 'bridge'
-// communication between the game running under Proton and the native
-// Steam client. This component of the app deploys them.
+// communication between the game running under Wine and the native
+// Steam client. This component of the app deploys the pinned Sikarugir ones.
 
 import Foundation
 
 enum BridgePayload {
     static let step = "Copy the built bridge files"
 
-    struct Entry: Sendable {
-        // Two different lsteamclient binaries, one 32 bit and one 64 bit.
-        let resource: String
-        let bridgePaths: [String]
-    }
-
-    static let entries: [Entry] = [
-        Entry(resource: "steam.exe", bridgePaths: [
-            "steam.exe",
-        ]),
-        Entry(resource: "x86_64-windows-lsteamclient.dll", bridgePaths: [
-            "lsteamclient.dll",
-            "x86_64-windows/lsteamclient.dll",
-        ]),
-        Entry(resource: "aarch64-unix-lsteamclient.so", bridgePaths: [
-            "aarch64-unix/lsteamclient.so",
-        ]),
-        Entry(resource: "x86_64-unix-lsteamclient.so", bridgePaths: [
-            "lsteamclient.so",
-            "x86_64-unix/lsteamclient.so",
-        ]),
-        Entry(resource: "i386-windows-lsteamclient.dll", bridgePaths: [
-            "i386-windows/lsteamclient.dll",
-        ]),
-    ]
-
     struct Located: Sendable {
         let sources: [(source: URL, bridgePaths: [String])]
     }
 
-    static func locate(root: URL? = nil) throws -> Located {
+    static func locate(
+        root: URL? = nil, pins: [String: String] = RunnerPatcher.sikarugirBridge
+    ) throws -> Located {
         let base: URL
         if let root {
             base = root
@@ -51,27 +27,22 @@ enum BridgePayload {
             base = payloadRoot.appending(path: "bridge")
         }
 
-        let files = FileManager.default
-        var missing: [String] = []
-        var sources: [(source: URL, bridgePaths: [String])] = []
-
-        for entry in entries {
-            let url = base.appending(path: entry.resource)
-            if files.fileExists(atPath: url.path(percentEncoded: false)) {
-                sources.append((source: url, bridgePaths: entry.bridgePaths))
-            } else {
-                missing.append(entry.resource)
-            }
-        }
-
-        guard missing.isEmpty else {
+        let sikarugir = base.appending(path: SupportedRunners.sikarugir.id)
+        guard FileManager.default.fileExists(atPath: sikarugir.path(percentEncoded: false)) else {
             throw StepFailure(
                 step: step,
-                detail: "Missing components: \(missing.joined(separator: ", ")). "
-                    + "Run make app-payload and build the app again."
+                detail: "Missing components: \(SupportedRunners.sikarugir.id). "
+                    + "Run make bridge-sikarugir and make app-payload, then build the app again."
             )
         }
-
+        var sources: [(source: URL, bridgePaths: [String])] = []
+        for (path, expected) in pins.sorted(by: { $0.key < $1.key }) {
+            let source = sikarugir.appending(path: path)
+            guard Digest.sha256IfPresent(source) == expected else {
+                throw StepFailure(step: step, detail: "Unknown Sikarugir bridge file: \(path).")
+            }
+            sources.append((source: source, bridgePaths: ["\(SupportedRunners.sikarugir.id)/\(path)"]))
+        }
         return Located(sources: sources)
     }
 

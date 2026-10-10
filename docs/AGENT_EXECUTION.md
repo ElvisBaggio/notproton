@@ -24,3 +24,9 @@ Os nomes de subagente nos cards são papéis de execução, não contas GitHub n
 Exemplo de início manual, após liberação do card: `claude --model sonnet` (ou `opus`, conforme o card). Instrução inicial: “Atue como o subagente indicado na issue; leia AGENTS.md, HANDOFF.md, a especificação e o plano. Execute somente esse card, preservando os territórios dos outros agentes. Registre o modelo efetivo e os checks.”
 
 O arquivo CLAUDE.md importa AGENTS.md. Não é necessário lançar Claude nem enviar conteúdo a ele para preparar esta opção; nenhuma sessão Claude foi iniciada nesta publicação.
+
+## Reescopo de 2026-10-09 — revisão concluída com ajustes
+
+Claude Code Sonnet 5.5 recomendou aprovação com ajustes F1–F8; findings em `docs/reviews/claude-scope-review-findings.md`. Elvis decidiu gerar perfil para o build Steam atual, solicitar ao mantenedor a proveniência da engine (pedido em https://github.com/Sikarugir-App/Sikarugir/issues/288) e selecionar o jogo depois do inventário T02. Ajustes de plano/spec e descrições dos cards aplicáveis foram publicados. T01/T02 foram retomados em paralelo em worktrees distintos; ambos permanecem bloqueados por evidências faltantes. T01 não libera T03 sem base fixada e `abiCheck.status=PASS` (replanejamento D2-c de 2026-10-09; fonte do mantenedor, se chegar, substitui a verificação). `cities_integration` mantém o nome histórico do papel de T11, agora teste de jogo Windows simples com instalação nova; não indica dependência de Cities II.
+
+Ao final de cada card, registrar evidências e deixar pedido de revisão para Claude Code Opus 5.5, conforme solicitação de Elvis. A versão/modelo efetivo deve ser registrado pelo revisor; não assumir disponibilidade de alias/versionamento.

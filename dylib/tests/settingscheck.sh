@@ -15,7 +15,8 @@ for helper in controller_ids ids_without hidraw_lines write_owned_controllers pl
 	helpers="$helpers
 $part"
 done
-body="$wrapper
+body="$(sed -n '/^wine_exec() {$/,/^}$/p' "$SRC")
+$wrapper
 $helpers
 $body"
 

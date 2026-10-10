@@ -24,6 +24,19 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/.." && pwd)
 
+if [ "${SIKARUGIR:-0}" = 1 ]; then
+	[ $# -eq 0 ] || { echo "Sikarugir build does not install" >&2; exit 1; }
+	WINE_COMMIT=015230dc0f78a543032dea0907f6c97304b25ca3 \
+		OUT="$SHIM_HEADERS" LSC_TREE="$TREE" "$here/fetch-headers.sh"
+	mkdir -p "$BRIDGE_DIR"
+	"$LLVM_MINGW/bin/x86_64-w64-mingw32-clang++" -std=c++17 -O2 \
+		-DSTEAM_SHIM_EXTERNAL -I"$here" -I"$SHIM_HEADERS/steamworks_sdk_142" \
+		-static -static-libgcc -static-libstdc++ -mwindows -Wl,--no-insert-timestamp \
+		-o "$BRIDGE_DIR/steam.exe" "$here/steam.cpp" "$here/jsoncpp.cpp" \
+		-luser32 -ladvapi32 -lshlwapi -lshell32 -lmsi -lntdll
+	exit 0
+fi
+
 WINE_BUILD=${WINE_BUILD:-$repo/scratch/wine-build-dual}
 # Relative because it lands in the debug info. Keep the default sibling layout so
 # a rebuild stays comparable to the shipped binary.
@@ -89,7 +102,7 @@ echo "==> built $out  $1  $size bytes  $2 (timestamp and checksum zeroed)"
 
 # One consumer: RUN_SCRIPT copies the flat bridge copy into the prefix Steam
 # directory on every launch. The shim is not a wine builtin, so nothing goes into
-# the CrossOver tree.
+# the engine tree.
 dst=$BRIDGE_DIR/steam.exe
 mkdir -p "$BRIDGE_DIR"
 cp -f "$out" "$dst"

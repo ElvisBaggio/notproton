@@ -56,18 +56,24 @@
 #pragma pop_macro("__cdecl")
 #pragma pop_macro("strncpy")
 
+#ifdef STEAM_SHIM_EXTERNAL
+#include "mingw_compat.h"
+#else
 #include "wine/debug.h"
+#endif
 
 #pragma push_macro("wcsncpy")
 #undef wcsncpy
 #include "json/json.h"
 #pragma pop_macro("wcsncpy")
 
+#ifndef STEAM_SHIM_EXTERNAL
 #include "wine/unixlib.h"
 #include "wine/heap.h"
 #include "wine/vulkan.h"
 #include "openvr.h"
 #include "../src/ivrclientcore.h"
+#endif
 
 #include <msi.h>
 
@@ -117,6 +123,22 @@ static void set_client_dll_paths(void)
                     "Universe", REG_SZ, universe, (DWORD)strlen(universe) + 1);
     RegSetKeyValueA(HKEY_CURRENT_USER, "Software\\Valve\\Steam",
                     "SteamPath", REG_SZ, steam_dir, (DWORD)sizeof(steam_dir));
+}
+
+/* Values Proton's wine.inf sets. Ubisoft Connect needs them to see Steam. */
+static void set_install_paths(void)
+{
+    static const char install_dir[] = "C:\\Program Files (x86)\\Steam";
+    static const char steam_exe[] = "C:\\Program Files (x86)\\Steam\\steam.exe";
+
+    RegSetKeyValueA(HKEY_LOCAL_MACHINE, "Software\\Wow6432Node\\Valve\\Steam",
+                    "InstallPath", REG_SZ, install_dir, (DWORD)sizeof(install_dir));
+    RegSetKeyValueA(HKEY_LOCAL_MACHINE, "Software\\Valve\\Steam",
+                    "InstallPath", REG_SZ, install_dir, (DWORD)sizeof(install_dir));
+    RegSetKeyValueA(HKEY_CURRENT_USER, "Software\\Valve\\Steam",
+                    "SteamExe", REG_SZ, steam_exe, (DWORD)sizeof(steam_exe));
+    RegSetKeyValueA(HKEY_CURRENT_USER, "Software\\Valve\\Steam\\ActiveProcess",
+                    "SteamPath", REG_SZ, install_dir, (DWORD)sizeof(install_dir));
 }
 
 static DWORD WINAPI create_steam_window(void *arg)
@@ -681,6 +703,7 @@ static BOOL set_vr_status(HKEY key, DWORD value)
     return TRUE;
 }
 
+#ifndef STEAM_SHIM_EXTERNAL
 void* load_vrclient(void)
 {
     WCHAR pathW[PATH_MAX];
@@ -1073,6 +1096,18 @@ done:
     RegCloseKey(vr_key);
     return 0;
 }
+
+#else
+/* The existing PE dlfcn adapter cannot load Linux OpenVR either. */
+static DWORD WINAPI initialize_vr_data(void *arg)
+{
+    HKEY key = (HKEY)arg;
+    WINE_ERR("Linux OpenVR runtime is unavailable in the PE shim.\n");
+    set_vr_status(key, ~0u);
+    RegCloseKey(key);
+    return 0;
+}
+#endif
 
 static void setup_vr_registry(void)
 {
@@ -1795,6 +1830,7 @@ int main(int argc, char *argv[])
 
         set_active_process_pid();
         set_client_dll_paths();
+        set_install_paths();
 
         if (steam_client_init())
         {

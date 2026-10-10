@@ -2,7 +2,7 @@
 
 @/Users/elvisoliveira/.codex/RTK.md
 
-Comunicação em português brasileiro. Projeto: Cities: Skylines II pelo Steam nativo do Mac, com Sikarugir 11.0 e sem dependência de CrossOver.
+Comunicação em português brasileiro. Projeto: instalar jogos Windows e iniciar pelo Steam nativo do Mac, com Sikarugir 11.0 revision 0 fixado inicialmente e sem dependência de CrossOver. Cities II é teste opcional posterior. Claude Code Sonnet 5.5 revisou o plano em `docs/reviews/claude-scope-review-findings.md` e recomendou aprovação com ajustes F1–F8; os ajustes documentais e cards aplicáveis estão sincronizados. Em 2026-10-09 Elvis replanejou T01 (D2-c): o gate passa a ser ABI verificada no binário contra o upstream `wine-11.0`, sem depender do mantenedor (#288 segue aberto). T01 (ABI PASS) e T02 (perfil Steam 1791415817 com `anchorcheck` real PASS) estão concluídos e integrados nesta branch; T03 concluído (ponte com build reproduzível, `steam.exe` externo via llvm-mingw); T04 concluído (payloads ntdll em cópia, PASS estático); T05 concluído: probe real com Steam do Mac logado deu `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`; gate E2 ACEITO COM RESSALVAS por Astra (`docs/reviews/astra-e2-gate.md`); E3 em andamento (T06–T09 integrados). Decisão 2026-10-10: CrossOver removido do código (T09b) antes do T10; melhorias do upstream são portadas manualmente.
 
 ## Fonte de verdade
 
@@ -17,7 +17,7 @@ Comunicação em português brasileiro. Projeto: Cities: Skylines II pelo Steam 
 - Implementação padrão: Sol 6.1 (`gpt-6.1-sol`); Luna 6 (`gpt-6-luna`) somente nos cards atribuídos a ele.
 - Claude Code é alternativa autorizada pelo usuário: usar `sonnet` ou `opus` conforme o card, registrar o modelo efetivo. Detalhes em `docs/AGENT_EXECUTION.md`.
 - Uma execução por card/território. Você não está sozinho no repositório: preserve mudanças alheias e não edite arquivos de outro responsável em paralelo.
-- Não iniciar implementação/probes até a revisão do plano. Publicar o board não libera seus gates.
+- Não iniciar cards além de T01/T02 antes de suas dependências e gates. A revisão aprovada com ajustes não encerra gates de runtime. Ao final de cada card, deixar pedido de revisão para Claude Code Opus 5.5 e registrar modelo efetivo do revisor.
 
 ## Evidência e encerramento
 
