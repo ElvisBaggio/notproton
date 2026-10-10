@@ -5,6 +5,10 @@
 
 import Foundation
 
+enum RunnerOrigin: String, Sendable {
+    case crossOver, sikarugir
+}
+
 enum WineArch: String, Sendable, CaseIterable {
     case x86_64Windows = "x86_64-windows"
     case i386Windows = "i386-windows"
@@ -28,6 +32,7 @@ struct RunnerBuild: Sendable, Equatable, Identifiable {
     let cleanNtdll: [WineArch: String]
     let patchedNtdll: [WineArch: String]
 
+    var origin: RunnerOrigin = .crossOver
     var tools: [CompatTool] = []
 
     var id: String { flavor.map { "\(bundleVersion)-\($0)" } ?? bundleVersion }
@@ -88,7 +93,7 @@ enum SupportedRunners {
         case .build(let id): id
         case .nobody: nil
         }
-        let served = all.filter { installed.contains($0.id) }.flatMap { build in
+        let served = catalog.filter { installed.contains($0.id) }.flatMap { build in
             build.tools.enumerated().map { index, tool in
                 let name = build.id == holder && index == 0 ? legacyToolName : tool.name
                 return InstalledTool(
@@ -104,6 +109,7 @@ enum SupportedRunners {
             .map(\.element)
     }
 
+    // Builds with bundled patch resources; T07 adds Sikarugir here with its payloads.
     static let all: [RunnerBuild] = [
         RunnerBuild(
             bundleVersion: "26.3.0.39832",
@@ -198,12 +204,31 @@ enum SupportedRunners {
         ),
     ]
 
+    static let sikarugir = RunnerBuild(
+        bundleVersion: "sikarugir-11.0-r0", releaseVersion: "11.0", flavor: nil,
+        loaderSHA256: "874d068ebd42114388e77edffc526d85460350f9d599d074acd951a2f0a32e2c",
+        cleanNtdll: [
+            .x86_64Windows: "da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676",
+            .i386Windows: "e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589",
+        ],
+        patchedNtdll: [
+            .x86_64Windows: "ef8e99712f845f5c4e7ee01a0475d3ccaf84114d54a0a6c962808fee34b68b29",
+            .i386Windows: "60c6a031ea679833d6f8a81e4873cb60d98815ed9f7220c2046ed58443cfcc03",
+        ],
+        origin: .sikarugir,
+        tools: [CompatTool(name: "notproton-sikarugir-11.0-r0", flavor: .rosetta,
+            display: "Sikarugir 11.0 (experimental)")]
+    )
+
+    static var catalog: [RunnerBuild] { all + [sikarugir] }
+
+    // CrossOverSource uses this lookup; Sikarugir requires all five hashes below.
     static func build(loaderSHA256 hash: String) -> RunnerBuild? {
         all.first { $0.loaderSHA256 == hash }
     }
 
     static func build(id: String) -> RunnerBuild? {
-        all.first { $0.id == id }
+        catalog.first { $0.id == id }
     }
 
     static func displayVersion(forID id: String) -> String {

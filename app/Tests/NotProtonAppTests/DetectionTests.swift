@@ -204,3 +204,33 @@ struct SupportPathTests {
             == "/Applications/Steam.app/Contents/Info.plist")
     }
 }
+
+@Suite("Sikarugir catalog")
+struct SikarugirCatalogTests {
+    @Test func testSikarugirBuildHasStableID() throws {
+        let build = try #require(SupportedRunners.build(id: "sikarugir-11.0-r0"))
+        #expect(build.origin == .sikarugir)
+        #expect(build.tools.map(\.name) == ["notproton-sikarugir-11.0-r0"])
+        #expect(build.tools.map(\.flavor) == [.rosetta])
+        let tools = SupportedRunners.tools(for: [build, SupportedRunners.all[0]])
+        #expect(tools.first?.build == SupportedRunners.all[0].id)
+        #expect(CompatToolList.contents(tools).split(separator: "\n").allSatisfy {
+            $0.split(separator: "\t").count == 4
+        })
+        #expect(SupportedRunners.build(loaderSHA256: build.loaderSHA256) == nil)
+    }
+
+    @Test func testSikarugirRootIsIsolated() {
+        let runners = URL(filePath: "/tmp/test runners")
+        #expect(SupportPaths.clonedRoot(forBuild: "sikarugir-11.0-r0", runners: runners).path
+            == "/tmp/test runners/sikarugir-11.0-r0/wine")
+    }
+
+    @Test func testCrossOverPathsRemainUnchanged() {
+        let runners = URL(filePath: "/tmp/test runners")
+        #expect(SupportPaths.clonedRoot(forBuild: "27.0.0.40921", runners: runners).path
+            == "/tmp/test runners/crossover-27.0.0.40921/CrossOver")
+        #expect(SupportedRunners.all.allSatisfy { $0.origin == .crossOver })
+        #expect(!SupportedRunners.versionList.contains("11.0"))
+    }
+}
