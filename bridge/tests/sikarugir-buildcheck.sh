@@ -42,6 +42,7 @@ try:
     assert "arm64" not in recipe and "FEX" not in recipe, "Rosetta não pode construir FEX"
     assert sys.argv[1] in ("--gate", "--artifacts"), "use --gate ou --artifacts"
     if sys.argv[1] == "--artifacts":
+        assert os.environ.get("LLVM_MINGW"), "defina LLVM_MINGW com a toolchain local do T01"
         tc = Path(os.environ["LLVM_MINGW"]) / "bin"
         bridge = root / "scratch/sikarugir/bridge"
         pe_paths = [bridge / "steam.exe", bridge / "x86_64-windows/lsteamclient.dll"]

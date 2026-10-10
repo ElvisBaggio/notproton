@@ -2,6 +2,10 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## Achados menores T01-T03 fechados (2026-10-09, Agente: claude, modelo efetivo: sonnet)
+
+abi_compare falha na superficie (b) com 0 syscalls/contagens desiguais (+teste), buildcheck --artifacts exige LLVM_MINGW com mensagem clara, sigstatic limita rebuild_pattern a __TEXT; steam_build_date 1791415817 segue vazio (sem fonte local explicita; so o build id = epoch 2026-10-07T23:30:17Z, inferencia).
+
 ## T05 — Passo 3 PASS real, revisão pendente (2026-10-09 22:34 -03:00, Agente: codex)
 
 **Estado.** Cliente Codex, papel bridge_probe, modelo efetivo gpt-6.1-sol, branch codex/t05-steam-probe, base cdf3be5. Steam aberto/logado por Elvis; processo confirmado antes/depois, build content_log 1791415817. Comando exato autorizado: STEAM_INIT=ok / APP_ID=3527290 / AUTHENTICATED=yes, exit0; trace real CreateSteamPipe/ConnectToGlobalUser/GetISteamUser/GetISteamUtils/GetAppID/BLoggedOn. Gate de viabilidade técnica observado PASS, ainda sem aceite independente. Logs públicos allowlist sem dados de conta; brutos só scratch. Cinco hashes wrapper + 965 entradas Frameworks + steamclient.dylib antes/depois/baseline MATCH; zero processos da engine isolada restantes. Sem controle do Steam ou mudanças originais.
