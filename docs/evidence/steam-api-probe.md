@@ -188,3 +188,74 @@ rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-
 ```
 
 Esperado no passo 3: init ok, AppID 3527290, authenticated yes, exit 0. Pedido de revisão independente **Claude Code Opus 5.5**, registrar modelo efetivo do revisor: isolamento/APFS, ambiente launcher, integridade, alcance real do hook e novo bloqueio LC_UUID. T05/issue #9 e gate E2 continuam abertos; Steam/biblioteca/saves/NotProton/wrapper originais preservados.
+
+
+## Continuação do Passo 2 — 2026-10-09: LC_UUID resolvido; BLOCKED nos imports do trigger T04
+
+Cliente **Codex**, agente `codex`, papel `bridge_probe`, modelo efetivo **gpt-6.1-sol**. Branch `codex/t05-steam-probe`, base `482af4c`. Steam do Mac **fechado** antes dos dois smokes e após eles (`pgrep -x steam_osx`, exit 1); nenhum processo da engine isolada restante. `git pull --ff-only`: Already up to date. Somente diagnóstico e documentação; nenhum payload T04 alterado.
+
+**Resultado do passo 2: BLOCKED_T04_TRIGGER_IMPORTS.** A ponte Unix agora abre e fornece sua tabela de funções; o probe continua falhando no `LoadLibraryA("steamclient64.dll")`, antes de `GetProcAddress`/`CreateInterface`/SteamClient021. Portanto a falha não se limita à ausência de Steam logado e não é benigna. T05/E2 continuam abertos, Project In Progress; passo 3 não liberado.
+
+### Hashes e smoke válido
+
+Conferidas independentemente as três cópias de `lsteamclient.so`: `bridge/x86_64-unix/`, `engine/lib/wine/x86_64-unix/` e `pfx/drive_c/Program Files (x86)/Steam/`, todas sob `scratch/t05/`. SHA-256 **`d71f954cf1c1a2355e9dfd7e8de593d8a4d1274117d42626394d4e95c7379a9c`**, igual ao novo manifesto T03. `otool -l`: LC_UUID **BDC32712-2045-33EE-9B0F-3F37FCD8F4E1**, `@rpath/ntdll.so`, `LC_RPATH @loader_path/`. Os hashes de `lsteamclient.dll` (`2933ac86…`) e `steam.exe` (`56979db4…`) permanecem os da tabela histórica; todos os binários staged conferem.
+
+O coordenador informou a correção T03 em `152df29`, branch `claude/t03-lc-uuid`; o rebuild/relink reproduzível não foi reexecutado neste card. O hash de `bridge/manifest.json` no stage-manifest ainda era o antigo `77d9855f…`; o conteúdo novo foi validado contra seus três artefatos e seu hash real **`60b3c3ecea54bb3c062f9f463cf4f9cb8938b3d1d9233d49b903505d6425854b`** foi atualizado somente no manifesto local. Isso não era divergência de binário nem bloqueava o runner.
+
+Executado fora do sandbox, necessário para bootstrap Mach/lock do wineserver, sem mudar o ambiente final do runner:
+
+```sh
+rtk proxy env WINEDEBUG=-all,+module,+steamclient \
+  sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290
+```
+
+Resultado: runner **exit 1**, linhas explícitas **`STEAM_INIT=fail`, `APP_ID=0`, `AUTHENTICATED=no`**. Log válido preservado em `scratch/t05/smoke-uuidfix-valid-raw.log` (cópia de `pfx/probe-raw.log`); ignorados `smoke-uuidfix.out` e o antigo log de 95 B da tentativa do coordenador.
+
+- Linhas 4877–4879/4958–5141: `lsteamclient.dll` builtin carrega e PROCESS_ATTACH retorna 1; detour T04 foi alcançado.
+- Linhas 5634–5639: imports `tier0_s64.dll` e `vstdlib_s64.dll` do trigger Valve ausentes, `status=c0000135`.
+- Linha 5685: **o próprio `steamclient64.dll` falha `c0000135`**. Linhas 5686–5688: o probe imprime a falha explícita. No código do probe, `if (!mod) return;` precede toda chamada à API; Steam aberto não corrige esse caminho de loader.
+
+### Resolução Unix comprovada separadamente
+
+DllMain ignora o retorno de `__wine_init_unix_call`, portanto PROCESS_ATTACH=1 isoladamente não comprovaria a resolução Unix. Uma segunda execução diagnóstica usou um interposer Mach-O x86_64 descartável de `dlopen`/`dlsym`, compilado com clang e guardado exclusivamente em `scratch/t05/unix-resolution-trace.{c,dylib}`; nenhuma instrução da engine/ponte/payload foi alterada. Ambiente idêntico ao runner, com `DYLD_INSERT_LIBRARIES` adicionado **após** `arch` via `/usr/bin/env`. Não faz parte do comando de produção. Log `scratch/t05/unix-resolution-raw.log`:
+
+```text
+5819: T05_DLOPEN=<engine-copia>/lib/wine/x86_64-unix/lsteamclient.so HANDLE=0xff8a0
+5820: T05_DLSYM=__wine_unix_call_funcs POINTER=0x20b89c1e0
+```
+
+Handles/endereços são desta execução, não pins. Self-checks: Steam ausente, processo PE **exit 1**, mesmas três linhas de falha e mesmos imports bloqueantes. Na fonte `winecrt0/unix_lib.c:92`, `__wine_init_unix_call` consulta `MemoryWineUnixFuncs`; `ntdll/unix/virtual.c:837` faz exatamente esse dlopen e dlsym, retornando SUCCESS quando a tabela é não nula. Assim **carregamento Mach-O e resolução da tabela Unix estão observados**; o valor de retorno PE de `__wine_init_unix_call` não foi capturado diretamente. Nenhuma chamada Steam da tabela foi exercitada porque o trigger falhou antes. Não houve erro LC_UUID ou erro de resolução Unix nos novos logs.
+
+### Causa exata T04: máscara errada e operação invertida
+
+Fonte upstream fornecida, somente leitura: `/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/wine-11.0`, base `wine-11.0` usada pelo projeto.
+
+1. `include/winternl.h:4006`: **`LDR_DONT_RESOLVE_REFS = 0x40000000`**, um flag interno de `LDR_DATA_TABLE_ENTRY.Flags`. Não confundir com `DONT_RESOLVE_DLL_REFERENCES=1`, argumento público de LoadLibrary/build_module.
+2. `loader.c:1543`: `alloc_module` cria o MODREF com esse bit **marcado**. `loader.c:1492–1493`: `fixup_imports` retorna SUCCESS sem resolver se o bit estiver **limpo**; quando marcado, limpa-o e resolve imports/TLS. O nome do bit descreve estado pendente, não uma solicitação de supressão nesse ponto do fluxo.
+3. `ntdll-patch/detour.c` define a máscara incorreta **`0x00000002`** e faz `*WM_FLAGS(wm) |= LDR_DONT_RESOLVE_REFS`. Isso deixa o bit real 0x40000000 intacto: `fixup_imports` continua normalmente. Mesmo trocar apenas a máscara mantendo OR não resolveria.
+4. `shim.S` preserva os registradores, passa wm=`r14`/load_path=`rsp+0x58`, reexecuta `mov rax,[rbp+0x90]` e retorna a `0x34f47`. O hook `0x34f40` fica **logo depois de alloc_module**, antes de `update_load_config` e `fixup_imports`. Não altera o argumento público `flags` de build_module. Não há supressão posterior no shim.
+5. Binário Sikarugir x86_64 confirmado por disassembly da cópia (log `scratch/t05/uuidfix-loader-disassembly.txt`): alloc_module em RVA **0x355b8–0x355cf** escreve **0x40000000** (ou 0xc0000000 builtin) em **wm+0x68**; build_module em **0x35145** chama fixup_imports **0x31ac0**; essa função em **0x31adb–0x31af0** lê wm+0x68, testa **0x40000000**, salta ao retorno de sucesso se limpo e faz AND **0xbfffffff** quando marcado. A falha em **0x351c8–0x351d3** zera `*module` e devolve o erro. Os offsets são RVA desta Sikarugir, não do upstream. Fonte, binário e trace concordam.
+
+**Conclusão [alta confiança]: bug do payload x86_64 T04 para Wine 11.0, não benigno.** Correção mínima exata proposta ao responsável T04, **não aplicada neste card**:
+
+```diff
+-#define LDR_DONT_RESOLVE_REFS  0x00000002
++#define LDR_DONT_RESOLVE_REFS  0x40000000
+...
+-    *WM_FLAGS(wm) |= LDR_DONT_RESOLVE_REFS;
++    *WM_FLAGS(wm) &= ~LDR_DONT_RESOLVE_REFS;
+```
+
+Com o bit limpo, fixup_imports trata o trigger como já resolvido e o entrypoint de sucesso instalado pelo detour pode ser chamado; manter o bit real marcado também suprimiria PROCESS_ATTACH (`loader.c:1690/1776`). Não copiar DLLs Valve faltantes para mascarar a causa. `shim.S` não precisa mudar para essa correção. Condicionar a limpeza ao sucesso das trampolines deve ser avaliado pelo responsável T04, já que `setup_trampolines` atualmente retorna void mesmo se a proteção falha. Rebuild, novos payloadHash/patchedHash e teste runtime pós-correção ainda são necessários: esta proposta não foi testada em payload modificado.
+
+`detour32.c` repete a constante 0x2, mas também altera o argumento público `flags` com `FLAGS_BIT`; seu fluxo deve ser auditado separadamente pelo T04. Não transplantar cegamente a solução x86_64 nem alegar prova runtime i386 (T03 só fornece ponte x86_64).
+
+### Integridade, limites e próxima ação
+
+Após os dois smokes: **cinco hashes do wrapper + 965 entradas de Frameworks MATCH** com o inventário anterior; binários staged/trigger/probe também MATCH. Asserts e readback em `scratch/t05/uuidfix-integrity.json`. `stage-manifest.json` local agora registra `BLOCKED_T04_TRIGGER_IMPORTS`, smokeExit=1 e hash atualizado do manifesto da ponte. Steam não foi aberto/fechado pelo agente; não houve gravação em wrapper, engine instalada, Steam, biblioteca ou saves. Nenhum processo da cópia permaneceu vivo.
+
+Nenhum script/payload de produção mudou: checks aplicáveis são asserts de hashes/inventário, trace Unix, disassembly e `git diff --check`. Não reexecutei testes de produção inalterados nem rebuild T03/T04. `apply_binary_patches` em memória continua NOT OBSERVED; `steam.exe` não executado. Não se usa hash em disco para provar ausência de patches em memória.
+
+**Próxima ação:** responsável T04 corrigir máscara/operação, reconstruir/aplicar somente em cópias com novos manifests e revisão; repetir este negativo com Steam fechado, demonstrando que LoadLibrary/CreateInterface chegam à ponte e só falta a sessão nativa. Depois revisão Astra/Claude Code Opus 5.5 e passo 3 com Steam autenticado. Pedido de revisão independente **Claude Code Opus 5.5**, registrar cliente/modelo efetivo do revisor: confirmar os dois erros de flag, ponto do hook, evidência Unix e manutenção do bloqueio de T05/E2. Nenhum próximo card liberado.

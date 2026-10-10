@@ -2,6 +2,14 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T05 — Continuação do Passo 2: Unix resolvido / imports T04 BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente Codex, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe`, base `482af4c`. Steam fechado em toda a rodada. Três .so SHA-256 `d71f954c…` e manifesto T03 conferidos; LC_UUID presente. Smoke real exit1: init fail/AppID0/auth no. Interposer descartável observa dlopen da .so e dlsym Unix funcs não nulos. O trigger falha c0000135 por tier0_s64/vstdlib_s64 antes de qualquer API. Cinco hashes do wrapper + 965 entradas Frameworks intactos. Evidência nova preserva o histórico em `docs/evidence/steam-api-probe.md`.
+
+**Próximo passo.** T04: detour.c usa máscara 0x2 errada; Wine11/Sikarugir usa 0x40000000. Trocar a máscara e limpar o bit com AND ~ (OR também é incorreto nesse ponto) antes de fixup_imports. Proposta exata na evidência, não aplicada. Rebuild/novos manifestos em cópias, revisão e repetir negativo; só depois Steam logado/passo3. Claude Code Opus 5.5 solicitado na issue #9; modelo efetivo do revisor pendente.
+
+**Bloqueios.** `BLOCKED_T04_TRIGGER_IMPORTS`, não benigno: LoadLibraryA retorna NULL e probe não chega a CreateInterface. LC_UUID deixou de bloquear. T05/E2 abertos/In Progress. Nenhum payload ou script de produção editado; apply_binary_patches em memória NOT OBSERVED e steam.exe não executado. Positivo/autenticação e runtime i386 não testados.
+
 ## T05 — Retomada do Passo 2: prefixo PASS / Unix bridge BLOCKED (2026-10-09, Agente: codex)
 
 **Estado.** Cliente `codex`, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe`. Frameworks APFS clone completo; wineboot fresh exit0. Ambiente mínimo exige DYLD fallback da cópia após arch/Rosetta e marker `SikarugirAppWine11=1` (ntdll Unix termina exit1 sem ele). Cinco hashes originais + 965 entradas Frameworks antes/depois MATCH, fonte/cópia e symlinks/inodes verificados. Negativo real Steam fechado: init fail/AppID0/auth no, exit1; detour entrou, cave RX mapeado e lsteamclient PE carregada. Unix Mach-O rejeitado por missing LC_UUID (T03 usa -no_uuid). Evidências/logs em `docs/evidence/steam-api-probe.md` e scratch; histórico anterior preservado.
