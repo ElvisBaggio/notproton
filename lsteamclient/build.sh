@@ -196,10 +196,10 @@ if [ "$do_unix" -eq 1 ]; then
 	done
 
 	echo "==> linking $out"
-	repro_flags=""
-	[ "${SIKARUGIR:-0}" != 1 ] || repro_flags="-Wl,-no_uuid"
+	# No -no_uuid: dyld refuses a dylib without LC_UUID, and ld64 already derives the UUID
+	# from the output's content, so the build stays reproducible with it.
 	# shellcheck disable=SC2086
-	gcc -std=gnu23 -arch "$UNIX_ARCH" -o "$out" -dynamiclib $repro_flags \
+	gcc -std=gnu23 -arch "$UNIX_ARCH" -o "$out" -dynamiclib \
 		-install_name @rpath/lsteamclient.so -Wl,-rpath,@loader_path/ \
 		$link_objs dlls/ntdll/ntdll.so -lc++ -Wl,-undefined,dynamic_lookup
 
