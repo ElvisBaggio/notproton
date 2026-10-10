@@ -119,3 +119,55 @@ Intervalos de arquivo abaixo são `[início, fim)`; todos os bytes antigos fora 
 - CrossOver cx26 instalado, somente leitura, x86_64/i386: self-test **all pinned values reproduced**; `resolve.py --sh` byte a byte idêntico ao resolvedor anterior ao preparo (`3096c26^`). Demais builds CrossOver ausentes não reexecutados; build GCC legado não refeito.
 - `sh -n` dos scripts e `git diff --check`: PASS. Shellcheck indisponível.
 - Não foram tocados wrapper, engine instalada, prefixos, Steam, saves, app, Makefile, bridge, lsteamclient, steam-shim ou território do probe paralelo. Sem runtime, instalação global ou binário versionado. Efeito de HideWineExports/apply_binary_patches e funcionamento real ficam para T05.
+
+## Correção LDR flags — 2026-10-09
+
+Cliente `codex`, papel `ntdll_port`, modelo efetivo `gpt-6.1-sol`, branch `codex/t04-ldr-flags`, base `bd1b260`. Revisão Astra da correção aprovada para publicação com os limites abaixo; revisão corretiva independente Claude Code Opus 5.5 pendente. Issue #8 já estava CLOSED: este trabalho não altera seu estado.
+
+**Resultado:** bug T04 corrigido somente para os dois cleanHash Sikarugir conhecidos. O trigger agora carrega e chega à `CreateInterface` da ponte real. O negativo solicitado **ainda não passa**: a ponte aborta ao localizar a biblioteca Steam nativa, antes da saída do probe. T05/E2 continuam bloqueados; não há prova de sessão/API funcional.
+
+### Mudança e auditoria
+
+`resolve.py --sh` emite `NP_SIKARUGIR_WINE11=1` somente para os hashes clean da tabela inicial; `build.sh` e `build32.sh` ativam o define correspondente. `detour.c`/`detour32.c` limpam o bit interno `0x40000000` em vez de OR `0x2`. Em Wine 11 esse bit indica imports pendentes: `alloc_module` marca-o e `fixup_imports` retorna sucesso sem imports quando já está limpo. A limpeza depende do sucesso de `setup_trampolines`: a função retorna falso se proteção RWX falha ou se o diretório de exports não existe. Somente o ramo Sikarugir ganha o retorno/checagem; código preprocessado CrossOver permanece idêntico ao baseline. Isso impede suprimir imports após falha conhecida da instalação das trampolines, sem mudar shims/callers externos.
+
+Fonte read-only Wine `wine-11.0` T01: `include/winternl.h:4006`, `dlls/ntdll/loader.c:1492–1493/1543/1690/1776/2286`. x64 binário e trace anteriores T05 já demonstravam wm+0x68 e AND 0xbfffffff. Auditoria independente i386 da ntdll clean, `scratch/sikarugir/i386-loader-disasm.txt`:
+
+- RVA `0x2efcb–0x2efd8`: alloc_module escolhe `0x40000000`/`0xc0000000` e grava wm+0x34.
+- RVA `0x2c211–0x2c22d`: fixup_imports lê wm+0x34, testa `0x40000000`, retorna sucesso se limpo e limpa com `0xbfffffff` quando marcado. RVA `0x2c0da–0x2c0f1` aplica o mesmo protocolo na variante IL-only.
+- RVA `0x2a6e0`: caminho de inicialização testa bit `0x40` do byte wm+0x37, equivalente ao bit interno `0x40000000`.
+- RVA `0x2eba0–0x2ebab`: argumento público em ebp+0x14 é testado com máscara **1** e, marcado, desvia para `0x2ec57`, pulando imports. `FLAGS_BIT=1` é correto (`DONT_RESOLVE_DLL_REFERENCES`), permanece inalterado. Limpar o bit interno evita também suprimir inicialização. Nenhuma ponte/runtime i386 exercitada.
+
+### Artefatos e checks
+
+| Arquitetura | Payload SHA-256 / tamanho | ntdll patchada SHA-256 |
+|---|---|---|
+| x86_64 | `d73b0f846a13e062b8da4acc0fbbac62c9e43a3ad531afcf0434d1417085e15f` / 834 B | `ef8e99712f845f5c4e7ee01a0475d3ccaf84114d54a0a6c962808fee34b68b29` |
+| i386 | `a1305ebed9e42cc6a37a5df333d42da17de8012cca8e4deeb72f6b4a8cb5b620` / 1338 B | `60c6a031ea679833d6f8a81e4873cb60d98815ed9f7220c2046ed58443cfcc03` |
+
+Rebuild limpo nos diretórios `rebuild/<arch>` reproduziu bytes idênticos. CLI `apply.py --manifest` aplicada exclusivamente às cópias; manifesto local atualizado com payloadHash/patchedHash/tamanhos/diff. `verify.py`: x64 823 bytes diferentes só hook/payload (payload `[0x70860,0x70ba2)`), arquivo sem aumento; i386 21 bytes antigos diferentes só hook/cabeçalhos já previstos, 4096 B anexados, payload `[0x98000,0x9853a)`. Reaplicação e hash desconhecido recusados com entrada intacta, nenhuma saída/.tmp.
+
+12 testes PASS com Python sem capstone e no venv capstone T01. Novo harness C sintético verifica flags inalteradas em falha de proteção/exports ausentes e limpeza exata com stub de sucesso. Sintaxe dos dois scripts e `git diff --check` PASS.
+
+**CrossOver:** fonte C preprocessada sem define é byte idêntica ao HEAD anterior nos dois detours. Full payload x64 cx26 recompilado com a mesma toolchain LLVM antes/depois é byte idêntico, SHA-256 `3fb37065dcae157545a0684152a1684531f4d3ddaafb6b4c264eab834d4d47bf`. Recurso cx26 versionado preservado com pin legado `e35b834408599c45f30b23a6d2bf38acfa5c3df4d15206617c471e23a4a01bfb`. O **rebuild do pin legado não foi reproduzido**: GCC/binutils MinGW não estão instalados em PATH/Homebrew; nomes `gcc` da toolchain LLVM são drivers clang. Recipe usa `brew install mingw-w64` sem fixar versão, portanto não identifica a toolchain exata. Não instalada dependência global nem tentadas versões cegamente. O build LLVM acusa o pin divergente também no baseline; não é uma regressão introduzida aqui. Demais variantes não recompiladas.
+
+### Smoke real autorizado no scratch T05
+
+Steam fechado conferido via `pgrep -x steam_osx` fora sandbox, exit 1 antes/depois; Steam não foi aberto. Substituída exclusivamente a cópia `scratch/t05/engine/lib/wine/x86_64-windows/ntdll.dll`: anterior `64930d7e…`, novo `ef8e9971…` (hash completo acima). Runner original sem alteração:
+
+```sh
+rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290
+```
+
+Log preservado em `scratch/sikarugir/smoke-ldr-flags-raw.log` (cópia de `scratch/t05/pfx/probe-raw.log`); runtime fora sandbox para wineserver autorizado. Runner exit **1**, parser `STEAM_INIT=None`, sem três linhas de resultado. Nenhum `c0000135` no log. Evidência de alcance:
+
+- 5800–5805: steamclient64.dll carregada, PROCESS_ATTACH chamado e **RETURN 1**.
+- 5806: `trace:steamclient:CreateInterface name: SteamClient021` — execução real no export redirecionado para ponte.
+- 5808–5811: `steamclient_init Old Steam client, falling back to DYLD environment`, `unable to load native steamclient library`, status `0xffffffff`, seguido de **Assertion failed: !status**, fonte T03 `steamclient_main.c:382`.
+
+Causa do novo bloqueio [alta confiança]: `lsteamclient/unixlib.cpp:796–827` usa `STEAM_COMPAT_CLIENT_INSTALL_PATH/steamclient.dylib` se presente; caso contrário tenta `dlopen("steamclient.dylib")`. O trace comprova que a variável não chegou e o fallback falhou. Runner não define essa variável; não se alterou ambiente para ocultar a falha. A assert PE acontece durante inicialização em CreateInterface, antes de retorno/interface/session; não se pode afirmar que só falta login. Diagnóstico/correção desse contrato pertence T05/T03, sem editar seus territórios neste card.
+
+Readback pós-smoke: **cinco hashes do wrapper + 965 entradas Frameworks MATCH** com inventário T05 anterior (`scratch/sikarugir/ldr-flags-integrity.json`). Originais clean permanecem intactos; nenhuma gravação no wrapper, engine instalada, Steam, NotProton, biblioteca ou saves.
+
+Próximo passo: revisão corretiva independente Claude Code Opus 5.5 (registrar modelo efetivo), resolver descoberta da biblioteca Steam nativa no território T05/T03 e repetir negativo completo antes do gate com Steam autenticado. Não declarados PASS de API/sessão, i386 runtime, save/reabertura ou rollback funcional.

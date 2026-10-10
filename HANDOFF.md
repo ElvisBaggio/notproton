@@ -2,6 +2,16 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T04 — correção LDR flags, 2026-10-09, Agente: codex
+
+**Estado.** Cliente codex, papel ntdll_port, modelo efetivo gpt-6.1-sol, branch codex/t04-ldr-flags. Define de build ativado somente para cleanHash Sikarugir; limpa bit interno Wine11 0x40000000 após sucesso das trampolines em x64/i386. FLAGS_BIT público i386=1 auditado e preservado. 12 testes com/sem capstone PASS, rebuilds idênticos, aplicação por manifesto/diff/reapply em cópias PASS. Regressão fonte preprocessada CX idêntica; full build LLVM x64 baseline idêntico 3fb37065…; pin legado e35b8344… preservado no recurso mas rebuild GCC não reproduzido (toolchain ausente/não fixada).
+
+**Hashes novos.** Payload x64 d73b0f846a13e062b8da4acc0fbbac62c9e43a3ad531afcf0434d1417085e15f (834 B); i386 a1305ebed9e42cc6a37a5df333d42da17de8012cca8e4deeb72f6b4a8cb5b620 (1338 B). ntdll x64 ef8e99712f845f5c4e7ee01a0475d3ccaf84114d54a0a6c962808fee34b68b29; i386 60c6a031ea679833d6f8a81e4873cb60d98815ed9f7220c2046ed58443cfcc03.
+
+**Smoke.** Somente scratch T05 autorizado, Steam fechado. Trigger LoadLibrary/PROCESS_ATTACH PASS, CreateInterface SteamClient021 alcançada na ponte, sem c0000135. Novo bloqueio: steamclient_init não encontra biblioteca nativa via fallback DYLD (STEAM_COMPAT_CLIENT_INSTALL_PATH ausente), assert T03 aborta antes das 3 linhas do probe. Runner exit1 STEAM_INIT=None: negativo completo NOT PASS. Cinco hashes wrapper + 965 Frameworks MATCH. Evidência docs/evidence/ntdll-port.md.
+
+**Próximo passo/bloqueios.** Revisão Astra aprovada para publicação com limites; revisão corretiva Claude Code Opus5.5 pendente; issue8 já CLOSED, apenas comentário solicitado. T05 permanece OPEN/bloqueado na descoberta da biblioteca Steam nativa; nenhum gate API/sessão liberado. Sem ponte/runtime i386, save/reabertura ou rollback funcional. Não editar territórios T03/T05 para contornar o bloqueio.
+
 ## T04 — PASS estático, revisão pendente (2026-10-09, Agente: codex)
 
 **Estado.** Cliente `codex`, papel `ntdll_port`, modelo efetivo `gpt-6.1-sol`, branch `codex/t04-ntdll-close`. Payloads locais LLVM construídos e reproduzidos: x86_64 834/1952 B; i386 1370/4096 B. Aplicação CLI por manifesto somente em cópias, diff restrito às regiões previstas, recusas reais de reaplicação/hash desconhecido com entrada intacta. Suíte 11 testes PASS com/sem capstone; cx26 --sh idêntico ao resolvedor anterior ao preparo. `scratch/sikarugir/patches.json` COMPLETE; evidência em `docs/evidence/ntdll-port.md`.
