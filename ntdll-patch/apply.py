@@ -51,7 +51,113 @@ def append_section(pe, d, r):
     return raw
 
 
+ARCH_MACHINE = {'x86_64-windows': 0x8664, 'i386-windows': 0x14c}
+
+
+def _raw_span(pe, rva, size, what):
+    """File offset of [rva, rva+size) when a section's raw data backs all of it."""
+    for _, vrva, _, roff, rsize in pe.secs:
+        if vrva <= rva and rva + size <= vrva + rsize and roff + (rva - vrva) + size <= len(pe.d):
+            return roff + (rva - vrva)
+    raise SystemExit(f"{what} rva {rva:#x}+{size} out of bounds of the file's section data")
+
+
+def patch_bytes(data, entry, payload):
+    """Patch one ntdll image from a patches.json entry (pins only, no disassembly).
+
+    Refuses anything that is not exactly the pinned clean build: architecture, whole-file hash,
+    payload hash, hook bytes and cave contents are all checked before a byte is written.
+    """
+    data = bytes(data)
+    pe = PE('<image>', data)
+    want = ARCH_MACHINE.get(entry.get('architecture'))
+    if want is None or pe.machine != want:
+        raise SystemExit(f"architecture: image is machine {pe.machine:#x}, entry is "
+                         f"{entry.get('architecture')!r} (supported: {sorted(ARCH_MACHINE)})")
+    got = hashlib.sha256(data).hexdigest()
+    if got != entry.get('cleanHash'):
+        state = 'already patched' if got == entry.get('patchedHash') else 'unknown'
+        raise SystemExit(f"hash {got} is {state}, entry pins clean {entry.get('cleanHash')}")
+    if not entry.get('payloadHash'):
+        raise SystemExit("payload hash not pinned for this entry, refusing to patch")
+    if hashlib.sha256(payload).hexdigest() != entry['payloadHash']:
+        raise SystemExit(f"payload sha256 {hashlib.sha256(payload).hexdigest()} "
+                         f"is not the pinned {entry['payloadHash']}")
+
+    hook = entry['hookRVA']
+    stolen = bytes.fromhex(entry['expectedBytes'])
+    if len(stolen) < 5:
+        raise SystemExit(f"hook at {hook:#x} steals {len(stolen)} bytes, a jmp needs 5")
+    hook_off = _raw_span(pe, hook, len(stolen), 'hook')
+    if data[hook_off:hook_off + len(stolen)] != stolen:
+        raise SystemExit(f"hook bytes at {hook:#x} are {data[hook_off:hook_off + len(stolen)].hex()}, "
+                         f"pinned {stolen.hex()}")
+
+    cave = entry['cave']
+    if 'room' in cave and not 0 < len(payload) <= cave['room']:
+        raise SystemExit('payload does not fit the pinned cave room')
+    d = bytearray(data)
+    if cave['placement'] == 'section':
+        fresh = pe.appended()
+        if (cave['rva'], cave['rawOffset']) != (fresh['caveRVA'], fresh['rawOffset']) \
+                or cave['payloadRVA'] != cave['rva'] or len(payload) > SECTION_SIZE:
+            raise SystemExit("cave section pins do not match the image layout")
+        cave_off = append_section(pe, d, {'rawOffset': cave['rawOffset'], 'caveRVA': cave['rva']})
+    elif cave['placement'] == 'padding':
+        cave_off = _raw_span(pe, cave['payloadRVA'], len(payload), 'cave')
+    else:
+        raise SystemExit(f"cave placement {cave['placement']!r} unknown")
+    if any(b != cave['fill'] for b in d[cave_off:cave_off + len(payload)]):
+        raise SystemExit(f"cave at {cave_off:#x} is not {cave['fill']:#04x} fill "
+                         f"for {len(payload)} bytes")
+    d[cave_off:cave_off + len(payload)] = payload
+
+    rel = cave['payloadRVA'] - (hook + 5)
+    d[hook_off:hook_off + len(stolen)] = \
+        b"\xE9" + rel.to_bytes(4, 'little', signed=True) + b"\xCC" * (len(stolen) - 5)
+
+    out = bytes(d)
+    if entry.get('patchedHash') and hashlib.sha256(out).hexdigest() != entry['patchedHash']:
+        raise SystemExit(f"patched image is {hashlib.sha256(out).hexdigest()}, "
+                         f"pinned {entry['patchedHash']}")
+    return out
+
+
+def patch_file(src, dst, entry, payload_path):
+    """patch_bytes on files; never writes over the source, output appears only when complete."""
+    if os.path.exists(dst) and os.path.samefile(src, dst):
+        raise SystemExit(f"{dst}: refusing to patch in place")
+    with open(src, 'rb') as f:
+        data = f.read()
+    with open(payload_path, 'rb') as f:
+        payload = f.read()
+    out = patch_bytes(data, entry, payload)
+    tmp = dst + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(out)
+    os.replace(tmp, dst)
+    return hashlib.sha256(out).hexdigest()
+
+
+def main_manifest(argv):
+    """apply.py --manifest patches.json <src ntdll.dll> <dst> <payload.bin>"""
+    import json
+    if len(argv) != 4:
+        raise SystemExit("usage: apply.py --manifest <patches.json> <src ntdll.dll> <dst> <payload.bin>")
+    manifest, src, dst, payload = argv
+    with open(manifest) as f:
+        entries = json.load(f)['entries']
+    machine = PE(src).machine
+    match = [e for e in entries if ARCH_MACHINE.get(e.get('architecture')) == machine]
+    if len(match) != 1:
+        raise SystemExit(f"{src}: {len(match)} manifest entries for machine {machine:#x}, want 1")
+    got = patch_file(src, dst, match[0], payload)
+    print(f"patched {src} -> {dst} ({match[0]['architecture']}), sha256 {got}")
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == '--manifest':
+        return main_manifest(sys.argv[2:])
     if len(sys.argv) < 2:
         raise SystemExit(f"usage: {sys.argv[0]} <src ntdll.dll> [dst] [payload.bin]")
     src = sys.argv[1]

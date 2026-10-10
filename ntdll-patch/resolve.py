@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # Reads every per-build constant the ntdll detours need out of the binary, for
 # all archs. Internal development tool, ugly
-import hashlib, pathlib, struct, sys, re, bisect, capstone
-from capstone import x86 as X86, arm64 as A64
+import hashlib, json, pathlib, struct, sys, re, bisect
+try:
+    import capstone
+    from capstone import x86 as X86, arm64 as A64
+except ImportError:  # PE parsing and the pin-driven patcher in apply.py work without it
+    capstone = X86 = A64 = None
 
 ARCH = {0x8664: 'x86_64-windows', 0x14c: 'i386-windows', 0xaa64: 'aarch64-windows'}
 
@@ -121,9 +125,9 @@ SUBREG = {'al': 'eax', 'ah': 'eax', 'ax': 'eax', 'bl': 'ebx', 'bh': 'ebx', 'bx':
 
 
 class PE:
-    def __init__(self, path):
+    def __init__(self, path, data=None):
         self.path = path
-        self.d = open(path, 'rb').read()
+        self.d = open(path, 'rb').read() if data is None else data
         e = struct.unpack_from('<I', self.d, 0x3c)[0]
         self.machine = struct.unpack_from('<H', self.d, e + 4)[0]
         nsec = struct.unpack_from('<H', self.d, e + 6)[0]
@@ -162,6 +166,8 @@ class PE:
         return vrva, self.d[roff:roff + rsize]
 
     def cs(self):
+        if capstone is None:
+            raise SystemExit("resolving hooks needs capstone (pip install capstone in a venv)")
         if self.machine == 0xaa64:
             md = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
         else:
@@ -293,6 +299,18 @@ def resolve_amd64(pe):
         else:
             break
     hook = body[k]
+    # The jmp replacing it is 5 bytes and the instruction is replayed from the cave, so it has
+    # to be long enough, not rip-relative, and nothing may branch into the middle of it.
+    if hook.size < 5:
+        raise SystemExit(f"{pe.path}: hook insn at {hook.address:#x} is {hook.size} bytes, need 5")
+    if any(o.type == X86.X86_OP_MEM and o.mem.base == X86.X86_REG_RIP for o in hook.operands):
+        raise SystemExit(f"{pe.path}: hook insn at {hook.address:#x} is rip-relative")
+    for i in body:
+        if i.group(capstone.CS_GRP_JUMP) and i.operands and i.operands[0].type == X86.X86_OP_IMM \
+                and hook.address < i.operands[0].imm < hook.address + hook.size:
+            raise SystemExit(f"{pe.path}: {i.address:#x} branches into the hook insn")
+    if wm is None:
+        raise SystemExit(f"{pe.path}: alloc_module result never kept in a register before the hook")
     slot = amd64_load_path(pe, body, hook.address)
     return {'build_module': bm, 'alloc_module': am, 'wm': wm, 'load_path': slot,
             'hookRVA': hook.address, 'stolen': hook.bytes.hex(), 'insn': f"{hook.mnemonic} {hook.op_str}"}
@@ -303,10 +321,17 @@ def amd64_load_path(pe, body, hook):
     # Neither build keeps the argument in rcx. One spills it to the stack right away,
     # the other stashes it in a callee-saved register and reuses that a few instructions
     # later.
+    # A third build (Wine 11.0 as Sikarugir and upstream ship it) sets up rbp = rsp + K right
+    # after the prologue and spills the argument to [rbp - N]; that is still the rsp slot K - N.
     src, slot, stored_at = 'rcx', None, None
+    frame, frame_at, rbp_form, spill_at = None, None, None, None
     for i in body:
         if i.address >= hook:
             break
+        m = re.fullmatch(r'rbp, \[rsp(?: \+ (0x[0-9a-f]+))?\]', i.op_str)
+        if i.mnemonic == 'lea' and m and frame is None:
+            frame, frame_at = int(m.group(1) or '0', 16), i.address
+            continue
         if i.mnemonic != 'mov' or ',' not in i.op_str:
             continue
         dst, rhs = (x.strip() for x in i.op_str.split(',', 1))
@@ -316,19 +341,30 @@ def amd64_load_path(pe, body, hook):
             slot = 0 if '+' not in dst else int(dst.split('+')[1].strip().rstrip(']'), 16)
             stored_at = i.address
             break
+        m = re.fullmatch(r'qword ptr \[rbp(?: ([-+]) (0x[0-9a-f]+))?\]', dst)
+        if m and frame is not None:
+            disp = int(m.group(2) or '0', 16) * (-1 if m.group(1) == '-' else 1)
+            slot, stored_at, rbp_form, spill_at = frame + disp, frame_at, dst, i.address
+            if slot < 0:
+                raise SystemExit(f"{pe.path}: load_path spilled below rsp at {i.address:#x}")
+            break
         if re.fullmatch(r'r[a-z0-9]+', dst):
             src = dst
     if slot is None:
         raise SystemExit(f"{pe.path}: load_path never reaches the frame in build_module")
 
     # The shim reads the slot off rsp, so anything moving rsp in between would shift it, and
-    # a second write to it would mean the slot is reused for something else.
+    # a second write to it would mean the slot is reused for something else. With a frame
+    # pointer the window starts where rbp was pinned to rsp, and rbp itself must not move.
+    forms = [f'qword ptr [rsp + {slot:#x}],'] + ([rbp_form + ','] if rbp_form else [])
     for i in body:
         if not stored_at < i.address < hook:
             continue
         if i.mnemonic in ('push', 'pop') or (i.mnemonic in ('sub', 'add') and i.op_str.startswith('rsp,')):
             raise SystemExit(f"{pe.path}: rsp moves at {i.address:#x}, load_path slot not rsp-stable")
-        if i.mnemonic == 'mov' and i.op_str.startswith(f'qword ptr [rsp + {slot:#x}],'):
+        if rbp_form and i.op_str.startswith('rbp,') and i.mnemonic not in ('cmp', 'test'):
+            raise SystemExit(f"{pe.path}: rbp rewritten at {i.address:#x}, load_path slot lost")
+        if i.mnemonic == 'mov' and i.address != spill_at and any(i.op_str.startswith(f) for f in forms):
             raise SystemExit(f"{pe.path}: load_path slot rewritten at {i.address:#x}")
     return slot
 
@@ -762,9 +798,31 @@ def shell_vars(path):
     return out
 
 
+def manifest_entry(path):
+    """One patches.json entry, every pin read from this exact file. The payload and the patched
+    image do not exist yet at this point, so their hashes start out null."""
+    r, v = resolve(path), shell_vars(path)
+    if r.get('sites'):
+        raise SystemExit(f"{path}: multi-site images are not described by a manifest entry")
+    cave = {'rva': r['caveRVA'], 'size': r['caveSize'], 'payloadRVA': int(v['NP_PAYLOAD_RVA'], 16),
+            'room': int(v['NP_CAVE_ROOM']), 'placement': r['placement'], 'fill': r['fill']}
+    if r['placement'] == 'section':
+        cave['rawOffset'] = r['rawOffset']
+    return {'architecture': ARCH[r['machine']], 'machine': r['machine'], 'imageBase': r['imageBase'],
+            'cleanHash': r['sha256'], 'hookRVA': r['hookRVA'], 'expectedBytes': r['stolen'],
+            'resumeRVA': r['resume'], 'wm': r['wm'], 'loadPath': r['load_path'], 'cave': cave,
+            'exports': r['exports'], 'payloadHash': None, 'patchedHash': None,
+            'evidence': {'tool': 'ntdll-patch/resolve.py --json', 'insn': r['insn'],
+                         'buildModuleRVA': r['build_module'][0], 'shellVars': v}}
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        raise SystemExit(f"usage: {sys.argv[0]} [--sh] <CrossOver bundle | wine dir | ntdll.dll> ...")
+        raise SystemExit(f"usage: {sys.argv[0]} [--sh | --json] <CrossOver bundle | wine dir | ntdll.dll> ...")
+    if sys.argv[1] == '--json':
+        entries = [manifest_entry(p) for arg in sys.argv[2:] for p in ntdlls(arg)]
+        print(json.dumps({'schemaVersion': 1, 'entries': entries}, indent=2))
+        sys.exit(0)
     if sys.argv[1] == '--sh':
         if len(sys.argv) != 3:
             raise SystemExit("--sh takes one ntdll.dll")
