@@ -67,8 +67,8 @@ Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máqui
 ## Próximo passo
 
 1. T03 concluído e integrado (`c983e5e`; build separado aprovado por Elvis). T01 e T02 concluídos.
-2. T04: preparo revisado em `claude/t04-ntdll-prep` (`3096c26`; pins x86_64/i386 do binário Sikarugir, patcher por manifesto). Fechamento estático PASS nesta branch: payloads, aplicação em cópia, hashes e recusas reais concluídos. Aguarda revisão independente Opus 5.5.
-3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10. D1: candidatos em `docs/evidence/d1-game-candidates.md` (claude, 2026-10-09; principal sugerido Banana 2923300); **Elvis escolheu Halls of Torment: Prelude 2316660** (reserva Banana).
+2. T04 concluído e integrado (`e96a406`, Codex Sol; preparo `3096c26`, Claude Opus). Payloads x86_64 834/1952 B e i386 1370/4096 B; ntdll patchadas x86_64 `64930d7e…`, i386 `932f5d47…` (só em scratch); revisão Opus 5.5 aprovada (#8). Pins definitivos no app ficam para T07.
+3. **T05 (execução real) é o próximo gate e precisa de Elvis:** Steam nativo aberto e logado e Halls of Torment: Prelude (2316660) resgatado na conta. Preparo (passo 1) integrado (`34824e5`): probe PE + runner, 11 negativos sem Wine PASS. Falta o passo 2 (montar cópia da engine com ntdll patchada + ponte T03 + prefixo descartável) e rodar. Depois T06–T09 e T10. D1: `docs/evidence/d1-game-candidates.md`.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
 Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-sol` ou `gpt-6-luna`, incluindo scripts de prova e testes. Pedido posterior de Elvis autoriza **Claude Code como alternativa**, com aliases `sonnet`/`opus` definidos por card e modelo efetivo registrado ao iniciar. Não trocar cliente/modelo automaticamente nem editar o mesmo território em paralelo.
