@@ -1,9 +1,9 @@
 # Handoff
 
-Atualizado: 2026-10-10 · Agente: claude · Modelo efetivo: sonnet · Branch: claude/t09b-remove-crossover.
+Atualizado: 2026-10-10 · Agente: claude · Modelo efetivo: sonnet · Branch: claude/steam-profile-1791592380.
 
-**Estado.** T09b: CrossOver removido do código (app, dylib, ntdll-patch, lsteamclient, bridge, Makefile). App único `NotProton Sikarugir.app`. Swift: 452 testes, 446 PASS, 0 falhas, 6 SKIP explícitos; checks do Makefile e `sh -n` PASS (anchorcheck/sigdb-fixtures falham igual na base). Ensaio do launcher chega a CreateSteamPipe. Evidência: docs/evidence/remove-crossover.md (inclui mapa para portar o upstream).
+**Estado.** Perfil `signatures/macos.arm64/1791592380.json` gerado para o Steam beta atualizado (1791415817 -> 1791592380). 18/18 por âncora, padrões idênticos aos do perfil anterior (só 13 endereços mudaram), controle negativo e verificação independente OK, `sigcheck.py` PASS, `anchorcheck` real PASS (Steam fechado: 18/18, 8/8 vptrs). Detalhes: docs/evidence/system-baseline.md ("Perfil 1791592380").
 
-**Próximo passo.** Revisão Claude Code Opus 5.5 na issue #22; depois T10 (convivência com o 1.1.0, deploy→rollback, prova com Steam logado: `sh scratch/t09b-runtime/run.sh run`).
+**Próximo passo.** Revisão Claude Code Opus 5.5 (issue #6). Rodar `swift test --no-parallel` completo onde o payload real existe (neste worktree o payload não é construível: faltam os `.a` do Dobby), depois T10.
 
-**Limites.** `detour*.c` ainda têm `#ifdef` do CrossOver (hashes pinados exigem reconstrução); `CompatTool.Flavor` com um único caso; testes de clone real ficam SKIP sem engine/runner instalado.
+**Limites.** Perfil não implantado; loader/hooks não exercitados. Se o Steam atualizar de novo, repetir o método (sigstatic --emit + sigprofile.py).

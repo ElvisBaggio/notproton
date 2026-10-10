@@ -38,6 +38,40 @@ Um harness descartável reutilizou `np_load_profile`/`np_free_profile`, `sigdb.c
 
 `make sigdb-fixtures` e `anchorcheck` completos são **NOT RUN**: carregam bibliotecas Steam por `dlopen`, que pode executar construtores. Não há gerador de perfil no repositório; preencher build/endereço/bytes a partir de perfil antigo seria inferência. A geração/validação exata requer análise específica dos binários e fica pendente para uma etapa com escopo apropriado. Nenhum perfil foi renomeado/copiado como se fosse do build atual, nenhuma biblioteca Steam foi carregada e nenhum hook/injeção foi instalado nesta execução.
 
+## Perfil 1791592380: repetição do T02 (claude, `sonnet`)
+
+Data: 2026-10-10 · Agente: claude · Modelo efetivo: `sonnet` (Claude Sonnet 5.5) · Branch `claude/steam-profile-1791592380`.
+
+**Build ativo.** `bootstrap_log.txt`: manifesto `steam_client_publicbeta_osx version 1791592380` baixado em 2026-10-09 22:33:46 (instalada 1791415817); `content_log.txt`: `Client version: 1791592380` em 2026-10-10 01:02:01. `package/beta` = `publicbeta` e `package/steam_client_publicbeta_signed-2_osx.manifest` tem exatamente um `"version" "1791592380"`, que é o que `SteamInstaller.activeClientBuild` lê. Leitura somente; nada gravado no Steam.
+
+**Cópias** (`scratch/steam-1791592380/`, ignorado): `steamclient.dylib` `15c7598623aeca0d080750883a8314c50427168a96696a81f230d485ab1bf0ca`; `steamui.dylib` `c14d93049e0e5c9441584c2505fe112dff2daa9f5c14f0a77ba19f963df0d92a`; fatias arm64 `steamclient.arm64` `92d5fd3b9dd080cdbfd17020a974538e2e9bfcd24e07aaa94f7bed7870507d70`, `steamui.arm64` `9cf9fe833bbf268064e92c568466019b0f9930d42912f1365fc8ff3c2b604b7b`. `signatures/macos.arm64/1791592380.json`: `c3f98020676653f691287a46e54ca1c593fbab1cb68f8a3c3a5542d020ab7c3f`.
+
+**Método.** Igual ao do 1791415817: `sigstatic --emit` aplica as âncoras do perfil anterior ao binário novo (sem executar código, sem `dlopen`), `sigprofile.py` gera o JSON e `sigstatic` revalida.
+
+**Resultado.** 18/18 resolvidas por âncora; padrão e endereço gravado coincidem; 8/8 vptrs; 0 problemas. **Os 18 padrões de bytes ficaram idênticos aos do 1791415817** (nenhum precisou ser refeito; todos seguem únicos em `__TEXT`). Mudaram só endereços:
+
+| Grupo | Variação |
+|---|---|
+| 11 `CCompatManager::*` (9 por string mais `oslist_gate` e `local_redirect`) | +0xc68 (ex.: Init 0x6ac7b4 -> 0x6ad41c) |
+| `CAppManager::TerminateProcessByPid` | 0xdd4d4 -> 0xdd4b0 (-0x24) |
+| `LaunchBuilder::SteamVRSupportCheck` | 0xb250cc -> 0xb237a0 (-0x192c) |
+| 3 WebUI + 2 steamui | sem mudança |
+| vptr `14CCompatManager` | 0x1743c80 -> 0x1743d50 (+0xd0); os outros 7 vptrs iguais |
+
+**Controle negativo.** Perfil 1791415817 contra o binário novo: 13 problemas, todos "RECORDED WRONG" (11 CCompatManager + TerminateProcessByPid + SteamVRSupportCheck); as 5 sem deslocamento batem, e as âncoras e padrões antigos ainda resolvem (a deriva é só de endereço).
+
+**Verificação independente** (Python `-I` + `objdump`/`otool`/`dyld_info`, sem o resolvedor): cada padrão tem exatamente 1 ocorrência em `__TEXT` e ela cai no endereço do perfil; os 16 endereços de função estão em `LC_FUNCTION_STARTS` (os 2 insn_pair são sítios internos, esperado). Casos anômalos: `SteamVRSupportCheck` (0xb237a0): `adrp 0x15e1000; add #0x5c6` = 0x15e15c6, a string `SteamVRSupport`, dentro da função. `TerminateProcessByPid` (0xdd4b0): âncora indireta; o slot do seletor `terminate` (0x17f5bc0, valor 0x1637846) é lido só no stub ObjC 0x12e3100 (`adrp/ldr`), e esse stub tem um único chamador, em 0xdd4d8, dentro da função que começa em 0xdd4b0. `CCompatManager` vptr 0x1743d50: typeinfo 0x17446f0 -> vtable em 0x1743d40, vptr primário +16. `CCompatManager::Init` mudou de forma coerente (+0xc68, mesmo bloco).
+
+**Checks.** `python3 dylib/tests/sigcheck.py`: 5 perfis, 18 assinaturas cada, todas referenciadas. `anchorcheck.c` ganhou os 8 vptrs do build novo e compila.
+
+**anchorcheck real (2026-10-10, Steam fechado, `pgrep -f steam_osx` vazio).** `./out/anchorcheck signatures/macos.arm64/1791592380.json` (dlopen dos dylibs instalados, mesmos SHA-256 das cópias): 18 âncoras resolvidas, 0 não resolvidas, 18/18 endereços conferem, 8/8 vptrs corretos, fallback só por padrão com 0 erros; exit 0. Log: `scratch/anchorcheck-1791592380.log` (SHA-256 `3cccc2493c52539e...`).
+
+**Swift.** `cd app && touch Package.swift && swift test --no-parallel`: neste worktree novo **não** fecha PASS por motivo de ambiente, não de perfil. O payload (`app/Sources/NotProtonApp/Resources/payload`, ignorado) não existe e `make app-payload` falha na linkagem (`build/dobby/*.a` ausentes; exige o build completo, mais `scratch/sikarugir/bridge`). Sem payload: 28 issues, todos "NotProton carries no components". Com payload de mentira (arquivos vazios + os 5 perfis reais, depois removido): os testes de perfil/assinaturas passam ("Signature database selection", "Every signature database in the payload is found", "The signature profile guard covers every tool and refuses a missing profile", `testSignatureBuildContract`); as falhas restantes (appinfo, instalador, run script, bridge) exigem binários reais. Pendente: rodar o Swift completo onde o payload real existe (checkout principal com `make app-payload`).
+
+**Perfis antigos.** Mantidos, sem apagar. A guarda exige exatamente 1 perfil por build ativo e ignora os demais; o loader escolhe o maior build disponível (`pick_latest_sigdb`), então o novo vence. Os antigos servem de base para a próxima regeneração (o template do `sigprofile.py`) e para clientes presos em builds anteriores; custo: ~7 KB cada no payload. Sugestão: manter pelo menos o penúltimo e podar os mais antigos (1788400362, 1789086785) só por decisão do Elvis.
+
+**Limites.** Perfil não implantado no suporte do NotProton; loader/hooks não exercitados (T07/T10). Pedido de revisão: Claude Code Opus 5.5 (issue #6).
+
 ## Perfil 1791415817: método e resultado (claude, `sonnet`)
 
 **Build ativo.** `logs/content_log.txt`: `Client version: 1791415817` em 2026-10-08 13:47:01 (antes, 1790904859 às 13:43:17); `logs/bootstrap_log.txt`: manifesto baixado `steam_client_publicbeta_osx version 1791415817`. O `package/steam_client_publicbeta_signed-2_osx.manifest` instalado declara `version 1791415817` e `package/beta` = `publicbeta`. Leitura somente; nada gravado no Steam.
