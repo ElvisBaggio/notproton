@@ -318,3 +318,70 @@ rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-
 Esperado: `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`, exit 0. **Não executado nesta rodada.** A preparação PASS não comprova autenticação, jogo, i386, save/reabertura, patches Sikarugir em memória ou fluxo steam.exe. NotProton instalado 1.1.0 / fonte-base 1.1.1 permanecem os estados registrados no T02, não reauditados.
 
 Pedido de revisão independente: **Claude Code Opus 5.5**, registrar modelo efetivo do revisor; conferir fonte/ambiente, recusa de escrita fora scratch, logs e integridade. Astra ainda deve aceitar o gate após positivo. Issue #9 e Project permanecem In Progress.
+
+
+## Passo 3 — 2026-10-09 22:34 -03:00: PASS real com Steam autenticado / PEAK
+
+Cliente **Codex**, papel **bridge_probe**, modelo efetivo **gpt-6.1-sol**, worktree `scratch/worktrees/t05-probe`, branch `codex/t05-steam-probe`, base `cdf3be5` (integrada à branch de escopo em `b73fd50`, conforme handoff de Elvis). `git pull --ff-only`: Already up to date. Steam aberto e logado por Elvis, com PEAK/AppID **3527290** na conta conforme autorização explícita; o agente não iniciou, fechou, reiniciou ou fez login no cliente.
+
+**Resultado [alta confiança]: PASS do probe e do gate de viabilidade técnica medido pelo T05.** Processo Windows da cópia Sikarugir chegou à biblioteca Steam nativa instalada e às interfaces SteamClient021, SteamUtils010 e SteamUser023; sessão autenticada observada via BLoggedOn, não inferida de processo/build. Aceite independente do gate por Astra e revisão Claude Code Opus 5.5 ainda pendentes; T05/E2 não encerrados e nenhum próximo card liberado.
+
+### Pré-condições e execução exata
+
+`pgrep -x steam_osx` exit **0** antes/depois. `content_log.txt`: última linha de versão `[2026-10-09 22:31:47] Client version: 1791415817`, igual ao perfil T02. Sem controle do Steam; leituras de processos/probe foram executadas fora do sandbox após este impedir a listagem. NotProton instalado 1.1.0 / fonte-base 1.1.1 são o registro T02, não uma nova auditoria nesta rodada.
+
+```sh
+rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290 \
+  --steam-client "$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS"
+```
+
+Saída pública, allowlist exata conferida sem identificadores, nomes ou tokens:
+
+```text
+STEAM_INIT=ok
+APP_ID=3527290
+AUTHENTICATED=yes
+```
+
+**Exit do runner: 0**, incluindo exit do probe conferido pelo runner. Log bruto privado `scratch/t05/step3-peak-probe-raw.log`; saída pública `scratch/t05/step3-peak-probe-filtered.txt`. Linhas-chave sanitizadas (omitidos caminhos, parâmetros, ponteiros e valores de usuário):
+
+```text
+5964: CreateInterface name: SteamClient021
+6119: Loaded host steamclient
+6137: winISteamClient_SteamClient021_CreateSteamPipe
+6200: winISteamClient_SteamClient021_ConnectToGlobalUser
+6201: winISteamClient_SteamClient021_GetISteamUser
+6204: winISteamClient_SteamClient021_GetISteamUtils
+6207: winISteamUtils_SteamUtils010_GetAppID
+6208: winISteamUser_SteamUser023_BLoggedOn
+```
+
+### Controle AppID diferente com Steam aberto
+
+Mesmo comando/engine/prefixo, apenas `--appid 480`: **exit 0** e `STEAM_INIT=ok / APP_ID=480 / AUTHENTICATED=yes`. Logs privados preservados em `scratch/t05/step3-480-probe-raw.log` e `step3-480-probe-filtered.txt`. Sem c0000135, erro de biblioteca nativa, assertion failed ou err:steamclient nos dois logs.
+
+**Negativo de contexto/licença NÃO INFORMATIVO pelo desenho atual.** O runner define `SteamAppId` e `SteamGameId` iguais a `--appid`; GetAppID devolveu o contexto solicitado também para 480. O probe não fixa PEAK, não consulta propriedade/licença e não inicia o jogo. Portanto o positivo prova init/API/sessão autenticada no contexto PEAK, não a posse da licença (esta foi declarada por Elvis), nem a rejeição de outro AppID.
+
+Controle adicional do parser com a saída real de 480 e `--appid 3527290`: **exit 1**, `falha: APP_ID='480', esperado '3527290'`. Isso comprova rejeição de divergência na saída, separadamente do controle runtime acima. Nenhum código foi alterado para fabricar uma recusa runtime.
+
+### Integridade antes/depois e encerramento
+
+Inventários `scratch/t05/step3-before.json` e `step3-after.json`: igualdade total por assert e igualdade com o baseline do Passo 2 nas três superfícies. SHA-256 dos dois inventários JSON: **`cc3a8baff5d930b0cbb63cc244514a96b4f16d05a07533eca990b38ff183c5a2`** (antes = depois).
+
+| Arquivo original do wrapper | SHA-256 antes | Depois |
+|---|---|---|
+| bin/wine | `874d068ebd42114388e77edffc526d85460350f9d599d074acd951a2f0a32e2c` | igual |
+| bin/wineserver | `2cd179014ba76e2dfe5748a5debb40eeff0ff7e93a35948d9e1c2ca0ef4ad235` | igual |
+| lib/wine/i386-windows/ntdll.dll | `e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589` | igual |
+| lib/wine/x86_64-unix/ntdll.so | `c9948aab11b674b182c8dd41e212cb0be10568adeb47a28721151561456f5b6c` | igual |
+| lib/wine/x86_64-windows/ntdll.dll | `da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676` | igual |
+
+`steamclient.dylib` instalada antes = depois: **`3db7cac83567792f98bc36e4f545bba6cb9aaa545846c02e489e07f0ba4ff6ec`**. Frameworks originais: **965 entradas**, hashes de todos os arquivos e destinos de symlinks antes = depois. SHA-256 do mapa `json.dumps(frameworks, sort_keys=True)` nesta rodada: **`67abe5fee7bed7918f0e742ddf5f5afd115ab7d28e53f63d6db67136f5f2cec5`**; o serializador usa espaços padrão, por isso difere do digest compacto anterior, mas o mapa comparado é idêntico ao baseline.
+
+`ps -axo pid=,command=` filtrado pelos caminhos absolutos da engine/prefixo: **0 processos isolados restantes**, Steam nativo continua aberto. Nenhuma escrita do agente em instalação Steam, NotProton, wrapper, biblioteca ou saves. O cliente aberto pode atualizar seus próprios logs; a integridade aqui cobre explicitamente as superfícies acima.
+
+Validação desta rodada: positivo real exit0; controle runtime 480 exit0 com limite documentado; mismatch parser exit1; allowlist dos dois logs públicos; hashes/readback; ausência de processos isolados; `git diff --check`. Sem mudanças de produção, não repetidos build/negativos estáticos já registrados. Não testados steam.exe, i386, execução de PEAK, renderer, save/reabertura, rollback de implantação ou apply_binary_patches em memória.
+
+**Próximo passo:** revisão independente **Claude Code Opus 5.5**, registrar cliente/modelo efetivo do revisor e avaliar explicitamente o limite do negativo AppID; Astra aceitar o gate antes de integração/liberação. Issue #9 permanece aberta; Project #8 confirmado **In Progress / Pronto**, papel bridge_probe / gpt-6.1-sol preservados.
