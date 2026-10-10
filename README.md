@@ -52,7 +52,11 @@ O seu app Sikarugir original **nunca é alterado**: tudo acontece na cópia em
 - O prefixo (`C:`) de cada jogo é criado pelo NotProton. Os prefixos do Sikarugir não são usados.
 
 Se você ainda não tem o wrapper: no **Sikarugir Creator**, crie um wrapper novo escolhendo o motor
-`WS12WineSikarugir11.0`, com qualquer nome. Ele não precisa ter nenhum jogo instalado.
+`WS12WineSikarugir11.0`, com qualquer nome. Ele **não precisa ter Steam (Windows) nem nenhum jogo
+instalado**: o NotProton copia só `Contents/SharedSupport/wine` (o motor) e `Contents/Frameworks`
+(as bibliotecas dele) e ignora o resto do wrapper. O Steam usado pelos jogos é o **Steam do Mac**, e
+a ponte `lsteamclient` liga o jogo Windows a ele. Um wrapper que já tenha Steam Windows instalado
+também funciona, mas esse Steam não é usado nem alterado.
 
 ## Instalação
 
