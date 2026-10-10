@@ -93,7 +93,9 @@ rtk proxy sh -c '
 
 Toolchain llvm-mingw 20260826 de T01, sem instalação global. `llvm-readelf -r`: nenhuma relocation pendente nos dois links. `llvm-objdump -d` e asserts capstone: entrada no início do payload, contexto Nt/Ldr nos endereços pinados, wm r14/edi, load_path rsp+0x58/ebp-0x40, bytes roubados reexecutados e jmp para os resumes exatos. Shim x86_64 não modifica rbp; função C preserva/restaura rbp e os demais registradores não voláteis pela ABI MS. O aviso `_start` ausente é do intermediário ELF; o payload entra por shim_entry3/shim_entry32, não pelo entrypoint ELF. Reconstrução em diretórios novos `scratch/sikarugir/rebuild/<arch>/` deu bytes e hashes idênticos nas duas arquiteturas.
 
-### Artefatos finais (ignorados)
+### Artefatos finais (ignorados) — **SUPERADOS pela correção LDR flags (`774717e`)**
+
+Vigentes: ntdll x86_64 `ef8e99712f845f5c4e7ee01a0475d3ccaf84114d54a0a6c962808fee34b68b29`, i386 `60c6a031ea679833d6f8a81e4873cb60d98815ed9f7220c2046ed58443cfcc03` (ver seção da correção). Os valores abaixo são históricos.
 
 Manifesto: `scratch/sikarugir/patches.json`, `status=COMPLETE`, `pending=[]`, hashes preenchidos, executor registrado. Cópias limpas revalidadas contra os pins, manifesto resolvido novamente do binário e engine-lock T01 `abiCheck=PASS`. Artefato T03 x86_64 lsteamclient.dll relido e hash conferido `2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac`; o payload procura esse nome/exports em runtime, sem embutir a ponte. T03 não fornece ponte i386: payload i386 foi construído/aplicado estaticamente por exigência deste card, sem promessa de caminho i386 funcional.
 

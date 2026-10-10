@@ -384,4 +384,6 @@ Inventários `scratch/t05/step3-before.json` e `step3-after.json`: igualdade tot
 
 Validação desta rodada: positivo real exit0; controle runtime 480 exit0 com limite documentado; mismatch parser exit1; allowlist dos dois logs públicos; hashes/readback; ausência de processos isolados; `git diff --check`. Sem mudanças de produção, não repetidos build/negativos estáticos já registrados. Não testados steam.exe, i386, execução de PEAK, renderer, save/reabertura, rollback de implantação ou apply_binary_patches em memória.
 
-**Próximo passo:** revisão independente **Claude Code Opus 5.5**, registrar cliente/modelo efetivo do revisor e avaliar explicitamente o limite do negativo AppID; Astra aceitar o gate antes de integração/liberação. Issue #9 permanece aberta; Project #8 confirmado **In Progress / Pronto**, papel bridge_probe / gpt-6.1-sol preservados.
+**Atualização 2026-10-10:** revisão Claude Code Opus 5.5 publicada e aprovada na issue #9; gate E2 ACEITO COM RESSALVAS por Astra (`docs/reviews/astra-e2-gate.md`). O texto abaixo é o estado anterior.
+
+**Próximo passo (histórico):** revisão independente **Claude Code Opus 5.5**, registrar cliente/modelo efetivo do revisor e avaliar explicitamente o limite do negativo AppID; Astra aceitar o gate antes de integração/liberação. Issue #9 permanece aberta; Project #8 confirmado **In Progress / Pronto**, papel bridge_probe / gpt-6.1-sol preservados.

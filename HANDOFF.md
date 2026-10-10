@@ -1,10 +1,14 @@
 # Handoff
 
+## Gate E2 ACEITO COM RESSALVAS por Astra (2026-10-10, registrado por claude Opus 5.5)
+
+Parecer completo em `docs/reviews/astra-e2-gate.md` (Astra `gpt-6-astra`, HEAD `06df336`). Viabilidade técnica do E2 comprovada em x86_64/Rosetta: executável Windows mínimo alcançou o Steam nativo com sessão autenticada (T05 passo 3). **E3 liberado começando por T06**, sequencial T06→T07→T08→T09, cada um dependendo do aceite anterior. Condições explícitas para T06–T12 estão no parecer e foram copiadas para o plano. Revisão Claude Code Opus 5.5 do T05 está na issue #9 (aprovada).
+
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
 ## T11 — Pré-condições PEAK preparadas (2026-10-10, Agente: claude, modelo efetivo sonnet)
 
-Somente leitura; T11 não iniciado (depende de T10). PEAK 3527290: depot único Windows 3527291 (sem macOS), launch DX12/DX11 (`-force-d3d11`)/Vulkan, Auto-Cloud `LocalLow/LandCrab/PEAK/*.peak`; posse não verificável localmente, confirmar com Elvis. Detalhes e riscos em `docs/evidence/game-launch.md`, branch `claude/t11-peak-prep`, issue #15.
+Somente leitura; T11 não iniciado (depende de T10). PEAK 3527290: depot único Windows 3527291 (sem macOS), launch DX12/DX11 (`-force-d3d11`)/Vulkan, Auto-Cloud `LocalLow/LandCrab/PEAK/*.peak`; posse **confirmada por Elvis em 2026-10-10**. Detalhes e riscos em `docs/evidence/game-launch.md`, branch `claude/t11-peak-prep`, issue #15.
 
 ## Achados menores T01-T03 fechados (2026-10-09, Agente: claude, modelo efetivo: sonnet)
 
@@ -68,7 +72,7 @@ Próximo passo (DX12, 2026-10-09, Agente: claude, modelo efetivo sonnet): PEAK e
 
 **Estado.** Cliente `codex`, papel `ntdll_port`, modelo efetivo `gpt-6.1-sol`, branch `codex/t04-ntdll-close`. Payloads locais LLVM construídos e reproduzidos: x86_64 834/1952 B; i386 1370/4096 B. Aplicação CLI por manifesto somente em cópias, diff restrito às regiões previstas, recusas reais de reaplicação/hash desconhecido com entrada intacta. Suíte 11 testes PASS com/sem capstone; cx26 --sh idêntico ao resolvedor anterior ao preparo. `scratch/sikarugir/patches.json` COMPLETE; evidência em `docs/evidence/ntdll-port.md`.
 
-**Hashes ntdll patchadas.** x86_64 `64930d7e55ceaa0216b432d428a0752bd26d2893941a440af03890f6b6f88631`; i386 `932f5d47883aada83f84f18065ee9f56e5cc5c9e05644fb70357b3cc5f92c4f8`. Artefatos em `scratch/sikarugir/patched/<arch>/ntdll.dll`; originais instalados/copied clean preservados.
+**Hashes ntdll patchadas (históricos, SUPERADOS por `774717e`: vigentes x86_64 `ef8e9971…`, i386 `60c6a031…`).** x86_64 `64930d7e55ceaa0216b432d428a0752bd26d2893941a440af03890f6b6f88631`; i386 `932f5d47883aada83f84f18065ee9f56e5cc5c9e05644fb70357b3cc5f92c4f8`. Artefatos em `scratch/sikarugir/patched/<arch>/ntdll.dll`; originais instalados/copied clean preservados.
 
 **Próximo passo.** Revisão independente Claude Code Opus 5.5 solicitada na issue #8; registrar modelo efetivo no parecer. Issue aberta e Project In Progress até aceite. Depois T05 prova runtime/API Steam; T07 incorpora pins no app.
 
@@ -129,7 +133,7 @@ Próximo passo (DX12, 2026-10-09, Agente: claude, modelo efetivo sonnet): PEAK e
 ## Próximo passo
 
 1. T03 concluído e integrado (`c983e5e`; build separado aprovado por Elvis). T01 e T02 concluídos.
-2. T04 concluído e integrado (`e96a406`, Codex Sol; preparo `3096c26`, Claude Opus). Payloads x86_64 834/1952 B e i386 1370/4096 B; ntdll patchadas x86_64 `64930d7e…`, i386 `932f5d47…` (só em scratch); revisão Opus 5.5 aprovada (#8). Pins definitivos no app ficam para T07.
+2. T04 concluído e integrado (`e96a406`, Codex Sol; preparo `3096c26`, Claude Opus). Payloads x86_64 834/1952 B e i386 1370/4096 B; ntdll patchadas (vigentes após correção LDR flags) x86_64 `ef8e9971…`, i386 `60c6a031…` (só em scratch); revisão Opus 5.5 aprovada (#8). Pins definitivos no app ficam para T07.
 3. **T05 (execução real) é o próximo gate e precisa de Elvis:** Steam nativo aberto e logado e PEAK (3527290) na conta (decisão de 2026-10-10; Prelude 2316660 vira reserva). Preparo (passo 1) integrado (`34824e5`): probe PE + runner, 11 negativos sem Wine PASS. Falta o passo 2 (montar cópia da engine com ntdll patchada + ponte T03 + prefixo descartável) e rodar. Depois T06–T09 e T10. D1: `docs/evidence/d1-game-candidates.md`.
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
