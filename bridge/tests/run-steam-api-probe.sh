@@ -142,8 +142,9 @@ mkdir -p "$prefix_r"
 raw=$prefix_r/probe-raw.log     # raw log stays in scratch, never printed
 out=$prefix_r/probe-filtered.txt
 rc=0
-WINEPREFIX=$prefix_r WINEDEBUG=-all SteamAppId=$appid SteamGameId=$appid \
-    "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
+WINEPREFIX=$prefix_r WINEDEBUG=${WINEDEBUG:--all} SteamAppId=$appid SteamGameId=$appid \
+    WINEPATH="C:\\Program Files (x86)\\Steam" WINEDLLOVERRIDES="steamclient64=n;lsteamclient=b" \
+    arch -x86_64 "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
 grep -E '^(STEAM_INIT|APP_ID|AUTHENTICATED)=[A-Za-z0-9]{1,10}$' "$raw" >"$out" || true
 cat "$out"
 verify_output "$out" || exit 1

@@ -54,3 +54,61 @@ Esperado: `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`, exit 0. Antes:
 ## Pendências
 
 Revisão independente Claude Code Opus 5.5 (registrar modelo efetivo do revisor); Passos 2–4 após T04; confirmação das versões/slots de interface na execução real.
+
+
+## Passo 2 — 2026-10-09: BLOCKED no loader do wineserver
+
+Cliente: **codex** · Papel: `bridge_probe` · Modelo efetivo: **gpt-6.1-sol** · Branch: `codex/t05-steam-probe`, base `bd1b260`.
+
+**Resultado: BLOCKED.** A montagem estática passou, mas `arch -x86_64 scratch/t05/engine/bin/wine wineboot -u`, com `WINEPREFIX` descartável e `WINEARCH=win64`, saiu **1** antes de inicializar o prefixo. Log bruto: `scratch/t05/wineboot-raw.log`. Diagnóstico exato:
+
+```text
+dyld: Library not loaded: @rpath/libinotify.0.dylib
+Referenced from: scratch/t05/engine/bin/wineserver
+Reason: no LC_RPATH's found
+```
+
+`otool -L` confirma esse import. A biblioteca existe em `wrapper-steam.app/Contents/Frameworks/`, **fora** da entrada `Contents/SharedSupport/wine` fornecida para a cópia. Nenhuma dependência foi instalada ou copiada e nenhum rpath/binário foi modificado para contornar a condição de parada. Isso é falha da preparação do ambiente Mach-O do wineserver, não evidência de falha de ABI da ponte. Uma próxima execução autorizada deve preparar as dependências transitivas em cópia e sua resolução antes de repetir wineboot.
+
+### Montagem e integridade
+
+`bridge/tests/stage-sikarugir-engine.sh` usa exclusivamente `cp -c -R` (clone APFS, sem hard links), recusa engine/prefixo existentes, valida manifesto COMPLETE de T04, hashes limpos antes e patchados depois, manifesto T03, hash do probe e do trigger Valve. O script cria a engine em `scratch/t05/engine/`, ponte local em `scratch/t05/bridge/`, probe e arquivos de Steam no prefixo `scratch/t05/pfx/`. Todas as cópias são relidas e comparadas por SHA-256; asserts são os self-checks do script. Manifesto: `scratch/t05/stage-manifest.json`, com hashes antes/depois do wrapper, arquivos colocados e `winebootExit=1`. O prefixo contém arquivos de montagem, mas **não foi inicializado com sucesso**.
+
+| Artefato | SHA-256 |
+|---|---|
+| ntdll.dll x86_64 patchada | `64930d7e55ceaa0216b432d428a0752bd26d2893941a440af03890f6b6f88631` |
+| ntdll.dll i386 patchada | `932f5d47883aada83f84f18065ee9f56e5cc5c9e05644fb70357b3cc5f92c4f8` |
+| lsteamclient.dll x86_64 | `2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac` |
+| lsteamclient.so x86_64 | `3dd9b54f642ad73bc8f24c3b71de65b38ef35de6424456126b9060d1fa74fdea` |
+| steam.exe T03 | `56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70` |
+| steamclient64.dll trigger Valve | `caba4826aa3501039d095aee1843a6bfb270fb43a3ab4455b2d6733223579fee` |
+| probe do passo 1 | `fd956173ccfb93c2bd2d656895b73f15e0bcaab708ce7f7cb8120a571f8657bc` |
+
+`lsteamclient.so` fica em `engine/lib/wine/x86_64-unix/` ao lado da **ntdll.so original**, SHA-256 `c9948aab11b674b182c8dd41e212cb0be10568adeb47a28721151561456f5b6c`; `otool` confirma `@rpath/ntdll.so` e `LC_RPATH @loader_path/`. A DLL PE fica em `engine/lib/wine/x86_64-windows/` e também no Steam do prefixo. `steam.exe` e a cópia flat Unix ficam no Steam do prefixo, seguindo `dylib/feats/compat_run.sh` e `lsteamclient/build.sh --install`; `SteamInstaller.swift` só implanta payload/runner e não substitui essa montagem por prefixo.
+
+**Correção documental do passo 1:** `steamclient64.dll` não é simplesmente um alias de lsteamclient. O fluxo existente exige a DLL Valve como trigger PE; o detour T04 intercepta `build_module`, carrega `lsteamclient.dll`, redireciona exports e suprime resolução de imports do trigger. O trigger foi lido do NotProton já instalado, hash conferido contra `valve-packages.manifest`, e clonado no prefixo sem escrever na instalação. Nenhuma DLL/header Valve entrou no código ou Git. O runner agora usa Rosetta explicitamente, `WINEPATH=C:\Program Files (x86)\Steam`, `steamclient64=n;lsteamclient=b` e permite `WINEDEBUG` direcionado. Isso disponibiliza o nome a `LoadLibraryA` sem renomear a DLL builtin nem executar `steam.exe` para alterar registro/abrir Steam.
+
+### Até onde chegou e limites
+
+- A engine foi copiada, ntdlls substituídas e ponte/trigger/probe colocados; `wineboot` criou o diretório do prefixo e falhou ao iniciar wineserver.
+- **Smoke do probe NOT RUN.** Steam nativo estava aberto na checagem somente leitura; não foi fechado, aberto nem logado pelo agente. Além dessa pré-condição ausente, o loader bloqueia qualquer prova.
+- Não houve evidência de lsteamclient carregada, hook executado ou Unix call. Cave x86_64 mapeado/executável e efeito de `apply_binary_patches` em lsteamclient/steam.exe: **NOT OBSERVED**, pois nenhum processo PE chegou à inicialização. Não se infere funcionamento dos hashes/builds.
+- Checagem somente leitura após falha: nenhum processo da engine/prefixo descartável permaneceu vivo.
+- `sh -n` dos dois scripts, negativos do runner **11/11** e `--check-only` com AppID 3527290 **PASS**; recusa de reaplicação do staging em diretórios existentes PASS. Check-only não prova runtime.
+- Cinco arquivos-chave do wrapper foram hasheados antes/depois e coincidem integralmente com `engine-baseline.md`: wine `874d068e…`, wineserver `2cd17901…`, ntdll.so `c9948aab…`, ntdll x86_64 `da7e1ea5…`, ntdll i386 `e1ce5ae3…`. Hashes completos no manifesto e tabela do baseline. Wrapper, Steam, NotProton, prefixos originais e saves preservados.
+- NotProton instalado 1.1.0 / fonte 1.1.1 é o estado previamente registrado por T02; não houve implantação nem nova auditoria de versão nesta execução.
+
+### Comando exato do passo 3 (Elvis/coordenador)
+
+**Não executar enquanto wineboot/loader e o negativo sem Steam não passarem e a revisão não for aceita.** Depois, com Steam nativo autenticado e PEAK legítimo na conta confirmado:
+
+```sh
+cd /Users/elvisoliveira/_dev/notproton/scratch/worktrees/t05-probe
+rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290
+```
+
+Saída esperada do passo 3: `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`, exit 0. Logs brutos ficam exclusivamente em `scratch/t05/pfx/probe-raw.log`. O mesmo comando, com Steam fechado, será o negativo pendente e deve produzir falha explícita/exit não zero **com** prova do hook/ponte carregados. Não executado aqui.
+
+Pedido de revisão independente: **Claude Code Opus 5.5**, registrar modelo efetivo do revisor; revisar isolamento, montagem/trigger, hashes e causa do bloqueio. T05/issue #9 permanecem abertos; nenhum gate de viabilidade ou próximos cards foi liberado.

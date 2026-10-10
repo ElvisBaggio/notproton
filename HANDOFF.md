@@ -2,6 +2,14 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T05 — Passo 2 BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente `codex`, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe` de `bd1b260`. Clone APFS da engine em `scratch/t05/engine`, T04 patchadas (x86_64 `64930d7e…`, i386 `932f5d47…`), ponte T03 + trigger Valve conferidos e prefixo descartável montado. `wineboot -u` sob Rosetta saiu 1: dyld wineserver não resolve `@rpath/libinotify.0.dylib` (`no LC_RPATH's found`). Biblioteca está fora da engine, em Frameworks do wrapper. Logs e manifesto só em `scratch/t05/`; cinco hashes do wrapper antes/depois MATCH. Negativos 11/11, sintaxe, check-only e recusa de reuso do staging PASS.
+
+**Próximo passo.** Revisão Claude Code Opus 5.5 solicitada na issue #9 (modelo efetivo do revisor pendente); preparar dependências transitivas em cópia em nova execução autorizada, repetir wineboot e negativo sem Steam. Comando exato do passo 3, condicionado a esses gates e Steam autenticado/PEAK legítimo, em `docs/evidence/steam-api-probe.md`.
+
+**Bloqueios.** Loader wineserver; Steam nativo estava aberto e não foi encerrado pelo agente. Probe/Unix-call/hooks/cave/apply_binary_patches NOT RUN/NOT OBSERVED. Não declarar ABI falha nem viabilidade PASS. Sem mudanças em wrapper, Steam, NotProton instalado, prefixos originais ou saves; passo 3 não executado; issue aberta.
+
 ## T04 — PASS estático, revisão pendente (2026-10-09, Agente: codex)
 
 **Estado.** Cliente `codex`, papel `ntdll_port`, modelo efetivo `gpt-6.1-sol`, branch `codex/t04-ntdll-close`. Payloads locais LLVM construídos e reproduzidos: x86_64 834/1952 B; i386 1370/4096 B. Aplicação CLI por manifesto somente em cópias, diff restrito às regiões previstas, recusas reais de reaplicação/hash desconhecido com entrada intacta. Suíte 11 testes PASS com/sem capstone; cx26 --sh idêntico ao resolvedor anterior ao preparo. `scratch/sikarugir/patches.json` COMPLETE; evidência em `docs/evidence/ntdll-port.md`.
