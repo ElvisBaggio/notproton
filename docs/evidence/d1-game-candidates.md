@@ -35,7 +35,9 @@ Descartados por critério:
 
 ## Decisão
 
-**Elvis escolheu Halls of Torment: Prelude (AppID 2316660) em 2026-10-09**, por provar melhor save/reabertura em T12. Banana (2923300) fica como reserva. Registrado por claude (Opus 5.5).
+**Elvis escolheu Halls of Torment: Prelude (AppID 2316660) em 2026-10-09; em 2026-10-10 trocou para PEAK (AppID 3527290).** Prelude vira reserva e Banana (2923300) segunda reserva.
+
+PEAK (API da loja, 2026-10-10): R$ 23,99; plataformas windows=true, mac=false, linux=false; categorias incluem Single-player, Online Co-op e Steam Achievements; sem `drm_notice` nem conta externa; mínimo Win 10 64-bit, **DirectX 12**, 4 GB. Riscos: renderer DX12 no Mac (D3DMetal/vkd3d) para T11/T12; sem Steam Cloud listado; save de progresso local a localizar em T11. Posse na conta a confirmar por Elvis. Registrado por claude (Opus 5.5).
 
 ## 4. Verificações pendentes (para T11, antes de instalar)
 

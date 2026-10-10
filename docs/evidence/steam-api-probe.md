@@ -41,15 +41,15 @@ Reproduzir os PASS: `sh bridge/tests/run-steam-api-probe.sh --negatives` (11/11)
 
 ## Como rodar no T05 real (após T04)
 
-Pré-condições: Steam nativo aberto e autenticado na conta que possui/resgatou Halls of Torment: Prelude (D1, AppID **2316660**); cópia da engine com ntdll patchada (T04) em `scratch/`; artefatos T03 em `scratch/sikarugir/bridge/` com `manifest.json`; `lsteamclient.so` ao lado da ntdll Sikarugir da cópia; prefixo descartável em `scratch/`.
+Pré-condições: Steam nativo aberto e autenticado na conta que possui PEAK (D1, AppID **3527290**; decisão de 2026-10-10, reserva Prelude 2316660); cópia da engine com ntdll patchada (T04) em `scratch/`; artefatos T03 em `scratch/sikarugir/bridge/` com `manifest.json`; `lsteamclient.so` ao lado da ntdll Sikarugir da cópia; prefixo descartável em `scratch/`.
 
 ```
 sh bridge/tests/run-steam-api-probe.sh \
   --engine <copia-validada-em-scratch> --prefix <prefixo-descartavel-em-scratch> \
-  --bridge scratch/sikarugir/bridge --appid 2316660
+  --bridge scratch/sikarugir/bridge --appid 3527290
 ```
 
-Esperado: `STEAM_INIT=ok`, `APP_ID=2316660`, `AUTHENTICATED=yes`, exit 0. Antes: registrar em `system-baseline` o estado NotProton 1.1.0 / fonte 1.1.1 e confirmar que o wrapper original não mudou (hash antes/depois). O AppID vem da decisão D1 registrada, não de default do runner. O estado de montagem do prefixo (como a ponte e `steam.exe` entram na cópia da engine, registro, `steamclient64.dll` visível ao `LoadLibraryA`) é trabalho do Passo 2 e não está implementado aqui.
+Esperado: `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`, exit 0. Antes: registrar em `system-baseline` o estado NotProton 1.1.0 / fonte 1.1.1 e confirmar que o wrapper original não mudou (hash antes/depois). O AppID vem da decisão D1 registrada, não de default do runner. O estado de montagem do prefixo (como a ponte e `steam.exe` entram na cópia da engine, registro, `steamclient64.dll` visível ao `LoadLibraryA`) é trabalho do Passo 2 e não está implementado aqui.
 
 ## Pendências
 
