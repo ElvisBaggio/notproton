@@ -1,6 +1,24 @@
 # Handoff
 
-Atualizado: 2026-10-09 · Agente: claude (Opus 5.5) · Máquina: mac
+Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
+
+## T03 — PASS de build reproduzível (2026-10-09, Agente: codex)
+
+**Estado.** Cliente codex, papel wine_bridge, modelo efetivo gpt-6.1-sol; branch `codex/t03-bridge-sikarugir`. Decisão `b441be3` integrada antes da retomada. `make bridge-sikarugir`: lsteamclient Unix/PE na base Wine 11.0 verificada; steam.exe externo com llvm-mingw T01 e runtime C++ estática. Gate positivo e sete negativos PASS; controle real com C++ dinâmica recusado. `file`/`otool`/`llvm-objdump`, exports Unix e layout adjacente à ntdll Sikarugir conferidos estaticamente. Reconfigure/rebuild do zero produziu os mesmos três hashes brutos. `make -n bridge` idêntico ao anterior. Evidência completa em `docs/evidence/bridge-build.md`, preservando o BLOCKED anterior.
+
+**Artefatos.** Sob `scratch/sikarugir/bridge/` (ignorados): `steam.exe` SHA-256 `56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70`; `x86_64-windows/lsteamclient.dll` `2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac` (também cópia flat); `x86_64-unix/lsteamclient.so` `3dd9b54f642ad73bc8f24c3b71de65b38ef35de6424456126b9060d1fa74fdea`. Manifesto local `manifest.json`. ntdll upstream não distribuída.
+
+**Próximo passo.** Pedido de revisão independente Claude Code Opus 5.5 na issue #7; registrar modelo efetivo do revisor. Issue permanece aberta e Project In Progress até revisão/aceite. T04 segue sua dependência; nenhum probe/runtime T05 iniciado por este card.
+
+**Bloqueios e limites.** Bloqueio de build removido; revisão independente pendente. Nenhum runtime Wine executado. T05 deve verificar a extensão pública kernel32 de conversão de caminhos, CP_UNIXCP/NT flags, API Steam real e personalizações Sikarugir (HideWineExports/apply_binary_patches). OpenVR Linux já indisponível no shim PE; i386 somente quando requerido. Shellcheck indisponível; sintaxe shell e checks aplicáveis PASS. Wrapper/engine instalada/prefixos/Steam/NotProton/saves e artefatos originais T01 preservados.
+
+## T03 — BLOCKED histórico (2026-10-09, Agente: codex)
+
+**Estado.** Cliente codex, papel wine_bridge, modelo efetivo gpt-6.1-sol; branch `codex/t03-bridge-sikarugir`. Lock schemaVersion 2/ABI PASS copiado e fonte Wine 11.0 em commit `db11d0fe6a169c457e23d007e20404643d067aa8` conferida. TDD RED e tentativa real de registro do build confirmam base sem `WINE_EXTERNAL`, `EXTERNAL_SUBDIRS` e `CXX_PE_LIBS`/bibliotecas C++ PE exigidos pelo shim atual. Check read-only em `bridge/tests/sikarugir-buildcheck.sh`; evidências em `docs/evidence/bridge-build.md`. Sete recusas negativas PASS, gate positivo RED esperado. Scripts de produção/Makefile preservados após remoção dos experimentos; nenhum artefato compilado.
+
+**Próximo passo.** Revisão solicitada para Claude Code Opus 5.5 e decisão sobre adaptação do shim ao build Wine 11.0. Revisor deve registrar modelo efetivo. Não substituir implicitamente a base por 11.15 nem encerrar T03.
+
+**Bloqueios.** Condição de parada T03: interfaces de build ausentes na base verificada. Hashes de saída, otool/file e rebuild NOT RUN; runtime e integração não liberados. T01/T02 continuam concluídos. Nenhuma gravação nos originais T01, wrapper, engine instalada, Steam, prefixos ou saves.
 
 ## Atualização T02 (claude, branch `claude/t02-steam-profile`)
 
