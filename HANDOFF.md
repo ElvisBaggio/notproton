@@ -16,6 +16,8 @@ abi_compare falha na superficie (b) com 0 syscalls/contagens desiguais (+teste),
 
 **Próximo passo.** Revisão Claude Code Opus 5.5 solicitada na issue #9 (modelo efetivo do revisor pendente); Astra aceita o gate antes de integrar/liberar próximos cards. Evidência datada Passo 3 em docs/evidence/steam-api-probe.md. Issue #9 aberta; Project In Progress/Pronto.
 
+Próximo passo (DX12, 2026-10-09, Agente: claude, modelo efetivo sonnet): PEAK exige DX12 e o único tradutor D3D12 do wrapper é D3DMetal 3.0 (sem vkd3d-proton; DXMT/DXVK só D3D11); risco médio-alto. Antes do T11, rodar o sample D3D12 proposto e preferir `-force-d3d11` como fallback; critério de troca para Halls of Torment em docs/evidence/dx12-renderer-risk.md.
+
 **Bloqueios/limites.** Controle --appid480 também exit0 (init ok/AppID480/auth yes): negativo runtime não-informativo porque SteamAppId deriva de --appid; não prova propriedade/licença nem rejeição de outro jogo. Parser sobre saída480 esperando3527290 recusa exit1. Steam.exe, i386, PEAK/renderer/save/reabertura/rollback e patches em memória não testados; não encerrar T05/E2 por conta própria. Histórico preservado abaixo.
 
 
