@@ -112,3 +112,79 @@ rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-
 Saída esperada do passo 3: `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`, exit 0. Logs brutos ficam exclusivamente em `scratch/t05/pfx/probe-raw.log`. O mesmo comando, com Steam fechado, será o negativo pendente e deve produzir falha explícita/exit não zero **com** prova do hook/ponte carregados. Não executado aqui.
 
 Pedido de revisão independente: **Claude Code Opus 5.5**, registrar modelo efetivo do revisor; revisar isolamento, montagem/trigger, hashes e causa do bloqueio. T05/issue #9 permanecem abertos; nenhum gate de viabilidade ou próximos cards foi liberado.
+
+
+## Retomada do Passo 2 — 2026-10-09: prefixo PASS; ponte Unix BLOCKED
+
+Cliente **codex**, papel `bridge_probe`, modelo efetivo **gpt-6.1-sol**, branch `codex/t05-steam-probe`, retomada de `d3c83e5`. Card #9 relido; T05 permanece aberto/In Progress. Não houve execução positiva com Steam autenticado nem implantação. Estado T02 registrado: NotProton instalado 1.1.0 / fonte-base 1.1.1; não reauditado nesta rodada.
+
+**Resultado:** o bloqueio de `libinotify` foi resolvido e o script final inicializou um prefixo novo: `wineboot -u` **exit 0**, sem falha loader/wineserver/Unix-call nessa inicialização. O negativo real, com `steam_osx` ausente imediatamente antes do comando, chegou ao detour e à DLL PE da ponte; imprimiu `STEAM_INIT=fail`, `APP_ID=0`, `AUTHENTICATED=no`, runner **exit 1**. Não é ainda o negativo de sessão desejado: o Mach-O Unix da ponte foi rejeitado pelo loader Rosetta por **missing LC_UUID load command**. Gate de viabilidade NÃO aprovado.
+
+### Launcher, ambiente mínimo e controles da causa
+
+`strings Contents/MacOS/Sikarugir` confirma `frameworksFolderPath`, `/Frameworks`, `DYLD_FALLBACK_LIBRARY_PATH`, `/usr/lib`, `WINEDLLPATH`, `WINEDLLPATH_PREPEND`, variantes `_DXMT`, `_D9VK`, `_DXVK`, `_CNCD`, `_D3DMETAL`, `CX_ROOT` e **`SikarugirAppWine11`**. `Contents/Info.plist` contém opções de renderer e esync/msync, sem valores DYLD/WINEDLLPATH; `SharedSupport` tem apenas `winetricksHelpList.plist` como plist. Plists Resources de Configure.app e strings do seu executável não forneceram definições adicionais dessas variáveis. Não foi executado o launcher original.
+
+| Variável/ação | Valor final e motivo |
+|---|---|
+| `DYLD_FALLBACK_LIBRARY_PATH` | `<engine-copia>/Frameworks:/usr/lib`: resolve libinotify e dependências locais. Definida por `/usr/bin/env` **depois** de `arch -x86_64`, pois o binário Apple protegido limpa DYLD herdado. |
+| `SikarugirAppWine11` | `1`: marcador obrigatório da ntdll Unix Sikarugir; o binário testa presença por `getenv`. Ausência causa `exit(1)` silencioso antes de inicializar PE. Não contém caminho. |
+| `WINEPREFIX` / `WINEARCH` | Prefixo absoluto de scratch / `win64`, impedindo uso de prefixo e arquitetura herdados. |
+| `WINEDEBUG` | wineboot `-all,+module`; smoke `-all,+module,+steamclient,+virtual`, logs privados em scratch. |
+| `SteamAppId` / `SteamGameId` | `3527290`, derivados do argumento obrigatório do runner. |
+| `WINEPATH` | `C:\Program Files (x86)\Steam`: disponibiliza trigger PE no prefixo. |
+| `WINEDLLOVERRIDES` | `steamclient64=n;lsteamclient=b`: trigger nativo e ponte builtin. |
+| Limpeza herdada | Runner remove `DYLD_*`, `WINEDLLPATH*`, `CX_*`, `WINESERVER`, `WINELOADER`, `WINELOADERNOEXEC`; staging remove todos `WINE*`/DYLD/CX antes dos valores explícitos. |
+
+`WINEDLLPATH` e suas variantes **não são necessários** ao wineboot/smoke observado: localização adjacente da engine encontra builtins. Controle com `WINEDLLPATH=<copia>/lib/wine` não corrigiu a falha sem marcador. Renderer, GST e flags msync/esync não são necessários ao probe de API; não foram adicionados ao ambiente final.
+
+Controles salvos em scratch: fallback antes de arch falha, após arch `wineserver --version` retorna Wine 11.0; sandbox padrão falha no bootstrap Mach (`Can't check in server_mach_port`), execução autorizada fora sandbox avança. Sem marcador, wineboot e controle com **ntdll x86_64 limpa somente na cópia**, prefixo separado, falham exit 1. Caminho PE absoluto wineboot também falha sem marcador, excluindo fallback `start.exe` como causa. Instrumentação descartável de `exit` revelou ntdll Unix RVA `0x1fbc1` chamando `0x6cae0` (exit 1); disassembly mostra `getenv("SikarugirAppWine11")` e salto se NULL. Mesma ntdll Unix SHA-256 `c9948aab…` do baseline. Com marcador, wineboot passa. Interposer/debugger foram usados apenas no diagnóstico em scratch; **não estão nos scripts finais**. A primeira tentativa do interposer recursou, foi corrigida; esse log não é evidência de runtime da ponte.
+
+### Montagem, integridade e dependências
+
+`stage-sikarugir-engine.sh` agora clona também **todo** `Contents/Frameworks` para `scratch/t05/engine/Frameworks`, exclusivamente `cp -c -R`. Asserts verificam hashes, topologia dos symlinks, containment de cada symlink dentro da cópia e inodes diferentes (sem hard links). Histórico de todas as tentativas preservado em `scratch/t05-history-*`; nenhuma remoção do wrapper. Manifesto final `scratch/t05/stage-manifest.json`: `winebootExit=0`, `status=BLOCKED_BRIDGE_LC_UUID`, `smokeExit=1`.
+
+Antes/depois do runtime: **cinco arquivos-chave + 965 entradas Frameworks MATCH**, inclusive comparação completa fonte/cópia e ausência de hardlinks. Hash do mapa Frameworks (JSON keys ordenadas, separadores `,`/`:`): `bf9bada4906e717adda817c6854443c26eaeea73ce68860bf152788762c2dbef`. Mapa inclui SHA-256 de cada arquivo regular e destino literal de cada symlink; está somente em scratch. `libinotify.0.dylib`: `38ce29a0bc0339b346b5b43bbc65b42c1e317495437bd8455087f1298d95ce5c`. `otool -L` confirma wineserver => `@rpath/libinotify.0.dylib` => libSystem; wine => libSystem; ntdll.so => frameworks sistema/libSystem; lsteamclient.so => ntdll adjacente/libc++/libSystem. As bibliotecas de sistema não foram copiadas. Nenhum runtime path final aponta ao wrapper original.
+
+| Arquivo original | SHA-256 antes = depois |
+|---|---|
+| wine | `874d068ebd42114388e77edffc526d85460350f9d599d074acd951a2f0a32e2c` |
+| wineserver | `2cd179014ba76e2dfe5748a5debb40eeff0ff7e93a35948d9e1c2ca0ef4ad235` |
+| ntdll.so | `c9948aab11b674b182c8dd41e212cb0be10568adeb47a28721151561456f5b6c` |
+| ntdll.dll x86_64 | `da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676` |
+| ntdll.dll i386 | `e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589` |
+
+Hashes dos payloads/ponte/trigger/probe permanecem os da tabela da seção BLOCKED histórica. Frameworks completo preserva também dependências de SDL, freetype, MoltenVK e GStreamer; isso não implica que todas foram carregadas neste probe.
+
+### Smoke: alcance, cave e nova causa precisa
+
+Com Steam nativo fechado (checagem `pgrep -x steam_osx` sem PID), executado:
+
+```sh
+rtk proxy env WINEDEBUG=-all,+module,+steamclient,+virtual \
+  sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290
+```
+
+Log privado `scratch/t05/pfx/probe-raw.log`: trigger `steamclient64.dll` mapeado; o fluxo entra no detour e chama `LdrLoadDll` de `lsteamclient.dll`; PE da ponte mapeada em `0x6ffffc8d0000`, `DllMain PROCESS_ATTACH` retorna 1; detour torna trigger RWX por `NtProtectVirtualMemory`. A sequência corresponde ao payload T04, que faz esse carregamento/proteção. Cave x86_64 RVA `0x70860`, base ntdll `0x6ffffff40000`, endereço **`0x6ffffffb0860`**: trace virtual mostra o intervalo **`0x6ffffff41000–0x6ffffffb0fff` com `c-r-x`**, portanto mapeado e executável; comportamento de carregamento/proteção comprova execução do payload, além da observação do mapa.
+
+A fronteira Unix falha precisamente em `get_builtin_unix_funcs`/`dlopen(<copia>/lib/wine/x86_64-unix/lsteamclient.so)`: **missing LC_UUID load command**. `otool -l` não contém LC_UUID; `lsteamclient/build.sh:200` adiciona `-Wl,-no_uuid` no modo Sikarugir para reprodutibilidade. Próxima ação **T03**: produzir Mach-O com UUID aceito por Rosetta, verificar reprodutibilidade e atualizar manifesto/hashes; depois remontar T05 e repetir negativo. Não alterar/assinar binários originais nem contornar Rosetta na execução final.
+
+Há uma segunda observação: mesmo após o detour, o trigger tenta imports `tier0_s64.dll`/`vstdlib_s64.dll` e falha `c0000135`. **Hipótese T04, não correção aplicada:** payload faz `flags |= LDR_DONT_RESOLVE_REFS`; na fonte upstream Wine11 `fixup_imports` retorna sem resolução se esse bit estiver **limpo**, e o limpa antes de resolver quando presente. Revalidar semântica/ponto do hook no binário Sikarugir antes de alterar payload. Nenhuma DLL Valve adicional foi copiada para mascarar isso.
+
+`apply_binary_patches`: não houve observação direta de entrada/decisão/escritas dessa função sobre lsteamclient. Hashes em disco continuam iguais, mas **isso não prova ausência de patches em memória**. A DLL PE carregou e o Unix foi rejeitado; não se atribui o erro LC_UUID ao patcher. `steam.exe` **não foi executado** nesta rodada, logo efeito do patcher sobre ele NOT OBSERVED. Próxima prova deve instrumentar a função em runtime depois de corrigir o Mach-O da ponte.
+
+### Checks e próximo passo
+
+Sintaxe dos dois scripts PASS; negativos **11/11** PASS; check-only PASS. Self-check descartável com loader Mach-O x86_64 de asserts: paths herdados `WINESERVER/WINELOADER/WINEDLLPATH/CX_ROOT` removidos, arquitetura win32 herdada substituída por win64, DYLD pós-arch e marcador presentes, saída CRLF normalizada: **PASS**. O teste revelou alternação incompatível no sed BSD; runner usa `sed -E` agora. Filtro CRLF corrigido para não omitir as três linhas reais do PE. Loader fake é apenas teste do runner, separado da falha real.
+
+Passo 3 **não executar ainda**: primeiro corrigir T03 LC_UUID e esclarecer imports T04, remontar e passar negativo de sessão, revisão Astra e Claude Code Opus 5.5. Depois, com Steam do Mac aberto/logado e PEAK legítimo na conta, comando exato:
+
+```sh
+cd /Users/elvisoliveira/_dev/notproton/scratch/worktrees/t05-probe
+rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290
+```
+
+Esperado no passo 3: init ok, AppID 3527290, authenticated yes, exit 0. Pedido de revisão independente **Claude Code Opus 5.5**, registrar modelo efetivo do revisor: isolamento/APFS, ambiente launcher, integridade, alcance real do hook e novo bloqueio LC_UUID. T05/issue #9 e gate E2 continuam abertos; Steam/biblioteca/saves/NotProton/wrapper originais preservados.

@@ -2,6 +2,14 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T05 — Retomada do Passo 2: prefixo PASS / Unix bridge BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente `codex`, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe`. Frameworks APFS clone completo; wineboot fresh exit0. Ambiente mínimo exige DYLD fallback da cópia após arch/Rosetta e marker `SikarugirAppWine11=1` (ntdll Unix termina exit1 sem ele). Cinco hashes originais + 965 entradas Frameworks antes/depois MATCH, fonte/cópia e symlinks/inodes verificados. Negativo real Steam fechado: init fail/AppID0/auth no, exit1; detour entrou, cave RX mapeado e lsteamclient PE carregada. Unix Mach-O rejeitado por missing LC_UUID (T03 usa -no_uuid). Evidências/logs em `docs/evidence/steam-api-probe.md` e scratch; histórico anterior preservado.
+
+**Próximo passo.** T03 deve remover/corrigir ausência UUID com rebuild reprodutível e novo manifesto; T04 investigar resolução indevida de imports trigger (hipótese semântica do bit LDR_DONT_RESOLVE_REFS). Remontar/repetir negativo; Astra e Claude Code Opus 5.5 revisam antes do passo3 Steam autenticado/PEAK3527290. Comando exato na evidência. Sintaxe, negativos11/11, check-only e selfcheck ambient/CRLF PASS.
+
+**Bloqueios.** LC_UUID em lsteamclient.so; negativo observado falha na montagem Unix, ainda não só ausência de sessão. apply_binary_patches em memória NOT OBSERVED; steam.exe não executado. Gate T05 não aprovado; original/prefixos/saves preservados; nenhum passo3 positivo executado.
+
 ## T05 — Passo 2 BLOCKED (2026-10-09, Agente: codex)
 
 **Estado.** Cliente `codex`, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe` de `bd1b260`. Clone APFS da engine em `scratch/t05/engine`, T04 patchadas (x86_64 `64930d7e…`, i386 `932f5d47…`), ponte T03 + trigger Valve conferidos e prefixo descartável montado. `wineboot -u` sob Rosetta saiu 1: dyld wineserver não resolve `@rpath/libinotify.0.dylib` (`no LC_RPATH's found`). Biblioteca está fora da engine, em Frameworks do wrapper. Logs e manifesto só em `scratch/t05/`; cinco hashes do wrapper antes/depois MATCH. Negativos 11/11, sintaxe, check-only e recusa de reuso do staging PASS.

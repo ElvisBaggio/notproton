@@ -139,13 +139,16 @@ fi
 if [ "$check_only" = 1 ]; then echo "check-only: argumentos válidos (não é resultado do probe)"; exit 0; fi
 
 mkdir -p "$prefix_r"
+unset WINESERVER WINELOADER WINELOADERNOEXEC
 raw=$prefix_r/probe-raw.log     # raw log stays in scratch, never printed
 out=$prefix_r/probe-filtered.txt
 rc=0
-WINEPREFIX=$prefix_r WINEDEBUG=${WINEDEBUG:--all} SteamAppId=$appid SteamGameId=$appid \
+# Clear launcher paths inherited from the caller; all runtime lookup uses the copy.
+for name in $(env | sed -En 's/^(DYLD_[A-Za-z0-9_]*|WINEDLLPATH[A-Za-z0-9_]*|CX_[A-Za-z0-9_]*)=.*/\1/p'); do unset "$name"; done
+WINEPREFIX=$prefix_r WINEARCH=win64 WINEDEBUG=${WINEDEBUG:--all} SteamAppId=$appid SteamGameId=$appid \
     WINEPATH="C:\\Program Files (x86)\\Steam" WINEDLLOVERRIDES="steamclient64=n;lsteamclient=b" \
-    arch -x86_64 "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
-grep -E '^(STEAM_INIT|APP_ID|AUTHENTICATED)=[A-Za-z0-9]{1,10}$' "$raw" >"$out" || true
+    arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$engine_r/Frameworks:/usr/lib" SikarugirAppWine11=1 "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
+tr -d '\r' <"$raw" | grep -E '^(STEAM_INIT|APP_ID|AUTHENTICATED)=[A-Za-z0-9]{1,10}$' >"$out" || true
 cat "$out"
 verify_output "$out" || exit 1
 [ "$rc" = 0 ] || { echo "falha: probe saiu com $rc" >&2; exit 1; }
