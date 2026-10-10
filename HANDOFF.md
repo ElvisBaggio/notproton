@@ -4,6 +4,8 @@ Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máqui
 
 ## T03 — PASS de build reproduzível (2026-10-09, Agente: codex)
 
+**Revisão Claude Code Opus 5.5 (2026-10-09): aprovado e integrado em `codex/game-agnostic-scope`.** Conferido: hashes dos três artefatos; `steam.exe` sem libc++/libunwind/msvcp/vcruntime dinâmicos (só Win32 + UCRT); `lsteamclient.so` x86_64 com `@rpath/ntdll.so` + `LC_RPATH @loader_path/`; os 11 símbolos Wine/Nt que a `.so` importa existem na `ntdll.so` do Sikarugir; `--artifacts` e negativos PASS. Não refeito por mim: rebuild limpo (reprodutibilidade fica pela evidência do Codex). Mudança de comportamento: `steam.exe` externo não inicializa OpenVR (status VR ~0). UCRT/`api-ms-win-crt` e `ucrtbase` precisam existir na engine; T05 confirma.
+
 **Estado.** Cliente codex, papel wine_bridge, modelo efetivo gpt-6.1-sol; branch `codex/t03-bridge-sikarugir`. Decisão `b441be3` integrada antes da retomada. `make bridge-sikarugir`: lsteamclient Unix/PE na base Wine 11.0 verificada; steam.exe externo com llvm-mingw T01 e runtime C++ estática. Gate positivo e sete negativos PASS; controle real com C++ dinâmica recusado. `file`/`otool`/`llvm-objdump`, exports Unix e layout adjacente à ntdll Sikarugir conferidos estaticamente. Reconfigure/rebuild do zero produziu os mesmos três hashes brutos. `make -n bridge` idêntico ao anterior. Evidência completa em `docs/evidence/bridge-build.md`, preservando o BLOCKED anterior.
 
 **Artefatos.** Sob `scratch/sikarugir/bridge/` (ignorados): `steam.exe` SHA-256 `56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70`; `x86_64-windows/lsteamclient.dll` `2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac` (também cópia flat); `x86_64-unix/lsteamclient.so` `3dd9b54f642ad73bc8f24c3b71de65b38ef35de6424456126b9060d1fa74fdea`. Manifesto local `manifest.json`. ntdll upstream não distribuída.
@@ -54,8 +56,8 @@ Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máqui
 
 ## Próximo passo
 
-1. T03: primeira tentativa BLOCKED (`dcc8a73`, `codex/t03-bridge-sikarugir`): `steam.exe` exige `WINE_EXTERNAL`/`CXX_PE_LIBS`, ausentes no 11.0. Decisão de Elvis: `lsteamclient` na árvore `wine-11.0` verificada; `steam.exe` fora da árvore com llvm-mingw (libc++ estática). Retomada pelo Codex na mesma branch. `lsteamclient.so` no `x86_64-unix` da cópia isolada da engine. T01 e T02 concluídos.
-2. T04: derivar pins do binário Sikarugir e adaptar `resolve.py` em x86_64; mapear a lista de `apply_binary_patches` da Sikarugir.
+1. T03 concluído e integrado (`c983e5e`; build separado aprovado por Elvis). T01 e T02 concluídos.
+2. T04: preparo revisado em `claude/t04-ntdll-prep` (`3096c26`; pins x86_64/i386 do binário Sikarugir, patcher por manifesto). Falta: payloads com os artefatos de T03, aplicar em cópia, `payloadHash`/`patchedHash`, recusa de reaplicação no binário real.
 3. T05 em seguida (API Steam real, AppID conforme D1); depois T06–T09 e T10. D1: candidatos em `docs/evidence/d1-game-candidates.md` (claude, 2026-10-09; principal sugerido Banana 2923300); **Elvis escolheu Halls of Torment: Prelude 2316660** (reserva Banana).
 4. T11 instala jogo Windows novo em biblioteca isolada pelo Steam nativo; T12 (Luna 6) comprova >=15 min e persistência/reabertura, save quando suportado ou dados pertinentes/configuração caso contrário. Cities II permanece teste posterior opcional.
 
