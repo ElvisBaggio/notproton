@@ -34,7 +34,15 @@ struct export_dir  { u32 flags; u32 stamp; u16 maj; u16 min; u32 name;
                      u32 base; u32 nfuncs; u32 nnames;
                      u32 addr_funcs; u32 addr_names; u32 addr_ords; };
 
+#ifdef NP_SIKARUGIR_WINE11
+#define LDR_DONT_RESOLVE_REFS  0x40000000
+#define TRAMPOLINE_RESULT int
+#define TRAMPOLINE_FAILURE return 0
+#else
 #define LDR_DONT_RESOLVE_REFS  0x00000002
+#define TRAMPOLINE_RESULT void
+#define TRAMPOLINE_FAILURE return
+#endif
 
 // WINE_MODREF, x86_64 layout.
 #define WM_DLLBASE(wm)   (*(void **)((u8 *)(wm) + 0x30))
@@ -109,7 +117,7 @@ static void write_true_stub(u8 *src)
 
 // Rewrite every named export of sc64 that lsteamclient also exports so it jumps to the
 // lsteamclient one, plus the entry point.
-static void setup_trampolines(struct ctx *c, u8 *sc64, u8 *lsteam)
+static TRAMPOLINE_RESULT setup_trampolines(struct ctx *c, u8 *sc64, u8 *lsteam)
 {
     struct nt_headers *snt = (struct nt_headers *)(sc64 + ((struct dos_header *)sc64)->e_lfanew);
     struct export_dir *se;
@@ -121,11 +129,11 @@ static void setup_trampolines(struct ctx *c, u8 *sc64, u8 *lsteam)
 
     // make the whole sc64 image writable and executable so export stubs can be overwritten
     if (c->protect((void *)~0ull, &base, &size, 0x40 /*RWX*/, &oldp) != 0)
-        return;
+        TRAMPOLINE_FAILURE;
 
     se = export_of(sc64);
     if (!se)
-        return;
+        TRAMPOLINE_FAILURE;
 
     snames = (u32 *)(sc64 + se->addr_names);
     sfuncs = (u32 *)(sc64 + se->addr_funcs);
@@ -141,6 +149,9 @@ static void setup_trampolines(struct ctx *c, u8 *sc64, u8 *lsteam)
     // Windows is loading lsteamclient, not while it is loading this stub.
     if (snt->opt.entry_point)
         write_true_stub(sc64 + snt->opt.entry_point);
+#ifdef NP_SIKARUGIR_WINE11
+    return 1;
+#endif
 }
 
 // True when the MODREF basename (wm+0x60, a NUL-terminated wide string) is
@@ -179,7 +190,17 @@ void NP_ABI detour_build_module(struct ctx *c, void *wm, void *load_path)
     if (!lsteam)
         return;                                     // let sc64 load normally
 
+#ifdef NP_SIKARUGIR_WINE11
+    if (!setup_trampolines(c, sc64, lsteam))
+        return;
+#else
     setup_trampolines(c, sc64, lsteam);
+#endif
 
+#ifdef NP_SIKARUGIR_WINE11
+    // Wine 11 skips imports when this internal pending-imports bit is clear.
+    *WM_FLAGS(wm) &= ~LDR_DONT_RESOLVE_REFS;
+#else
     *WM_FLAGS(wm) |= LDR_DONT_RESOLVE_REFS;
+#endif
 }

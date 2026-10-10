@@ -58,7 +58,15 @@ struct io_status { u32 status; u32 information; };
 #define WM_BASENAME(wm)  (*(const u16 **)((u8 *)(wm) + 0x30))
 #define WM_FLAGS(wm)     ( (u32 *)((u8 *)(wm) + 0x34))
 
+#ifdef NP_SIKARUGIR_WINE11
+#define LDR_DONT_RESOLVE_REFS  0x40000000
+#define TRAMPOLINE_RESULT int
+#define TRAMPOLINE_FAILURE return 0
+#else
 #define LDR_DONT_RESOLVE_REFS  0x00000002
+#define TRAMPOLINE_RESULT void
+#define TRAMPOLINE_FAILURE return
+#endif
 #define LDR_DONT_CALL_DLLMAIN  0x20000000
 
 static const u16 name_lsteam[] = {'l','s','t','e','a','m','c','l','i','e','n','t','.','d','l','l',0};
@@ -121,7 +129,7 @@ static void write_jump(u8 *src, void *tgt)
     src[5] = 0xFF; src[6] = 0xE0;
 }
 
-static void setup_trampolines(struct ctx *c, u8 *sc, u8 *lsteam)
+static TRAMPOLINE_RESULT setup_trampolines(struct ctx *c, u8 *sc, u8 *lsteam)
 {
     struct nt_headers *snt = nt_of(sc);
     struct nt_headers *lnt = nt_of(lsteam);
@@ -133,11 +141,11 @@ static void setup_trampolines(struct ctx *c, u8 *sc, u8 *lsteam)
     u32 oldp;
 
     if (c->protect((void *)~0u, &base, &size, 0x40 /*RWX*/, &oldp) != 0)
-        return;
+        TRAMPOLINE_FAILURE;
 
     se = export_of(sc);
     if (!se)
-        return;
+        TRAMPOLINE_FAILURE;
 
     snames = (u32 *)(sc + se->addr_names);
     sfuncs = (u32 *)(sc + se->addr_funcs);
@@ -151,6 +159,9 @@ static void setup_trampolines(struct ctx *c, u8 *sc, u8 *lsteam)
 
     if (snt->opt.entry_point && lnt->opt.entry_point)
         write_jump(sc + snt->opt.entry_point, lsteam + lnt->opt.entry_point);
+#ifdef NP_SIKARUGIR_WINE11
+    return 1;
+#endif
 }
 
 static int nt_name_of(void *wm, u16 *buf, unsigned cap, struct us *out)
@@ -248,11 +259,21 @@ void detour_build_module32(struct ctx *c, void *wm, void *fp)
     if (!lsteam)
         return;
 
+#ifdef NP_SIKARUGIR_WINE11
+    if (!setup_trampolines(c, sc, lsteam))
+        return;
+#else
     setup_trampolines(c, sc, lsteam);
+#endif
 
     if (is_steamclient32)
     {
+#ifdef NP_SIKARUGIR_WINE11
+        // Wine 11 skips imports when this internal pending-imports bit is clear.
+        *WM_FLAGS(wm) &= ~LDR_DONT_RESOLVE_REFS;
+#else
         *WM_FLAGS(wm)  |= LDR_DONT_RESOLVE_REFS;
+#endif
         *ARG_FLAGS(fp) |= FLAGS_BIT;
         restore_image_base(c, wm, sc);
     }

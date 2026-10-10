@@ -33,6 +33,10 @@ if [ -n "${BUILD_DIR:-}" ]; then
   cd "$BUILD_DIR"
 fi
 
+if [ "${NP_SIKARUGIR_WINE11:-}" = 1 ]; then
+  target_flags="$target_flags -DNP_SIKARUGIR_WINE11"
+fi
+
 CFLAGS="-Os -fno-asynchronous-unwind-tables -ffreestanding -fno-stack-protector \
 -fno-ident -mno-stack-arg-probe"
 

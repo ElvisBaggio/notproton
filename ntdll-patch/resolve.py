@@ -773,6 +773,9 @@ def shell_vars(path):
         'NP_CAVE_ROOM': str(room), 'NP_FILL': f"{r['fill']:#04x}",
         'NP_PLACEMENT': r['placement'],
     }
+    if r['sha256'] in ('da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676',
+                       'e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589'):
+        out['NP_SIKARUGIR_WINE11'] = '1'
     if PINNED.get(r['sha256'], {}).get('payload'):
         out['NP_PAYLOAD_SHA256'] = PINNED[r['sha256']]['payload']
     if r.get('skip') is not None:
