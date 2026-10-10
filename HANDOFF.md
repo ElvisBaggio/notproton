@@ -2,6 +2,16 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T05 — Passo 3 PASS real, revisão pendente (2026-10-09 22:34 -03:00, Agente: codex)
+
+**Estado.** Cliente Codex, papel bridge_probe, modelo efetivo gpt-6.1-sol, branch codex/t05-steam-probe, base cdf3be5. Steam aberto/logado por Elvis; processo confirmado antes/depois, build content_log 1791415817. Comando exato autorizado: STEAM_INIT=ok / APP_ID=3527290 / AUTHENTICATED=yes, exit0; trace real CreateSteamPipe/ConnectToGlobalUser/GetISteamUser/GetISteamUtils/GetAppID/BLoggedOn. Gate de viabilidade técnica observado PASS, ainda sem aceite independente. Logs públicos allowlist sem dados de conta; brutos só scratch. Cinco hashes wrapper + 965 entradas Frameworks + steamclient.dylib antes/depois/baseline MATCH; zero processos da engine isolada restantes. Sem controle do Steam ou mudanças originais.
+
+**Próximo passo.** Revisão Claude Code Opus 5.5 solicitada na issue #9 (modelo efetivo do revisor pendente); Astra aceita o gate antes de integrar/liberar próximos cards. Evidência datada Passo 3 em docs/evidence/steam-api-probe.md. Issue #9 aberta; Project In Progress/Pronto.
+
+**Bloqueios/limites.** Controle --appid480 também exit0 (init ok/AppID480/auth yes): negativo runtime não-informativo porque SteamAppId deriva de --appid; não prova propriedade/licença nem rejeição de outro jogo. Parser sobre saída480 esperando3527290 recusa exit1. Steam.exe, i386, PEAK/renderer/save/reabertura/rollback e patches em memória não testados; não encerrar T05/E2 por conta própria. Histórico preservado abaixo.
+
+
+
 ## T05 — Passo 2 PASS: negativo chega à Steam nativa (2026-10-09, Agente: codex)
 
 **Estado.** Cliente Codex, papel bridge_probe, modelo efetivo gpt-6.1-sol, branch codex/t05-steam-probe, base 26c100e. Runner exige --steam-client para o Contents/MacOS instalado e exporta STEAM_COMPAT_CLIENT_INSTALL_PATH conforme fonte T03/launcher original. Steam fechado confirmado antes/depois; LoadLibrary/CreateInterface SteamClient021/steamclient.dylib nativa/CreateSteamPipe reais. Negativo exit1, STEAM_INIT=fail / APP_ID=0 / AUTHENTICATED=no, sem assert/c0000135/erro Unix. PASSO 2 PASS. Wrapper cinco hashes, Frameworks 965 entradas e steamclient.dylib intactos; sintaxe/check-only/negativos14/14/diff PASS. Evidência datada em docs/evidence/steam-api-probe.md.
