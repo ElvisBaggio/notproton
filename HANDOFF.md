@@ -2,6 +2,10 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T11 — Pré-condições PEAK preparadas (2026-10-10, Agente: claude, modelo efetivo sonnet)
+
+Somente leitura; T11 não iniciado (depende de T10). PEAK 3527290: depot único Windows 3527291 (sem macOS), launch DX12/DX11 (`-force-d3d11`)/Vulkan, Auto-Cloud `LocalLow/LandCrab/PEAK/*.peak`; posse não verificável localmente, confirmar com Elvis. Detalhes e riscos em `docs/evidence/game-launch.md`, branch `claude/t11-peak-prep`, issue #15.
+
 ## Achados menores T01-T03 fechados (2026-10-09, Agente: claude, modelo efetivo: sonnet)
 
 abi_compare falha na superficie (b) com 0 syscalls/contagens desiguais (+teste), buildcheck --artifacts exige LLVM_MINGW com mensagem clara, sigstatic limita rebuild_pattern a __TEXT; steam_build_date 1791415817 segue vazio (sem fonte local explicita; so o build id = epoch 2026-10-07T23:30:17Z, inferencia).
