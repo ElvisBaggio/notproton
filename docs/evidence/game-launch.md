@@ -58,6 +58,8 @@ Risco de Cloud: o Steam sincroniza só a regra da plataforma da *ferramenta/SO* 
 
 Conclusão: **posse não verificável localmente** sem ler `licensecache`/`userdata` (descartado por conter dados da conta). **Confirmar com Elvis** que a conta possui 3527290 (R$ 23,99 segundo a loja em 2026-10-10) antes de T11; a compra é decisão dele.
 
+**Atualização 2026-10-10:** Elvis confirmou que a conta **possui o PEAK (3527290)**. Pré-condição de posse atendida; nenhum dado da conta foi registrado.
+
 ### 4. Sequência proposta do T11 (após T10, com Elvis)
 
 1. Conferir pré-condições: T10 concluído e rollback testado; posse confirmada; espaço (~1,8 GiB instalados + ~1,5 GiB de download, margem de 10 GiB); Steam fechado para qualquer deploy de ferramenta, depois aberto por Elvis.
