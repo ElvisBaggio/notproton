@@ -134,3 +134,5 @@ Regra de modelos: Astra planeja e revisa; implementação padrão por `gpt-6.1-s
 - Em 2026-10-08, Elvis havia autorizado a execução do plano anterior na branch `codex/sikarugir-card-execution`; revisão Astra aprovou o plano incremental. Esse estado é histórico e não substitui os ajustes atuais F1–F8.
 - Atualizar issue e Project ao terminar cada card; não encerrar gates sem evidência funcional. Nunca publicar trabalho pessoal no upstream sem autorização.
 2. T05 Passo 1 (2026-10-09, Agente: claude, modelo `sonnet`): probe PE + runner + 11 negativos sem Wine PASS em `claude/t05-probe-prep` (hash do probe e como rodar em `docs/evidence/steam-api-probe.md`); falta Wine/Steam real após T04 e revisão Opus 5.5 (issue #9, aberta).
+
+3. E3 mapa de codigo (2026-10-09, Agente: claude, modelo `sonnet`): `docs/reviews/e3-codemap.md` (pontos de extensao T06-T09, regressao, riscos R1-R14) em `claude/e3-codemap`; sem alteracao de codigo; `swift test` nao roda neste Mac (sem Xcode).
