@@ -1,5 +1,15 @@
 # Handoff
 
+## T06 — Catálogo Sikarugir implementado; revisão pendente (2026-10-09)
+
+Agente: codex · Cliente: codex · Papel: runner_model · Modelo efetivo: gpt-6.1-sol · Branch: codex/t06-sikarugir-source.
+
+**Estado.** Origem explícita default CrossOver, Sikarugir 11.0 r0 x86_64/Rosetta identificado por versão + cinco hashes, clone `runners/sikarugir-11.0-r0/wine` com Frameworks dentro; RunnerStore reconhece ambos os prefixos e TSV mantém quatro colunas. Catálogo Sikarugir separado dos builds com patches já embarcados (`all`), preservando invariantes Ntdll/CrossOver até T07. RED→GREEN por assert; 19 métodos do harness isolado PASS, inspeção da fonte real somente leitura PASS, sete checks Makefile PASS. Evidência: `docs/evidence/runner-catalog.md`.
+
+**Próximo passo.** Revisão Claude Code Opus 5.5 na issue #10 (modelo efetivo pendente), aceite Astra, depois T07: lifecycle/cópia atômica Frameworks, recursos pós-correção, ponte por origem, perfil/build Steam e limpeza de templates/removals Sikarugir. DeploymentContent e launcher são T08.
+
+**Bloqueios/limites.** Suíte Swift **NOT RUN** local: Command Line Tools sem SwiftUIMacros/TestingMacros; exige Xcode/CI, não contar SKIP como PASS. Harness usa boundaries lifecycle stubadas; nenhum Wine, Steam ou jogo executado. Nenhuma instalação global ou alteração no wrapper/saves.
+
 ## Gate E2 ACEITO COM RESSALVAS por Astra (2026-10-10, registrado por claude Opus 5.5)
 
 Parecer completo em `docs/reviews/astra-e2-gate.md` (Astra `gpt-6-astra`, HEAD `06df336`). Viabilidade técnica do E2 comprovada em x86_64/Rosetta: executável Windows mínimo alcançou o Steam nativo com sessão autenticada (T05 passo 3). **E3 liberado começando por T06**, sequencial T06→T07→T08→T09, cada um dependendo do aceite anterior. Condições explícitas para T06–T12 estão no parecer e foram copiadas para o plano. Revisão Claude Code Opus 5.5 do T05 está na issue #9 (aprovada).

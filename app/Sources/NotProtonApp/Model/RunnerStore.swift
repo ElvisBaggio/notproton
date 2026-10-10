@@ -44,8 +44,8 @@ enum RunnerStore {
         let entries = (try? fm.contentsOfDirectory(at: runners, includingPropertiesForKeys: nil)) ?? []
         return entries
             .map(\.lastPathComponent)
-            .filter { $0.hasPrefix("crossover-") }
-            .map { String($0.dropFirst("crossover-".count)) }
+            .filter { $0.hasPrefix("crossover-") || $0.hasPrefix("sikarugir-") }
+            .map { $0.hasPrefix("crossover-") ? String($0.dropFirst("crossover-".count)) : $0 }
             .sorted()
     }
 

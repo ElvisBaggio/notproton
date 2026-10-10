@@ -16,12 +16,27 @@ struct RunnerStateTests {
         }
 
         func makeClone(build: String, withWine: Bool = true) throws {
-            let root = runners.appending(path: "crossover-\(build)/CrossOver")
+            let root = SupportPaths.clonedRoot(forBuild: build, runners: runners)
             let leaf = withWine ? root.appending(path: "lib/wine") : root
             try FileManager.default.createDirectory(at: leaf, withIntermediateDirectories: true)
         }
 
         deinit { try? FileManager.default.removeItem(at: runners) }
+    }
+
+    @Test("Sikarugir clones are visible, damaged and orphaned by identity")
+    func sikarugirClones() throws {
+        let fixture = try Fixture()
+        let id = "sikarugir-11.0-r0"
+        try fixture.makeClone(build: id)
+        try fixture.makeClone(build: "sikarugir-unknown")
+        #expect(RunnerStore.state(runners: fixture.runners, verify: { _, root in
+            root.lastPathComponent == "wine" ? [] : ["wrong root"]
+        }) == .ready(builds: [id]))
+        #expect(RunnerStore.orphanedClones(in: fixture.runners) == ["sikarugir-unknown"])
+        try FileManager.default.removeItem(at: SupportPaths.clonedRoot(forBuild: id, runners: fixture.runners)
+            .appending(path: "lib/wine"))
+        #expect(RunnerStore.damagedClones(in: fixture.runners) == [id])
     }
 
     @Test("No clone means nothing is set up")
