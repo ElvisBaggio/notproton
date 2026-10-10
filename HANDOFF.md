@@ -2,6 +2,38 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+## T05 — Passo 2 PASS: negativo chega à Steam nativa (2026-10-09, Agente: codex)
+
+**Estado.** Cliente Codex, papel bridge_probe, modelo efetivo gpt-6.1-sol, branch codex/t05-steam-probe, base 26c100e. Runner exige --steam-client para o Contents/MacOS instalado e exporta STEAM_COMPAT_CLIENT_INSTALL_PATH conforme fonte T03/launcher original. Steam fechado confirmado antes/depois; LoadLibrary/CreateInterface SteamClient021/steamclient.dylib nativa/CreateSteamPipe reais. Negativo exit1, STEAM_INIT=fail / APP_ID=0 / AUTHENTICATED=no, sem assert/c0000135/erro Unix. PASSO 2 PASS. Wrapper cinco hashes, Frameworks 965 entradas e steamclient.dylib intactos; sintaxe/check-only/negativos14/14/diff PASS. Evidência datada em docs/evidence/steam-api-probe.md.
+
+**Próximo passo.** Revisão Claude Code Opus 5.5 solicitada na issue #9 (modelo efetivo pendente), depois passo3 Steam autenticado/PEAK3527290 com comando exato na evidência, incluindo --steam-client. Astra aceita gate após positivo.
+
+**Bloqueios/limites.** Nenhum bloqueio no passo2. T05/E2 abertos/In Progress; positivo, steam.exe, i386, jogo/save e patches em memória não testados. Steam não iniciado pelo agente; nenhum próximo card liberado. Histórico abaixo preservado.
+
+## T05 — Continuação do Passo 2: Unix resolvido / imports T04 BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente Codex, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe`, base `482af4c`. Steam fechado em toda a rodada. Três .so SHA-256 `d71f954c…` e manifesto T03 conferidos; LC_UUID presente. Smoke real exit1: init fail/AppID0/auth no. Interposer descartável observa dlopen da .so e dlsym Unix funcs não nulos. O trigger falha c0000135 por tier0_s64/vstdlib_s64 antes de qualquer API. Cinco hashes do wrapper + 965 entradas Frameworks intactos. Evidência nova preserva o histórico em `docs/evidence/steam-api-probe.md`.
+
+**Próximo passo.** T04: detour.c usa máscara 0x2 errada; Wine11/Sikarugir usa 0x40000000. Trocar a máscara e limpar o bit com AND ~ (OR também é incorreto nesse ponto) antes de fixup_imports. Proposta exata na evidência, não aplicada. Rebuild/novos manifestos em cópias, revisão e repetir negativo; só depois Steam logado/passo3. Claude Code Opus 5.5 solicitado na issue #9; modelo efetivo do revisor pendente.
+
+**Bloqueios.** `BLOCKED_T04_TRIGGER_IMPORTS`, não benigno: LoadLibraryA retorna NULL e probe não chega a CreateInterface. LC_UUID deixou de bloquear. T05/E2 abertos/In Progress. Nenhum payload ou script de produção editado; apply_binary_patches em memória NOT OBSERVED e steam.exe não executado. Positivo/autenticação e runtime i386 não testados.
+
+## T05 — Retomada do Passo 2: prefixo PASS / Unix bridge BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente `codex`, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe`. Frameworks APFS clone completo; wineboot fresh exit0. Ambiente mínimo exige DYLD fallback da cópia após arch/Rosetta e marker `SikarugirAppWine11=1` (ntdll Unix termina exit1 sem ele). Cinco hashes originais + 965 entradas Frameworks antes/depois MATCH, fonte/cópia e symlinks/inodes verificados. Negativo real Steam fechado: init fail/AppID0/auth no, exit1; detour entrou, cave RX mapeado e lsteamclient PE carregada. Unix Mach-O rejeitado por missing LC_UUID (T03 usa -no_uuid). Evidências/logs em `docs/evidence/steam-api-probe.md` e scratch; histórico anterior preservado.
+
+**Próximo passo.** T03 deve remover/corrigir ausência UUID com rebuild reprodutível e novo manifesto; T04 investigar resolução indevida de imports trigger (hipótese semântica do bit LDR_DONT_RESOLVE_REFS). Remontar/repetir negativo; Astra e Claude Code Opus 5.5 revisam antes do passo3 Steam autenticado/PEAK3527290. Comando exato na evidência. Sintaxe, negativos11/11, check-only e selfcheck ambient/CRLF PASS.
+
+**Bloqueios.** LC_UUID em lsteamclient.so; negativo observado falha na montagem Unix, ainda não só ausência de sessão. apply_binary_patches em memória NOT OBSERVED; steam.exe não executado. Gate T05 não aprovado; original/prefixos/saves preservados; nenhum passo3 positivo executado.
+
+## T05 — Passo 2 BLOCKED (2026-10-09, Agente: codex)
+
+**Estado.** Cliente `codex`, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe` de `bd1b260`. Clone APFS da engine em `scratch/t05/engine`, T04 patchadas (x86_64 `64930d7e…`, i386 `932f5d47…`), ponte T03 + trigger Valve conferidos e prefixo descartável montado. `wineboot -u` sob Rosetta saiu 1: dyld wineserver não resolve `@rpath/libinotify.0.dylib` (`no LC_RPATH's found`). Biblioteca está fora da engine, em Frameworks do wrapper. Logs e manifesto só em `scratch/t05/`; cinco hashes do wrapper antes/depois MATCH. Negativos 11/11, sintaxe, check-only e recusa de reuso do staging PASS.
+
+**Próximo passo.** Revisão Claude Code Opus 5.5 solicitada na issue #9 (modelo efetivo do revisor pendente); preparar dependências transitivas em cópia em nova execução autorizada, repetir wineboot e negativo sem Steam. Comando exato do passo 3, condicionado a esses gates e Steam autenticado/PEAK legítimo, em `docs/evidence/steam-api-probe.md`.
+
+**Bloqueios.** Loader wineserver; Steam nativo estava aberto e não foi encerrado pelo agente. Probe/Unix-call/hooks/cave/apply_binary_patches NOT RUN/NOT OBSERVED. Não declarar ABI falha nem viabilidade PASS. Sem mudanças em wrapper, Steam, NotProton instalado, prefixos originais ou saves; passo 3 não executado; issue aberta.
+
 ## T04 — correção LDR flags, 2026-10-09, Agente: codex
 
 **Estado.** Cliente codex, papel ntdll_port, modelo efetivo gpt-6.1-sol, branch codex/t04-ldr-flags. Define de build ativado somente para cleanHash Sikarugir; limpa bit interno Wine11 0x40000000 após sucesso das trampolines em x64/i386. FLAGS_BIT público i386=1 auditado e preservado. 12 testes com/sem capstone PASS, rebuilds idênticos, aplicação por manifesto/diff/reapply em cópias PASS. Regressão fonte preprocessada CX idêntica; full build LLVM x64 baseline idêntico 3fb37065…; pin legado e35b8344… preservado no recurso mas rebuild GCC não reproduzido (toolchain ausente/não fixada).

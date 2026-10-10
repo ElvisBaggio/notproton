@@ -1,7 +1,7 @@
 #!/bin/sh
 # T05 runner for the Steam API probe.
 #
-#   run-steam-api-probe.sh --engine <copy> --prefix <scratch dir> --bridge <T03 artifacts> --appid <n>
+#   run-steam-api-probe.sh --engine <copy> --prefix <scratch dir> --bridge <T03 artifacts> --appid <n> --steam-client <installed Steam Contents/MacOS>
 #                          [--probe <exe>] [--loader <rel path>] [--manifest <json>] [--check-only]
 #   run-steam-api-probe.sh --verify-output <file> --appid <n>     (parser only, no Wine)
 #
@@ -11,6 +11,7 @@
 # from manifest.json. Output is filtered so only STEAM_INIT/APP_ID/AUTHENTICATED
 # lines survive; any SteamID-looking number aborts. Exit 0 only when the probe
 # proved init ok, APP_ID == --appid and AUTHENTICATED=yes.
+# --steam-client is read-only; exports STEAM_COMPAT_CLIENT_INSTALL_PATH, as the real launcher does.
 # --check-only validates and stops (exit 0 = arguments valid, NOT a probe result).
 set -eu
 
@@ -22,13 +23,18 @@ if [ "${1:-}" = "--negatives" ]; then # executable negative cases that need no W
     expect_fail() { # name want-rc-nonzero stderr-substring cmd...
         name=$1; sub=$2; shift 2; n=$((n+1)); rc=0
         "$@" >"$t/out" 2>"$t/err" || rc=$?
-        if [ "$rc" != 0 ] && grep -q "$sub" "$t/err"; then echo "PASS $name (exit $rc)"; else echo "FAIL $name (exit $rc)"; bad=$((bad+1)); fi; }
+        if [ "$rc" != 0 ] && grep -q -- "$sub" "$t/err"; then echo "PASS $name (exit $rc)"; else echo "FAIL $name (exit $rc)"; bad=$((bad+1)); fi; }
     E=$d/t05/neg/engine; B=$d/t05/neg/bridge; P=$d/t05/neg/prefix
     expect_fail "prefixo fora de scratch" "fora de scratch" sh "$self" --engine "$E" --prefix "$t/prefix" --bridge "$B" --appid 2316660
     expect_fail "engine = wrapper original" "wrapper original" sh "$self" --engine "$HOME/Applications/Sikarugir/x.app" --prefix "$P" --bridge "$B" --appid 2316660
     expect_fail "AppID ausente" "appid" sh "$self" --engine "$E" --prefix "$P" --bridge "$B"
     expect_fail "AppID zero/invalido" "appid" sh "$self" --engine "$E" --prefix "$P" --bridge "$B" --appid abc
     expect_fail "argumento obrigatorio ausente" "obrigat" sh "$self" --engine "$E" --appid 2316660
+    expect_fail "cliente Steam ausente" "--steam-client obrigatório" sh "$self" --engine "$E" --prefix "$P" --bridge "$B" --appid 3527290
+    expect_fail "cliente Steam fora da instalação" "Steam instalado" sh "$self" --engine "$E" --prefix "$P" --bridge "$B" --appid 3527290 --steam-client "$B"
+    mkdir -p "$P"
+    ln -s "$t/outside.log" "$P/probe-raw.log"
+    expect_fail "log via symlink fora de scratch" "log fora de scratch" sh "$self" --engine "$E" --prefix "$P" --bridge "$B" --appid 3527290
     printf 'STEAM_INIT=fail\nAPP_ID=0\nAUTHENTICATED=no\n' >"$t/a"
     expect_fail "saida sem Steam (init fail)" "STEAM_INIT" sh "$self" --verify-output "$t/a" --appid 2316660
     printf 'STEAM_INIT=ok\nAPP_ID=480\nAUTHENTICATED=yes\n' >"$t/b"
@@ -49,16 +55,16 @@ scratch_root=${SCRATCH_ROOT:-$repo/scratch}
 
 die() { echo "recusado: $*" >&2; exit 2; }
 
-engine= prefix= bridge= appid= probe= loader= manifest= verify= check_only=0
+steam_client= engine= prefix= bridge= appid= probe= loader= manifest= verify= check_only=0
 while [ $# -gt 0 ]; do
     case $1 in
         --check-only) check_only=1; shift; continue ;;
-        --engine|--prefix|--bridge|--appid|--probe|--loader|--manifest|--verify-output) ;;
+        --steam-client|--engine|--prefix|--bridge|--appid|--probe|--loader|--manifest|--verify-output) ;;
         *) die "argumento desconhecido: $1" ;;
     esac
     [ $# -ge 2 ] || die "$1 exige valor"
     case $1 in
-        --engine) engine=$2 ;; --prefix) prefix=$2 ;; --bridge) bridge=$2 ;;
+        --steam-client) steam_client=$2 ;; --engine) engine=$2 ;; --prefix) prefix=$2 ;; --bridge) bridge=$2 ;;
         --appid) appid=$2 ;; --probe) probe=$2 ;; --loader) loader=$2 ;;
         --manifest) manifest=$2 ;; --verify-output) verify=$2 ;;
     esac
@@ -112,6 +118,15 @@ under_scratch "$bridge_r" || die "bridge deve estar em scratch/: $bridge"
 [ -d "$engine_r" ] || die "engine inexistente"
 [ -d "$bridge_r" ] || die "bridge inexistente"
 
+for log in probe-raw.log probe-filtered.txt; do
+    under_scratch "$(realp "$prefix_r/$log")" || die "log fora de scratch/: $log"
+done
+
+[ -n "$steam_client" ] || die "--steam-client obrigatório (Steam instalado, somente leitura)"
+steam_client_r=$(realp "$steam_client")
+[ "$steam_client_r" = "$(realp "$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS")" ] || die "--steam-client deve apontar ao Steam instalado"
+[ -r "$steam_client_r/steamclient.dylib" ] || die "steamclient.dylib inexistente ou ilegível"
+
 # Bridge hashes against the T03 manifest ({"files": {relpath: sha256}}).
 [ -n "$manifest" ] || { [ -f "$bridge_r/manifest.json" ] && manifest=$bridge_r/manifest.json; } || true
 if [ -n "$manifest" ]; then
@@ -139,12 +154,17 @@ fi
 if [ "$check_only" = 1 ]; then echo "check-only: argumentos válidos (não é resultado do probe)"; exit 0; fi
 
 mkdir -p "$prefix_r"
+unset WINESERVER WINELOADER WINELOADERNOEXEC
 raw=$prefix_r/probe-raw.log     # raw log stays in scratch, never printed
 out=$prefix_r/probe-filtered.txt
 rc=0
-WINEPREFIX=$prefix_r WINEDEBUG=-all SteamAppId=$appid SteamGameId=$appid \
-    "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
-grep -E '^(STEAM_INIT|APP_ID|AUTHENTICATED)=[A-Za-z0-9]{1,10}$' "$raw" >"$out" || true
+# Clear launcher paths inherited from the caller; all runtime lookup uses the copy.
+for name in $(env | sed -En 's/^(DYLD_[A-Za-z0-9_]*|WINEDLLPATH[A-Za-z0-9_]*|CX_[A-Za-z0-9_]*)=.*/\1/p'); do unset "$name"; done
+WINEPREFIX=$prefix_r WINEARCH=win64 WINEDEBUG=${WINEDEBUG:--all} SteamAppId=$appid SteamGameId=$appid \
+    STEAM_COMPAT_CLIENT_INSTALL_PATH="$steam_client_r" \
+    WINEPATH="C:\\Program Files (x86)\\Steam" WINEDLLOVERRIDES="steamclient64=n;lsteamclient=b" \
+    arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$engine_r/Frameworks:/usr/lib" SikarugirAppWine11=1 "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
+tr -d '\r' <"$raw" | grep -E '^(STEAM_INIT|APP_ID|AUTHENTICATED)=[A-Za-z0-9]{1,10}$' >"$out" || true
 cat "$out"
 verify_output "$out" || exit 1
 [ "$rc" = 0 ] || { echo "falha: probe saiu com $rc" >&2; exit 1; }
