@@ -259,3 +259,62 @@ Após os dois smokes: **cinco hashes do wrapper + 965 entradas de Frameworks MAT
 Nenhum script/payload de produção mudou: checks aplicáveis são asserts de hashes/inventário, trace Unix, disassembly e `git diff --check`. Não reexecutei testes de produção inalterados nem rebuild T03/T04. `apply_binary_patches` em memória continua NOT OBSERVED; `steam.exe` não executado. Não se usa hash em disco para provar ausência de patches em memória.
 
 **Próxima ação:** responsável T04 corrigir máscara/operação, reconstruir/aplicar somente em cópias com novos manifests e revisão; repetir este negativo com Steam fechado, demonstrando que LoadLibrary/CreateInterface chegam à ponte e só falta a sessão nativa. Depois revisão Astra/Claude Code Opus 5.5 e passo 3 com Steam autenticado. Pedido de revisão independente **Claude Code Opus 5.5**, registrar cliente/modelo efetivo do revisor: confirmar os dois erros de flag, ponto do hook, evidência Unix e manutenção do bloqueio de T05/E2. Nenhum próximo card liberado.
+
+
+## Continuação do Passo 2 — 2026-10-09: PASS, biblioteca nativa carregada / Steam fechado
+
+Cliente **Codex**, papel `bridge_probe`, modelo efetivo **gpt-6.1-sol**, branch `codex/t05-steam-probe`, base `26c100e`. Retomada somente deste território; fonte T03 consultada em modo leitura. Steam do Mac comprovadamente fechado antes/depois (`pgrep -x steam_osx` exit 1, fora sandbox). Nenhum Steam foi iniciado, encerrado, copiado ou alterado pelo agente.
+
+**Resultado [alta confiança]: PASSO 2 PASS.** O negativo chega à biblioteca nativa e cria a interface; falha em CreateSteamPipe com Steam ausente: `STEAM_INIT=fail`, `APP_ID=0`, `AUTHENTICATED=no`, runner exit **1**. Não houve assert, `unable to load native steamclient library`, c0000135 nem falha loader/Unix-call observada. O processo retornou normalmente. Isso remove o bloqueio desta preparação; **T05/E2 continuam abertos**, sem positivo, aceite Astra ou liberação de próximos cards.
+
+### Fonte e ambiente confirmado
+
+- Fonte efetiva T03: `scratch/proton-lsc/lsteamclient/unixlib.cpp:739–799` no worktree `t03-bridge`. `steamclient_init` sincroniza `SteamAppId` e `IgnoreChildProcesses` (745–746); em macOS lê `STEAM_COMPAT_CLIENT_INSTALL_PATH` e monta `<dir>/steamclient.dylib` (751–752), senão usa DYLD (755–757). `dlopen(RTLD_NOW)` e sete exports nativos precisam resolver; `Loaded host steamclient` só sai depois disso (779–799).
+- `steamclient_main.c:360–382` transporta as duas variáveis Windows para o Unix call. Não lê SteamGameId/STEAM_COMPAT_DATA_PATH neste fluxo. `IgnoreChildProcesses` não foi imposto: o probe não lança filhos.
+- `steam-shim/steam.cpp:1524,1596–1597,1821`: SteamGameId participa do lançamento/init de jogo; CLIENT_INSTALL_PATH e LIBRARY_PATHS geram libraryfolders.vdf dentro do prefixo. O shim steam.exe **não é executado** neste probe.
+- Fluxo real do NotProton é o script `dylib/feats/compat_run.sh`, distribuído pelo app. Linhas 98–111 derivam AppID de STEAM_COMPAT_APP_ID/SteamAppId/data path e exportam SteamAppId/SteamGameId para o jogo; 878–879 derivam WINEPREFIX de DATA_PATH; 1072–1076 fornecem CLIENT_INSTALL_PATH ou o fallback instalado `~/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS`; 1373–1376 repassam variáveis no fluxo launcher. O probe usa WINEPREFIX explícito de scratch e AppID explícito; não executa staging/legacycompat do launcher nem inventa biblioteca/data path de jogo.
+
+Runner agora exige **`--steam-client <diretório Contents/MacOS instalado>`**, resolve o caminho, exige a instalação padrão desta máquina e biblioteca legível, exporta CLIENT_INSTALL_PATH sem copiar/gravar no cliente. Mantém lookup Wine na cópia. Também recusa logs que escapem de scratch por symlink. Sintaxe shell, check-only, negativos/parser **14/14**, `git diff --check` PASS. O probe não mudou, portanto seu selftest/build não foram repetidos.
+
+### Log real e integridade
+
+Log privado preservado: `scratch/t05/client-path-negative-raw.log`. Linhas-chave da rodada definitiva:
+
+```text
+6030: CreateInterface name: SteamClient021
+6107: steamclient_init Loaded host steamclient from "…/Steam/Contents/MacOS/steamclient.dylib"
+6114: create_winISteamClient_SteamClient021 -> ponte criada (ponteiro não nulo)
+6115: winISteamClient_SteamClient021_CreateSteamPipe
+6116: STEAM_INIT=fail
+6117: APP_ID=0
+6118: AUTHENTICATED=no
+```
+
+Primeira rodada exploratória produziu o mesmo resultado; a checagem de processos falhou no sandbox (`Cannot get process list`), por isso o inventário completo e o negativo definitivo foram repetidos fora dele. Inventários completos antes/depois idênticos em `scratch/t05/client-path-before.json` e `client-path-after.json`; asserts também conferem baseline anterior e cópia de Frameworks.
+
+SHA-256 `steamclient.dylib` **antes = depois**: `3db7cac83567792f98bc36e4f545bba6cb9aaa545846c02e489e07f0ba4ff6ec`. Cinco arquivos originais do wrapper **antes = depois**:
+
+| Arquivo | SHA-256 |
+|---|---|
+| bin/wine | `874d068ebd42114388e77edffc526d85460350f9d599d074acd951a2f0a32e2c` |
+| bin/wineserver | `2cd179014ba76e2dfe5748a5debb40eeff0ff7e93a35948d9e1c2ca0ef4ad235` |
+| lib/wine/x86_64-unix/ntdll.so | `c9948aab11b674b182c8dd41e212cb0be10568adeb47a28721151561456f5b6c` |
+| lib/wine/x86_64-windows/ntdll.dll | `da7e1ea5d7e6bca3192ff5aa4a603302a9572233a1dbe02c9c8d85505101f676` |
+| lib/wine/i386-windows/ntdll.dll | `e1ce5ae37f57cee3c4fea80b681fbf64e3f0611b36d5c9125851c03dea985589` |
+
+Frameworks: **965 entradas**, hashes de arquivos e destinos de symlinks MATCH (original/cópia/baseline). Hash do mapa JSON ordenado: `bf9bada4906e717adda817c6854443c26eaeea73ce68860bf152788762c2dbef`. ntdll x86_64 da cópia corrigida T04: `ef8e99712f845f5c4e7ee01a0475d3ccaf84114d54a0a6c962808fee34b68b29`. Nenhuma alteração de binários foi necessária nesta rodada. Dados de conta e logs brutos permanecem exclusivamente em scratch.
+
+### Passo 3 — comando exato (pendente)
+
+Após revisão do PASSO 2, Steam do Mac aberto/logado e PEAK legítimo (3527290) na conta, a partir deste worktree:
+
+```sh
+rtk proxy env WINEDEBUG=-all,+module,+steamclient sh bridge/tests/run-steam-api-probe.sh \
+  --engine scratch/t05/engine --prefix scratch/t05/pfx \
+  --bridge scratch/t05/bridge --loader bin/wine --appid 3527290 \
+  --steam-client "$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS"
+```
+
+Esperado: `STEAM_INIT=ok`, `APP_ID=3527290`, `AUTHENTICATED=yes`, exit 0. **Não executado nesta rodada.** A preparação PASS não comprova autenticação, jogo, i386, save/reabertura, patches Sikarugir em memória ou fluxo steam.exe. NotProton instalado 1.1.0 / fonte-base 1.1.1 permanecem os estados registrados no T02, não reauditados.
+
+Pedido de revisão independente: **Claude Code Opus 5.5**, registrar modelo efetivo do revisor; conferir fonte/ambiente, recusa de escrita fora scratch, logs e integridade. Astra ainda deve aceitar o gate após positivo. Issue #9 e Project permanecem In Progress.

@@ -2,6 +2,15 @@
 
 Atualizado: 2026-10-09 · Agente: codex · Modelo efetivo: gpt-6.1-sol · Máquina: mac
 
+
+## T05 — Passo 2 PASS: negativo chega à Steam nativa (2026-10-09, Agente: codex)
+
+**Estado.** Cliente Codex, papel bridge_probe, modelo efetivo gpt-6.1-sol, branch codex/t05-steam-probe, base 26c100e. Runner exige --steam-client para o Contents/MacOS instalado e exporta STEAM_COMPAT_CLIENT_INSTALL_PATH conforme fonte T03/launcher original. Steam fechado confirmado antes/depois; LoadLibrary/CreateInterface SteamClient021/steamclient.dylib nativa/CreateSteamPipe reais. Negativo exit1, STEAM_INIT=fail / APP_ID=0 / AUTHENTICATED=no, sem assert/c0000135/erro Unix. PASSO 2 PASS. Wrapper cinco hashes, Frameworks 965 entradas e steamclient.dylib intactos; sintaxe/check-only/negativos14/14/diff PASS. Evidência datada em docs/evidence/steam-api-probe.md.
+
+**Próximo passo.** Revisão Claude Code Opus 5.5 solicitada na issue #9 (modelo efetivo pendente), depois passo3 Steam autenticado/PEAK3527290 com comando exato na evidência, incluindo --steam-client. Astra aceita gate após positivo.
+
+**Bloqueios/limites.** Nenhum bloqueio no passo2. T05/E2 abertos/In Progress; positivo, steam.exe, i386, jogo/save e patches em memória não testados. Steam não iniciado pelo agente; nenhum próximo card liberado. Histórico abaixo preservado.
+
 ## T05 — Continuação do Passo 2: Unix resolvido / imports T04 BLOCKED (2026-10-09, Agente: codex)
 
 **Estado.** Cliente Codex, papel `bridge_probe`, modelo efetivo `gpt-6.1-sol`, branch `codex/t05-steam-probe`, base `482af4c`. Steam fechado em toda a rodada. Três .so SHA-256 `d71f954c…` e manifesto T03 conferidos; LC_UUID presente. Smoke real exit1: init fail/AppID0/auth no. Interposer descartável observa dlopen da .so e dlsym Unix funcs não nulos. O trigger falha c0000135 por tier0_s64/vstdlib_s64 antes de qualquer API. Cinco hashes do wrapper + 965 entradas Frameworks intactos. Evidência nova preserva o histórico em `docs/evidence/steam-api-probe.md`.
