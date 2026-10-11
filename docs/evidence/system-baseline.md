@@ -38,6 +38,24 @@ Um harness descartável reutilizou `np_load_profile`/`np_free_profile`, `sigdb.c
 
 `make sigdb-fixtures` e `anchorcheck` completos são **NOT RUN**: carregam bibliotecas Steam por `dlopen`, que pode executar construtores. Não há gerador de perfil no repositório; preencher build/endereço/bytes a partir de perfil antigo seria inferência. A geração/validação exata requer análise específica dos binários e fica pendente para uma etapa com escopo apropriado. Nenhum perfil foi renomeado/copiado como se fosse do build atual, nenhuma biblioteca Steam foi carregada e nenhum hook/injeção foi instalado nesta execução.
 
+## Perfil 1791686101 (claude, opus `claude-opus-5-5`, 2026-10-11)
+
+**Build ativo.** O canal beta (`package/beta` = `publicbeta`) aplicou às 16:18:46 um update pendente (`bootstrap_log`: "uninstalled manifest found … Found pending update"); `steam_client_publicbeta_signed-2_osx.manifest` passou a declarar um único `"version" "1791686101"`. O "Block Steam client updates" estava ligado: ele bloqueia downloads novos, mas não a aplicação de um pacote já baixado (provavelmente baixado de madrugada, quando o bloqueio ficou desligado no T10). O Install recusou com "Steam build 1791686101 requires exactly one matching signature profile".
+
+**Cópias** (`scratch/steam-1791686101/`, ignorado; leitura somente no Steam): `steamclient.dylib` `86bdc388d7f0acde50d870817790ffa169bff1da719d6f6bcebf005284651222`, `steamui.dylib` `54cb23ca313fcd4f4a0de23afb82e9715e3ea217abd771350a79b4a7931fd981`; fatias arm64 `steamclient.arm64` `cd68eceb3c7c1a0186e16e592689d993106f2bc46b1003d6998973ea3ed96082`, `steamui.arm64` `0dab2c7bd43fb1eec1a729eaf3b818d592f19b49584af1e9c58e8ac562d2ff59`. `signatures/macos.arm64/1791686101.json`: `d412811c7d1c3b43472b9a1a03fd72297a93d75e3ec14ac14da3ad5648389ea2`.
+
+**Método.** Igual ao do 1791592380: `sigstatic --emit` com as âncoras do 1791592380, `sigprofile.py` e revalidação com `sigstatic`.
+
+**Resultado.** 18/18 por âncora, endereço gravado = resolvido, 8/8 vptrs, 0 problemas. **Os 18 padrões são idênticos aos do 1791592380**; mudaram só endereços: 11 `CCompatManager::*` +0x540, `LaunchBuilder::SteamVRSupportCheck` 0xb237a0 → 0xb25398 (+0x1bf8); `TerminateProcessByPid`, 3 WebUI e 2 steamui sem mudança. Os 8 vptrs são iguais aos do 1791592380.
+
+**Controle negativo.** Perfil 1791592380 contra o binário novo: 13 problemas "RECORDED WRONG" (as 12 deslocadas + a lista de vptrs não lida). Âncoras e padrões antigos ainda resolvem.
+
+**Verificação independente** (Python `-I` + `otool -l` + `dyld_info -function_starts`, sem o resolvedor; `scratch/steam-1791686101/independent-check.txt`): cada padrão tem exatamente 1 ocorrência em `__TEXT`, no endereço do perfil; 16 em `LC_FUNCTION_STARTS` e 2 `insn_pair` internos (esperado).
+
+**anchorcheck real** (Steam fechado; dylibs instalados byte a byte iguais às cópias): `./out/anchorcheck signatures/macos.arm64/1791686101.json` → 18 âncoras resolvidas, 18/18 endereços, 8/8 vptrs, fallback só por padrão com 0 erros; exit 0. Log `scratch/anchorcheck-1791686101.log` (`1aa970e5136b5031…`).
+
+**Checks.** `sigcheck.py`: 6 perfis, 18 assinaturas cada. `anchorcheck.c` ganhou os 8 vptrs. `make app-payload` + `swift test --no-parallel --manifest-cache none`: 452/452.
+
 ## Perfil 1791592380: repetição do T02 (claude, `sonnet`)
 
 Data: 2026-10-10 · Agente: claude · Modelo efetivo: `sonnet` (Claude Sonnet 5.5) · Branch `claude/steam-profile-1791592380`.

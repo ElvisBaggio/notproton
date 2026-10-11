@@ -181,6 +181,16 @@ static const struct { uint64_t build; const char *type_name; uintptr_t vptr; } e
     {1791592380, "40CCompatManager_SpecifyCompatTool_Request",     0x16ad2b0},
     {1791592380, "41CCompatManager_SpecifyCompatTool_Response",    0x16ad360},
     {1791592380, "40CCompatManager_StateChanged_Notification",     0x16ad410},
+
+    // 1791686101: read statically (sigstatic.c); all 8 vptrs unchanged from 1791592380.
+    {1791686101, "14CCompatManager",                              0x1743d50},
+    {1791686101, "21CMsgCompatManagerTool",                       0x16acff0},
+    {1791686101, "22CMsgCompatManagerAlias",                      0x16ad0a0},
+    {1791686101, "37CCompatManager_GetCompatTools_Request",        0x16ad150},
+    {1791686101, "38CCompatManager_GetCompatTools_Response",       0x16ad200},
+    {1791686101, "40CCompatManager_SpecifyCompatTool_Request",     0x16ad2b0},
+    {1791686101, "41CCompatManager_SpecifyCompatTool_Response",    0x16ad360},
+    {1791686101, "40CCompatManager_StateChanged_Notification",     0x16ad410},
 };
 
 static int run_rtti(const struct mach_header_64 *mh, intptr_t slide,
