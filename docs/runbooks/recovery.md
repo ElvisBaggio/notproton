@@ -34,3 +34,14 @@ O manifesto atualizado preserva integralmente o inventário anterior em `histori
 ## Pedido de revisão
 
 Claude Code **Opus 5.5**: revisar o manifesto schemaVersion=1, limites do sigcheck/parser, bloqueio do perfil Steam exato, proteção do estado preexistente e ordem de recuperação. Registrar o modelo efetivo usado; manter T02 In Progress/BLOCKED até cumprir o aceite. O pedido será publicado na issue #6 com o commit da tarefa.
+
+## Rollback vivo — procedimento validado no T10 (2026-10-11)
+
+Agente: claude · Modelo efetivo: opus (claude-opus-5-5). Evidência: `docs/evidence/deployment-rollback.md`. Substitui o "NOT RUN" acima para rollback vivo, assinatura e UI do Steam; Steam Cloud e persistência de jogo continuam com T11/T12. A pendência de perfil do T02 descrita nas pré-condições foi resolvida (perfis `1791415817` e `1791592380`).
+
+1. **Fechar o Steam** (Cmd+Q) e conferir que não há `steam_osx` nem jogo/Wine rodando.
+2. **Backup:** `python3 -I scratch/t10-backup/t10_snapshot.py <dir>/manifest.json --backup <dir>/files`. Clona por APFS e confere hash e inode de cada alvo: `/Applications/Steam.app`, os plists externo e interno, os dois `steam.cfg`, `compatibilitytools.d/notproton-*`, `config.vdf` e o registro em `notproton/`. Para se algum alvo divergir.
+3. **Rollback:** no NotProton Sikarugir.app, **Repair Steam**. Restaura o bundle Valve por download com hash fixado, limpa a injeção interna e remove o bloqueio de atualização. Depois **mover** (não apagar) `compatibilitytools.d/notproton-*` para o backup. Não usar **Remove**, que apaga a pasta de suporte, os runners e os templates.
+4. **Readback:** `codesign --verify --strict /Applications/Steam.app` com `TeamIdentifier=MXGJJ98X76`; `LSEnvironment` só com `LC_ALL`; sem `notproton.dylib` e sem `steam.cfg`. Depois, pela UI: o Steam abre e a ferramenta some da lista de compatibilidade. Conferir o build em `package/steam_client_publicbeta_signed-2_osx.manifest`. Se mudou, gerar perfil antes do redeploy.
+5. **Redeploy:** **Install** no app e novo snapshot sem `--backup`. Todos os alvos devem bater com o manifesto, salvo `config.vdf` (cache de servidores do Steam), a ordem de chaves do `install-build.json` e o `Info.plist.before-notproton` recriado. A ferramenta tem de reaparecer na UI.
+6. **Restauração manual** (se o Repair falhar): copiar de volta `files/Applications/Steam.app` e os demais itens a partir do backup, com `cp -Rc -P -p`, e mover a pasta da ferramenta de volta de `moved/`.
