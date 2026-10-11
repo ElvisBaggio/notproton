@@ -1,6 +1,6 @@
 # Handoff
 
-Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/t10-rollback-side-effect`.
+Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/t11-ghpc`.
 
 **Estado.**
 - Fechados por decisão do Elvis em 2026-10-10: #1 [E1] e #3 [E3].
@@ -18,7 +18,8 @@ Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
 
 **Próximo passo.**
 - Revisão do T10 por Claude Code Opus 5.5 e por Astra.
-- T11 (#15): o PEAK precisa ser reinstalado. É a chance de fazer a instalação do zero em biblioteca isolada que o card pede.
+- **T11 (#15) PASS por decisão do Elvis** com GHPC (1705180) na biblioteca padrão (desvio aceito). Depot Windows, D3D11 via D3DMetal, API Steam, saída limpa e Cloud comprovados por log; gameplay pelo relato dele (log mostra só o menu). Evidência em `docs/evidence/game-launch.md`. Aguarda revisão.
+- Próximo no E4: documentos do T12 (`docs/runbooks/steam-sikarugir.md`, `docs/evidence/acceptance.md`) e gate do épico.
 - Documentos que faltam no T12.
 - Opcional: apagar as opções SwiftShader do Cities II no Steam.
 
