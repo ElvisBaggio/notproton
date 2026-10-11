@@ -178,3 +178,7 @@ Isolamento com `scratch/b42/loadmodes.c` (i386; carrega o gatilho como launchers
 - Copiar o builtin i386 do runner para `syswow64` no clone do prefixo real fez a ponte assumir.
 
 Correção: `compat_run.sh` `place_wow64_lsteamclient` (depois do `verify_runner`) copia `runner/lib/wine/i386-windows/lsteamclient.dll` para `drive_c/windows/syswow64/` quando falta ou difere; teste em `sikarugircheck.sh` (cópia e idempotência). Suítes shell e 452/452 Swift passam. `shellcheck` não está instalado nesta máquina (fica para a CI).
+
+### #42 — prova no Wildlands (2026-10-11 19:15, claude)
+
+App com `84640e6` instalado, Install feito, prefixo 460930 com `syswow64/lsteamclient.dll`. `notproton-run.log` sem erros `tier0_s.dll`/`vstdlib_s.dll`; `game_starter_log.txt` sem `Failed to initialize Steam API` (antes: 17:06, 18:53, 19:03). `launcher_log.txt` 19:16:00: `Login Type: ticket, platform: Steam` → `AccountsNotLinked` / `BusLoginSteam, Cannot login without a linked Steam account`. O Ubisoft Connect (32-bit) obteve o ticket da sessão Steam pela ponte i386 e a Ubisoft o recebeu. A recusa é de conta (Steam não vinculada à conta Ubisoft), não do runtime. Ativação do 3559 e `GRW.exe` dependem do vínculo da conta (ação do usuário).
