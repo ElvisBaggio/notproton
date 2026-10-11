@@ -940,6 +940,25 @@ place_wow64_lsteamclient() {
   cp -c -f "$src" "$dst" 2>/dev/null || cp -f "$src" "$dst" 2>> "$log" || return 0
   echo "=== placed syswow64/lsteamclient.dll ===" >> "$log" 2>&1 || true
 }
+# Steam runs a game's installscript.vdf (Uplay, VC++ and the like) through the compat tool
+# with legacycompat/iscriptevaluator.exe from the client folder, which the Mac client ships
+# empty, so the Valve files fetched into the payload go there.
+install_legacycompat() {
+  src="$bridge_src/legacycompat"
+  dst="$STEAM_COMPAT_CLIENT_INSTALL_PATH/legacycompat"
+  [ -d "$src" ] && [ -n "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] || return 0
+  mkdir -p "$dst" || return 0
+  for f in "$src"/*; do
+    [ -f "$f" ] || continue
+    b=$(basename "$f")
+    cmp -s "$f" "$dst/$b" && continue
+    if cp -c -f "$f" "$dst/$b" 2>/dev/null || cp -f "$f" "$dst/$b" 2>> "$log"; then
+      echo "=== installed legacycompat/$b ===" >> "$log" 2>&1 || true
+    else
+      echo "=== could not copy legacycompat/$b to $dst/$b ===" >> "$log" 2>&1 || true
+    fi
+  done
+}
 bridge_files="steamclient64.dll steamclient.dll lsteamclient.dll lsteamclient.so steam.exe"
 # A clone cannot cross drives, so a prefix on another drive clones from a copy of the
 # bridge kept beside that drive's templates.
@@ -1033,6 +1052,7 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
     native_client="$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS"
     export STEAM_COMPAT_CLIENT_INSTALL_PATH="$native_client"
   fi
+  install_legacycompat
   echo "=== bridge staged into $prefix_steam ===" >> "$log" 2>&1 || true
   echo "WINEDLLPATH_D3DMETAL=$WINEDLLPATH_D3DMETAL" >> "$log" 2>&1 || true
   echo "WINEDLLOVERRIDES=$WINEDLLOVERRIDES" >> "$log" 2>&1 || true

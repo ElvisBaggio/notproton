@@ -59,3 +59,21 @@ cmp -s "$tmp/wow/runner/lib/wine/i386-windows/lsteamclient.dll" "$tmp/wow/pfx/dr
   || { echo 'FAIL: syswow64/lsteamclient.dll was not placed'; exit 1; }
 [ "$(grep -c 'placed syswow64' "$tmp/wow/log")" = 1 ] || { echo 'FAIL: syswow64 copy is not idempotent'; exit 1; }
 echo 'sikarugircheck: wow64 lsteamclient PASS'
+
+# install_legacycompat: the Mac client folder gets the evaluator Steam runs installscript.vdf with.
+sed -n '/^install_legacycompat() {/,/^}/p' "$SRC" > "$tmp/lc.sh"
+[ -s "$tmp/lc.sh" ] || { echo 'FAIL: install_legacycompat not found'; exit 1; }
+mkdir -p "$tmp/lc/bridge/legacycompat" "$tmp/lc/client"
+printf 'evaluator\n' > "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe"
+: > "$tmp/lc/log"
+# shellcheck disable=SC1091,SC2034 # lc.sh is generated above and reads these variables
+(
+  . "$tmp/lc.sh"
+  bridge_src="$tmp/lc/bridge" STEAM_COMPAT_CLIENT_INSTALL_PATH="$tmp/lc/client" log="$tmp/lc/log"
+  install_legacycompat
+  install_legacycompat
+)
+cmp -s "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe" "$tmp/lc/client/legacycompat/iscriptevaluator.exe" \
+  || { echo 'FAIL: iscriptevaluator.exe was not installed'; exit 1; }
+[ "$(grep -c 'installed legacycompat' "$tmp/lc/log")" = 1 ] || { echo 'FAIL: legacycompat copy is not idempotent'; exit 1; }
+echo 'sikarugircheck: legacycompat PASS'
