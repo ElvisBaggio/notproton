@@ -112,7 +112,8 @@ enum PrefixTools {
         result["WINEARCH"] = "win64"
         result["WINELOADER"] = runner.appending(path: "bin/wine").path(percentEncoded: false)
         result["WINESERVER"] = runner.appending(path: "bin/wineserver").path(percentEncoded: false)
-        result["WINEDLLPATH"] = "\(root)/Frameworks/renderer/d3dmetal/wine"
+        result["WINEDLLPATH_D3DMETAL"] = "\(root)/Frameworks/renderer/d3dmetal/wine"
+        result["CX_D3DMETALPATH"] = "\(root)/Frameworks/renderer/d3dmetal/external"
         result["CX_APPLEGPTK_LIBD3DSHARED_PATH"] = "\(root)/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
         result["WINEPREFIX"] = prefix.pfx.path(percentEncoded: false)
         result["WINEMSYNC"] = syncBackend(prefix: prefix)
