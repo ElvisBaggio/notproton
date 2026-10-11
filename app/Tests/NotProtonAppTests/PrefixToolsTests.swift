@@ -48,7 +48,7 @@ struct PrefixToolsTests {
         let root = runner.path(percentEncoded: false)
         let environment = PrefixTools.environment(prefix: samplePrefix(), runner: runner)
 
-        for name in ["WINELOADER", "WINESERVER", "WINEDLLPATH", "CX_APPLEGPTK_LIBD3DSHARED_PATH"] {
+        for name in ["WINELOADER", "WINESERVER", "WINEDLLPATH_D3DMETAL", "CX_D3DMETALPATH", "CX_APPLEGPTK_LIBD3DSHARED_PATH"] {
             let expected = try exported(name).replacingOccurrences(of: "$np_runner", with: root)
             #expect(environment[name] == expected, "\(name) drifted from RUN_SCRIPT")
         }

@@ -563,12 +563,14 @@ app: sikarugir-payload-check $(ICON_CAR)
 		"$(APP_BUNDLE)/Contents/Resources/"
 	cp "$(ICON_DIR)/Assets.car" "$(ICON_DIR)/NotProton.icns" \
 		"$(APP_BUNDLE)/Contents/Resources/"
+	# ponytail: swift build -c release rewrites Mach-O resources (vmsize/bytes), which breaks pinned hashes; ship the staged bytes as-is
+	ditto "$(APP_PAYLOAD)" "$(APP_BUNDLE_PAYLOAD)"
 	@missing=$$(cd "$(APP_PAYLOAD)" && find . -type f ! -name '.DS_Store' | sed 's|^\./||' \
 		| while read -r rel; do \
-			[ -s "$(CURDIR)/$(APP_BUNDLE_PAYLOAD)/$$rel" ] || echo "$$rel"; \
+			cmp -s "$$rel" "$(CURDIR)/$(APP_BUNDLE_PAYLOAD)/$$rel" || echo "$$rel"; \
 		done); \
 	if [ -n "$$missing" ]; then \
-		echo "==> the bundle is missing staged payload, so the app would ship without it:" >&2; \
+		echo "==> the bundle is missing or has stale staged payload:" >&2; \
 		echo "$$missing" | sed 's/^/        /' >&2; \
 		echo "==> rm -rf app/.build/out and build again" >&2; \
 		exit 1; \
