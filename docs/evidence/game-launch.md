@@ -105,4 +105,4 @@ Logs a consultar: Steam `~/Library/Application Support/Steam/logs/` (`content_lo
 - Rastros no prefixo `compatdata/3527290/pfx`: `AppData/LocalLow/LandCrab/PEAK/Player.log` + `Player-prev.log` (reabertura) e `steam_autocloud.vdf` (Steam Cloud ativo para o jogo via ferramenta de compatibilidade).
 - Fora do aceite, ainda não testado: DX12 sem `-force-d3d11`.
 
-**Nota 2026-10-11 (claude, opus):** o rollback do T10 fez o Steam desinstalar o PEAK e apagar `compatdata/3527290` às 00:38:29 (ver `docs/evidence/deployment-rollback.md`, "Efeito colateral"). Os rastros acima (`Player.log`, `Player-prev.log`, `steam_autocloud.vdf`) não existem mais; o PASS do T12 se apoia no relato do Elvis. O PEAK não está instalado hoje.
+**Nota 2026-10-11 (claude, opus):** depois do rollback do T10, que removeu o depot Windows e exigiu re-download, o Elvis desinstalou o PEAK às 00:38:29 e o Steam apagou `compatdata/3527290` (ver `docs/evidence/deployment-rollback.md`, "Efeito colateral"). Os rastros acima (`Player.log`, `Player-prev.log`, `steam_autocloud.vdf`) não existem mais; o PASS do T12 se apoia no relato do Elvis. O PEAK não está instalado hoje.

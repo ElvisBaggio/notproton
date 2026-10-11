@@ -10,7 +10,7 @@ Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
   - Readback: Steam original abre e a ferramenta some da lista.
   - Redeploy: alvos byte-idênticos ao estado anterior e ferramenta de volta na UI.
   - O Steam ficou no build `1791592380`. Jogo depois do redeploy: **NOT RUN** (Elvis não abriu); a prova de jogo fica com T11/T12.
-- **Efeito colateral do rollback do T10 (descoberto depois do merge):** com o Steam original aberto sem a ferramenta, o Steam removeu os depots Windows. O **PEAK foi desinstalado e o `compatdata/3527290` apagado**, e o Cloud não tinha cópia. O Cities II baixou 8,3 GB de DLC de novo. O GHPC não foi afetado. O runbook ganhou o passo 3a. O aceite "arquivos alheios preservados" do T10 falhou.
+- **Efeito colateral do rollback do T10 (descoberto depois do merge):** com o Steam original aberto sem a ferramenta, o Steam removeu os depots Windows. O Cities II baixou 8,3 GB de DLC de novo e o PEAK passou a exigir re-download. Em seguida o Elvis desinstalou o PEAK, e o Steam apagou o `compatdata/3527290`. O GHPC não foi afetado. O runbook ganhou o passo 3a. O aceite "arquivos alheios preservados" do T10 falhou parcialmente.
 - Jogos confirmados pela ferramenta: PEAK (T12) e **GHPC** (AppID 1705180, 2026-10-11, Elvis relatou que funcionou; shim `exited status=0`).
 - Achado preexistente: o helper `legacycompat/iscriptevaluator.exe` não existe e falha sempre (`status=1`). O Steam segue para o launch mesmo assim.
 - T12 (#16): PASS de runtime registrado, mas ainda faltam os documentos do card (`docs/runbooks/steam-sikarugir.md`, `docs/evidence/acceptance.md`).
