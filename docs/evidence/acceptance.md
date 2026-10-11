@@ -33,17 +33,17 @@ O `run` acima é o anterior ao PR #27 (só comentário mudou); o próximo Instal
 |---|---|---|---|
 | 1 | Deploy visível no Steam (T10) | PASS (log + UI) | `deployment-rollback.md` |
 | 2 | Rollback real, Steam original funcional (T10) | PASS (log + UI) | assinatura Valve `MXGJJ98X76`, sem injeção, ferramenta fora da lista |
-| 3 | Arquivos alheios preservados no rollback (T10) | **FAIL parcial** | depots Windows removidos e re-download (Cities II 8,3 GB, PEAK 1,46 GB); prefixos e saves não apagados pelo rollback. Runbook ganhou o passo 3a |
+| 3 | Arquivos alheios preservados no rollback (T10) | **FAIL parcial aceito** pelo Elvis (2026-10-11) | depots Windows removidos e re-download (Cities II 8,3 GB, PEAK 1,46 GB); prefixos e saves não apagados pelo rollback. Correção só documental: runbook passo 3a |
 | 4 | Redeploy conferido (T10) | PASS (log + UI) | alvos byte-idênticos ao manifesto |
 | 5 | Instalação Windows em biblioteca isolada (T11) | **Desvio aceito** pelo Elvis | GHPC na biblioteca padrão |
 | 6 | Conteúdo Windows, sem build macOS (T11) | PASS (log) | PEAK: só depot `3527291`; GHPC: `oslist=windows`, depot `1705181`, `Bin/GHPC.exe` |
 | 7 | Jogo inicia pelo Steam nativo com o motor certo, sem Steam Windows (T11) | PASS (log) | `notproton-run.log` dos dois jogos; `exited status=0` |
 | 8 | Renderer conferido (T11) | PASS (log) | PEAK e GHPC: `Direct3D 11.0 [level 11.1]` via D3DMetal |
 | 9 | Reabrir não reinicializa o prefixo (T11) | PASS (log) | GHPC: template clonado só na 1ª execução (00:20); 2ª (02:06) sem clonagem |
-| 10 | Gameplay real (T11) | PASS (relato) | GHPC: os `Player.log` mostram só o menu; PASS por decisão do Elvis |
-| 11 | Sessão ≥ 15 min com ação identificável (T12) | PASS (relato) | PEAK, 2026-10-10. Logs do Steam começam em 2026-10-10 22:34 (depois da sessão) e o prefixo foi apagado na desinstalação |
-| 12 | Estado persistente após fechar jogo e Steam e reabrir (T12) | PASS (relato) | PEAK, relato do Elvis; rastros (`Player-prev.log`, `steam_autocloud.vdf`) apagados com o prefixo |
-| 13 | Wrapper original continua utilizável | **NOT RUN** | o wrapper original foi apagado pelo Elvis antes do T10; o atual (`~/Applications/Sikarugir/Sikarugir.app`) nunca foi alvo do deploy, mas não foi aberto para conferir |
+| 10 | Gameplay real (T11) | PASS (relato) | GHPC: os `Player.log` mostram só o menu; relato aceito pelo Elvis (2026-10-11) |
+| 11 | Sessão ≥ 15 min com ação identificável (T12) | PASS (relato) | PEAK, 2026-10-10. Logs do Steam começam em 2026-10-10 22:34 (depois da sessão) e o prefixo foi apagado na desinstalação; relato aceito pelo Elvis (2026-10-11) |
+| 12 | Estado persistente após fechar jogo e Steam e reabrir (T12) | PASS (relato) | PEAK, relato do Elvis; rastros (`Player-prev.log`, `steam_autocloud.vdf`) apagados com o prefixo; relato aceito pelo Elvis (2026-10-11) |
+| 13 | Wrapper original continua utilizável | PASS (processo) | o wrapper original foi apagado pelo Elvis antes do T10. O atual (`~/Applications/Sikarugir/Sikarugir.app`), que nunca foi alvo do deploy, abriu em 2026-10-11 via `open` e subiu o `Configure.app` (comportamento normal de wrapper sem programa definido); fechado em seguida |
 | 14 | Guia permite recuperar sem esta conversa | PASS (doc) | `steam-sikarugir.md` + `recovery.md` |
 | 15 | Revisão independente Sol 6.1 / Astra | **NOT RUN** | pendente |
 
@@ -56,4 +56,4 @@ O `run` acima é o anterior ao PR #27 (só comentário mudou); o próximo Instal
 
 ## Estado do gate do épico
 
-**Não encerrável ainda**: critérios 13 e 15 estão NOT RUN, e o 3 é FAIL parcial com correção só documental. Os PASS por relato (10–12) dependem da aceitação do revisor.
+**Não encerrável ainda**: só falta o critério 15 (revisão independente). Em 2026-10-11 o Elvis aceitou o 3 como FAIL parcial com correção documental e os PASS por relato (10–12); o 13 passou ao abrir o wrapper atual.
