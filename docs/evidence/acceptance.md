@@ -45,7 +45,7 @@ O `run` acima é o anterior ao PR #27 (só comentário mudou); o próximo Instal
 | 12 | Estado persistente após fechar jogo e Steam e reabrir (T12) | PASS (relato) | PEAK, relato do Elvis; rastros (`Player-prev.log`, `steam_autocloud.vdf`) apagados com o prefixo; relato aceito pelo Elvis (2026-10-11) |
 | 13 | Wrapper original continua utilizável | PASS (processo) | o wrapper original foi apagado pelo Elvis antes do T10. O atual (`~/Applications/Sikarugir/Sikarugir.app`), que nunca foi alvo do deploy, abriu em 2026-10-11 via `open` e subiu o `Configure.app` (comportamento normal de wrapper sem programa definido); fechado em seguida |
 | 14 | Guia permite recuperar sem esta conversa | PASS (doc) | `steam-sikarugir.md` + `recovery.md` |
-| 15 | Revisão independente Sol 6.1 / Astra | **NOT RUN** | pendente |
+| 15 | Revisão independente Sol 6.1 / Astra | PASS | Astra (gpt-6-astra), 2026-10-11: E4 ACEITO COM RESSALVAS (`docs/reviews/astra-e4-gate.md`) |
 
 ## Limitações conhecidas
 
@@ -56,4 +56,4 @@ O `run` acima é o anterior ao PR #27 (só comentário mudou); o próximo Instal
 
 ## Estado do gate do épico
 
-**Não encerrável ainda**: só falta o critério 15 (revisão independente). Em 2026-10-11 o Elvis aceitou o 3 como FAIL parcial com correção documental e os PASS por relato (10–12); o 13 passou ao abrir o wrapper atual.
+**Encerrável com ressalvas** (Astra, 2026-10-11). Exceções aceitas pelo Elvis: o 3 como FAIL parcial com correção documental, e os 10–12 como PASS por relato. O 13 cobre só o wrapper atual, não o histórico. Ressalvas da Astra em `docs/reviews/astra-e4-gate.md`.

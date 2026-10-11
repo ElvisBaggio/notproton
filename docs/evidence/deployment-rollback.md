@@ -60,7 +60,7 @@ Elvis clicou **Install** no NotProton Sikarugir.app (o Install reinicia o Steam)
 - Deploy visível no Steam: **PASS** (UI).
 - Rollback real e estado anterior funcional: **PASS COM DANO** — assinatura Valve, sem injeção, Steam original abre, ferramenta fora da lista; mas os **depots Windows dos jogos instalados foram removidos** e tiveram de ser baixados de novo (ver "Efeito colateral" abaixo).
 - Redeploy conferido: **PASS** por hash byte a byte dos alvos + UI.
-- Jogo aberto **após** o redeploy: **NOT RUN** (Elvis optou por não abrir). A identidade de hash não comprova runtime; a prova de jogo fica com T11/T12 (PEAK e GHPC funcionaram com estes mesmos bytes antes do rollback).
+- Jogo aberto **após** o redeploy: **PASS (log)** para abertura e encerramento. Elvis não abriu jogo logo após o redeploy, mas o GHPC rodou às 02:06:42–02:07:09 (T11, depois do redeploy das 00:37:43) com shim `exited status=0`, D3D11 e API Steam no `Player.log`. A sessão de 27 s não prova gameplay nem duração (Astra, achado 2).
 - Wrapper Sikarugir original: o wrapper antigo foi apagado pelo Elvis antes deste card; o atual (`~/Applications/Sikarugir/Sikarugir.app`) não é alvo do deploy e não foi tocado.
 
 ## Achado preexistente (não regressão)
