@@ -55,7 +55,7 @@ scratch_root=${SCRATCH_ROOT:-$repo/scratch}
 
 die() { echo "recusado: $*" >&2; exit 2; }
 
-steam_client= engine= prefix= bridge= appid= probe= loader= manifest= verify= check_only=0
+steam_client='' engine='' prefix='' bridge='' appid='' probe='' loader='' manifest='' verify='' check_only=0
 while [ $# -gt 0 ]; do
     case $1 in
         --check-only) check_only=1; shift; continue ;;
