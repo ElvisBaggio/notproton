@@ -165,3 +165,16 @@ Pendente no card: staging pelo app/`compat_run.sh` (`lib/wine/i386-windows/lstea
 - `make bridge-sikarugir` completo nesta checkout: rc=0, `sikarugir-buildcheck: PASS`, i386 = `bd277143…`.
 
 **Achado: a reprodutibilidade dos PEs depende do caminho.** O `steam.exe` e o `lsteamclient.dll` x86_64 compilados nesta checkout deram `a41205e7…`/`5efccfbb…`, e não os pins `56979db4…`/`2933ac86…`. Os PEs embutem o caminho absoluto do fonte (strings `__FILE__`, ex.: `…/scratch/worktrees/t03-bridge/scratch/sikarugir/wine/dlls/lsteamclient/steam_input_manual.c`), então o T03 só se reproduz no caminho original. A ponte local usa as três peças x86_64 fixadas do T03 mais a i386 nova (o i386 se reproduz desde que compilado a partir de `scratch/sikarugir/wine`). Correção sugerida em card próprio: `-ffile-prefix-map` no build, com novos pins validados em runtime.
+
+### #42 — prefixo antigo sem `syswow64/lsteamclient.dll` (2026-10-11, claude)
+
+Sintoma no Wildlands depois do Install/Repair (runner com o i386, prefixo com `steamclient.dll`): o Ubisoft Connect continuou com `Failed to load module 'C:\Program Files (x86)\Steam\steamclient.dll'` e o Wine registrou `import_dll Library tier0_s.dll / vstdlib_s.dll (which is needed by …\Steam\steamclient.dll) not found`.
+
+Isolamento com `scratch/b42/loadmodes.c` (i386; carrega o gatilho como launchers fazem: nome, caminho completo, `LOAD_WITH_ALTERED_SEARCH_PATH`, `LOAD_LIBRARY_SEARCH_*`, `SetDefaultDllDirectories`):
+- motor de scratch + prefixo de scratch: os 6 modos carregam, ponte ativa;
+- sem `WINEDLLOVERRIDES`/`WINEPATH`: caminho completo ainda carrega;
+- **runner real + clone APFS do prefixo real: falha (tier0_s.dll)**; motor de scratch + prefixo real: falha; runner real + prefixo de scratch: carrega. **A variável é o prefixo.**
+- Diferença: o prefixo de scratch, criado por `wineboot` com o runner já com o i386, tem `windows/syswow64/lsteamclient.dll`. O do Wildlands, criado antes, não tem. O Wine 11 só acha o builtin quando existe esse arquivo em `system32`/`syswow64`; sem ele, o `resolve_lsteam` do detour i386 falha, o detour desiste e os imports da Valve são resolvidos.
+- Copiar o builtin i386 do runner para `syswow64` no clone do prefixo real fez a ponte assumir.
+
+Correção: `compat_run.sh` `place_wow64_lsteamclient` (depois do `verify_runner`) copia `runner/lib/wine/i386-windows/lsteamclient.dll` para `drive_c/windows/syswow64/` quando falta ou difere; teste em `sikarugircheck.sh` (cópia e idempotência). Suítes shell e 452/452 Swift passam. `shellcheck` não está instalado nesta máquina (fica para a CI).

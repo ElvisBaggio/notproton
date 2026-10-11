@@ -41,3 +41,21 @@ if grep -q 'no patched ntdll' "$tmp/vr/log"; then echo 'FAIL: the bridge ntdll n
 grep -q 'missing x86_64-windows/lsteamclient.dll' "$tmp/vr/log" || { echo 'FAIL: the builtin check is gone'; exit 1; }
 grep -q 'missing i386-windows/lsteamclient.dll' "$tmp/vr/log" || { echo 'FAIL: the i386 builtin check is gone'; exit 1; }
 echo 'sikarugircheck: verify_runner PASS'
+
+# place_wow64_lsteamclient: a prefix older than the i386 builtin gets its syswow64 file.
+sed -n '/^place_wow64_lsteamclient() {/,/^}/p' "$SRC" > "$tmp/wow.sh"
+[ -s "$tmp/wow.sh" ] || { echo 'FAIL: place_wow64_lsteamclient not found'; exit 1; }
+mkdir -p "$tmp/wow/runner/lib/wine/i386-windows" "$tmp/wow/pfx/drive_c/windows/syswow64"
+printf 'i386 builtin\n' > "$tmp/wow/runner/lib/wine/i386-windows/lsteamclient.dll"
+: > "$tmp/wow/log"
+# shellcheck disable=SC1091,SC2034 # wow.sh is generated above and reads these variables
+(
+  . "$tmp/wow.sh"
+  np_runner="$tmp/wow/runner" WINEPREFIX="$tmp/wow/pfx" log="$tmp/wow/log"
+  place_wow64_lsteamclient
+  place_wow64_lsteamclient
+)
+cmp -s "$tmp/wow/runner/lib/wine/i386-windows/lsteamclient.dll" "$tmp/wow/pfx/drive_c/windows/syswow64/lsteamclient.dll" \
+  || { echo 'FAIL: syswow64/lsteamclient.dll was not placed'; exit 1; }
+[ "$(grep -c 'placed syswow64' "$tmp/wow/log")" = 1 ] || { echo 'FAIL: syswow64 copy is not idempotent'; exit 1; }
+echo 'sikarugircheck: wow64 lsteamclient PASS'

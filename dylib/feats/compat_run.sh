@@ -922,6 +922,17 @@ verify_runner() {
 }
 # steamclient.dll is the Valve i386 trigger: 32-bit Steam clients (Ubisoft Connect) load it and
 # the patched i386 ntdll swaps in the runner's i386 lsteamclient.dll.
+# Wine 11 only finds a builtin it has a file for under system32/syswow64. wineboot leaves those
+# files behind, so a prefix made before the runner carried the i386 lsteamclient never gets one,
+# and the i386 trigger then falls back to Valve's imports (tier0_s.dll) and fails.
+place_wow64_lsteamclient() {
+  src="$np_runner/lib/wine/i386-windows/lsteamclient.dll"
+  dst="$WINEPREFIX/drive_c/windows/syswow64/lsteamclient.dll"
+  [ -f "$src" ] && [ -d "${dst%/*}" ] || return 0
+  cmp -s "$src" "$dst" && return 0
+  cp -c -f "$src" "$dst" 2>/dev/null || cp -f "$src" "$dst" 2>> "$log" || return 0
+  echo "=== placed syswow64/lsteamclient.dll ===" >> "$log" 2>&1 || true
+}
 bridge_files="steamclient64.dll steamclient.dll lsteamclient.dll lsteamclient.so steam.exe"
 # A clone cannot cross drives, so a prefix on another drive clones from a copy of the
 # bridge kept beside that drive's templates.
@@ -1006,6 +1017,7 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
     esac
   done
   verify_runner
+  place_wow64_lsteamclient
   export WINEPATH="C:\\Program Files (x86)\\Steam"
   # If the same DLL appears twice in WINEDLLOVERRIDES, the last entry wins.
   export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}steamclient=n;steamclient64=n;lsteamclient=b"
