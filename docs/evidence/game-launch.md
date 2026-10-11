@@ -102,5 +102,23 @@ Logs a consultar: Steam `~/Library/Application Support/Steam/logs/` (`content_lo
 ## T12 — sessão, persistência e reabertura (2026-10-10, Agente: claude, opus)
 
 - Elvis jogou PEAK pela ferramenta `notproton-sikarugir-11.0-r0` (`-force-d3d11`), salvou, fechou jogo e Steam, reabriu e confirmou o progresso: **PASS** (relato do Elvis).
-- Rastros no prefixo `compatdata/3527290/pfx`: `AppData/LocalLow/LandCrab/PEAK/Player.log` + `Player-prev.log` (reabertura) e `steam_autocloud.vdf` (Steam Cloud ativo para o jogo via ferramenta de compatibilidade).
+- Rastros no prefixo `compatdata/3527290/pfx`: `AppData/LocalLow/LandCrab/PEAK/Player.log` + `Player-prev.log` (reabertura) e `steam_autocloud.vdf` (Steam Cloud ativo para o jogo via ferramenta de compatibilidade; o AutoCloud de 2026-10-11 00:18 achou 0 arquivos `*.peak`, ou seja, nada foi sincronizado).
 - Fora do aceite, ainda não testado: DX12 sem `-force-d3d11`.
+
+**Nota 2026-10-11 (claude, opus):** depois do rollback do T10, que removeu o depot Windows e exigiu re-download, o Elvis desinstalou o PEAK às 00:38:29 e o Steam apagou `compatdata/3527290` (ver `docs/evidence/deployment-rollback.md`, "Efeito colateral"). Os rastros acima (`Player.log`, `Player-prev.log`, `steam_autocloud.vdf`) não existem mais; o PASS do T12 se apoia no relato do Elvis. O PEAK não está instalado hoje.
+
+## T11 — fechamento com GHPC (2026-10-11, Agente: claude, opus 5.5)
+
+Branch `claude/t11-ghpc`. Decisão do Elvis em 2026-10-11: o PEAK foi desinstalado depois do T10, e o **GHPC (Gunner, HEAT, PC!, AppID 1705180) passa a ser o jogo de prova do T11**, **na biblioteca padrão**, sem biblioteca isolada (desvio aceito por ele).
+
+| Item | Evidência |
+|---|---|
+| Conteúdo Windows | `appinfo.vdf`: `common/oslist=windows`, `osarch=64`; um depot, `1705181`, sem config de SO; launch único `Bin/GHPC.exe` ("Windows game executable"). `appmanifest_1705180.acf`: `buildid 24952526`, `InstalledDepots 1705181` (manifest `3699423609009875309`), `SizeOnDisk 8906247069`. Sem build macOS. Parser: `scratch/appinfo_probe.py` (ignorado). |
+| Ferramenta e prefixo | `compatdata/1705180/notproton-run.log`: prefixo `claimed by build sikarugir-11.0-r0` e `cloned … from the sikarugir-11.0-r0-x86_64-unix template` na 1ª execução (00:20); a 2ª (02:06) **não** reinicializou o prefixo. Steam nativo do Mac, sem Steam Windows. |
+| API Steam | `Player.log`: `Initializing for App ID = 1705180`, `Local User: …` (nome omitido). |
+| Renderer | Unity `2022.3.62f2`, `Direct3D 11.0 [level 11.1]`, `Renderer: AMD Compatibility Mode` (D3DMetal). |
+| Saída | Sessões 00:20:00→00:23:34 e 02:06:42→02:07:09 (`content_log`), as duas com `Sikarugir shim exited status=0` e o estado voltando a `Fully Installed` (botão Jogar). |
+| Save e Cloud | `Documents/My Games/GHPC/Data/GHPC_data.sav`, `config.json`; Steam Cloud ativo (`steam_autocloud.vdf`, global change number 3). Backup pré-jogo com hashes em `scratch/t11-ghpc/pre-play-20261011/`. |
+| Gameplay | **Relato do Elvis:** "joguei, funcionou". Os dois `Player.log` (atual e `Player-prev.log`) registram só a cena `MainMenu2_Scene` e nenhuma missão carregada, e a sessão das 02:06 durou 27 s. O GHPC pode não registrar a carga de missão; não verificado. |
+
+**Resultado: PASS por decisão do Elvis**, com a ressalva de que o gameplay real se apoia no relato e não em rastro de log. Biblioteca e saves originais preservados (nenhum outro jogo tocado neste card). Revisão: Claude Code Opus 5.5 / Astra.
