@@ -58,7 +58,7 @@ Elvis clicou **Install** no NotProton Sikarugir.app (o Install reinicia o Steam)
 ## Resultado
 
 - Deploy visível no Steam: **PASS** (UI).
-- Rollback real e estado anterior funcional: **PASS** (assinatura Valve, sem injeção, Steam original abre, ferramenta fora da lista; arquivos alheios preservados).
+- Rollback real e estado anterior funcional: **PASS COM DANO** — assinatura Valve, sem injeção, Steam original abre, ferramenta fora da lista; mas os **depots Windows dos jogos instalados foram removidos** e tiveram de ser baixados de novo (ver "Efeito colateral" abaixo).
 - Redeploy conferido: **PASS** por hash byte a byte dos alvos + UI.
 - Jogo aberto **após** o redeploy: **NOT RUN** (Elvis optou por não abrir). A identidade de hash não comprova runtime; a prova de jogo fica com T11/T12 (PEAK e GHPC funcionaram com estes mesmos bytes antes do rollback).
 - Wrapper Sikarugir original: o wrapper antigo foi apagado pelo Elvis antes deste card; o atual (`~/Applications/Sikarugir/Sikarugir.app`) não é alvo do deploy e não foi tocado.
@@ -66,3 +66,23 @@ Elvis clicou **Install** no NotProton Sikarugir.app (o Install reinicia o Steam)
 ## Achado preexistente (não regressão)
 
 `compatdata/949230/notproton-run.log`: o helper de install script falha sempre (`Failed to create process "S:\Steam.AppBundle\Steam\Contents\MacOS\legacycompat\iscriptevaluator.exe" … : 2` → `helper exited status=1`, 9/9 ocorrências, antes e depois do T10). `legacycompat/` está vazio no bundle interno. O Steam segue para o launch mesmo assim (visto no Cities II). Investigar à parte se algum jogo depender do install script.
+
+## Efeito colateral do rollback (descoberto em 2026-10-11, depois do merge)
+
+Fonte: `~/Library/Application Support/Steam/logs/content_log.txt`, `compat_log.txt` e `cloud_log.txt`.
+
+Ao abrir o Steam original **sem nenhuma ferramenta de compatibilidade** (readback do rollback, 00:37), o Steam do Mac reconfigurou os jogos Windows para a plataforma macOS:
+
+- `00:37:02` — PEAK (3527290): `config changed : removed depots 3527291` (único depot, Windows). Cities II (949230): `removed depots 2427741,2427743,3579790,3579810` (DLCs Windows). Os conteúdos desses depots foram desmontados.
+- `00:37:43` — com a ferramenta de volta (redeploy), os depots foram re-adicionados. O Cities II **baixou de novo 8,3 GB** de DLC (`update started : download 0/8313245008`) e terminou íntegro às 00:39.
+- `00:38:09` — PEAK: `update prefetch finished : 1565047488 bytes to download` — com o depot de volta, o Steam passou a exigir **re-download completo** do jogo.
+- `00:38:29` — PEAK desinstalado **pelo Elvis** (confirmado por ele). O Steam então apagou `compatdata/3527290` (`compat_log.txt`), comportamento normal de desinstalação. O AutoCloud de 00:18 tinha achado 0 arquivos `*.peak`, então não há cópia na nuvem desse prefixo.
+- GHPC (1705180) não foi reconfigurado (último evento 00:23) e o prefixo continua presente. Saves do Cities II: este prefixo não tinha `.cok`; as cópias históricas de `scratch/sikarugir/save-backup-20261009` não foram afetadas.
+
+Consequências:
+
+1. O critério "arquivos alheios preservados" do T10 **falhou parcialmente**: o conteúdo Windows dos jogos instalados foi desmontado e precisou de re-download (8,3 GB no Cities II; 1,46 GB pendentes no PEAK). Prefixos e saves não foram apagados pelo rollback. O rollback de bundle e assinatura em si está correto.
+2. A desinstalação do PEAK (decisão do Elvis) apagou o prefixo usado como rastro do T12; o relato do Elvis permanece.
+3. O manifesto do T10 não cobria `steamapps/compatdata/*` nem `appmanifest_*.acf`; com o passo 3a o próximo rollback cobre.
+
+Correção do procedimento em `docs/runbooks/recovery.md` ("Antes de abrir o Steam sem a ferramenta").
