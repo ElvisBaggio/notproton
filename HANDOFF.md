@@ -1,6 +1,6 @@
 # Handoff
 
-Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/t10-deploy-rollback` (sobre `claude/park-cities-ii`, PR #25).
+Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/t10-rollback-side-effect`.
 
 **Estado.**
 - Fechados por decisão do Elvis em 2026-10-10: #1 [E1] e #3 [E3].
@@ -10,6 +10,7 @@ Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
   - Readback: Steam original abre e a ferramenta some da lista.
   - Redeploy: alvos byte-idênticos ao estado anterior e ferramenta de volta na UI.
   - O Steam ficou no build `1791592380`. Jogo depois do redeploy: **NOT RUN** (Elvis não abriu); a prova de jogo fica com T11/T12.
+- **Efeito colateral do rollback do T10 (descoberto depois do merge):** com o Steam original aberto sem a ferramenta, o Steam removeu os depots Windows. O **PEAK foi desinstalado e o `compatdata/3527290` apagado**, e o Cloud não tinha cópia. O Cities II baixou 8,3 GB de DLC de novo. O GHPC não foi afetado. O runbook ganhou o passo 3a. O aceite "arquivos alheios preservados" do T10 falhou.
 - Jogos confirmados pela ferramenta: PEAK (T12) e **GHPC** (AppID 1705180, 2026-10-11, Elvis relatou que funcionou; shim `exited status=0`).
 - Achado preexistente: o helper `legacycompat/iscriptevaluator.exe` não existe e falha sempre (`status=1`). O Steam segue para o launch mesmo assim.
 - T12 (#16): PASS de runtime registrado, mas ainda faltam os documentos do card (`docs/runbooks/steam-sikarugir.md`, `docs/evidence/acceptance.md`).
@@ -17,7 +18,7 @@ Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
 
 **Próximo passo.**
 - Revisão do T10 por Claude Code Opus 5.5 e por Astra.
-- T11 (#15), agora desbloqueado pelo T10.
+- T11 (#15): o PEAK precisa ser reinstalado. É a chance de fazer a instalação do zero em biblioteca isolada que o card pede.
 - Documentos que faltam no T12.
 - Opcional: apagar as opções SwiftShader do Cities II no Steam.
 
