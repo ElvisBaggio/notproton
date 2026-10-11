@@ -1,9 +1,26 @@
 # Handoff
 
-Atualizado: 2026-10-10 · Agente: claude · Modelo efetivo: sonnet · Branch: claude/steam-profile-1791592380.
+Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/t10-deploy-rollback` (sobre `claude/park-cities-ii`, PR #25).
 
-**Estado.** Perfil `signatures/macos.arm64/1791592380.json` gerado para o Steam beta atualizado (1791415817 -> 1791592380). 18/18 por âncora, padrões idênticos aos do perfil anterior (só 13 endereços mudaram), controle negativo e verificação independente OK, `sigcheck.py` PASS, `anchorcheck` real PASS (Steam fechado: 18/18, 8/8 vptrs). Detalhes: docs/evidence/system-baseline.md ("Perfil 1791592380").
+**Estado.**
+- Fechados por decisão do Elvis em 2026-10-10: #1 [E1] e #3 [E3].
+- **T10 (#14) executado, aguardando revisão.** Evidência: `docs/evidence/deployment-rollback.md`; procedimento: `docs/runbooks/recovery.md` ("Rollback vivo"). Fluxo:
+  - Backup por manifesto com clone APFS.
+  - Rollback 100% original por decisão do Elvis: Repair Steam, que restaura a assinatura Valve `MXGJJ98X76`, e a ferramenta movida para fora.
+  - Readback: Steam original abre e a ferramenta some da lista.
+  - Redeploy: alvos byte-idênticos ao estado anterior e ferramenta de volta na UI.
+  - O Steam ficou no build `1791592380`. Jogo depois do redeploy: **NOT RUN** (Elvis não abriu); a prova de jogo fica com T11/T12.
+- Jogos confirmados pela ferramenta: PEAK (T12) e **GHPC** (AppID 1705180, 2026-10-11, Elvis relatou que funcionou; shim `exited status=0`).
+- Achado preexistente: o helper `legacycompat/iscriptevaluator.exe` não existe e falha sempre (`status=1`). O Steam segue para o launch mesmo assim.
+- T12 (#16): PASS de runtime registrado, mas ainda faltam os documentos do card (`docs/runbooks/steam-sikarugir.md`, `docs/evidence/acceptance.md`).
+- **Cities II estacionado** por decisão do Elvis em 2026-10-11 (`docs/evidence/cities-launcher.md`, PR #25). A janela do Paradox Launcher fica branca até no Sikarugir original. Abrir o `Cities2.exe` direto cai numa `IOException` do Mono. Retomar só com card próprio.
 
-**Próximo passo.** Revisão Claude Code Opus 5.5 (issue #6). Rodar `swift test --no-parallel` completo onde o payload real existe (neste worktree o payload não é construível: faltam os `.a` do Dobby), depois T10.
+**Próximo passo.**
+- Revisão do T10 por Claude Code Opus 5.5 e por Astra.
+- T11 (#15), agora desbloqueado pelo T10.
+- Documentos que faltam no T12.
+- Opcional: apagar as opções SwiftShader do Cities II no Steam.
 
-**Limites.** Perfil não implantado; loader/hooks não exercitados. Se o Steam atualizar de novo, repetir o método (sigstatic --emit + sigprofile.py).
+**Limites.**
+- Backups e manifestos em `scratch/t10-backup/20261011-pre-rollback/` (ignorado). A pasta da ferramenta antes do rollback está em `moved/`.
+- Nenhum código alterado.

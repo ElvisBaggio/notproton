@@ -46,12 +46,9 @@ here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/.." && pwd)
 
 WINE_BUILD=${WINE_BUILD:-$repo/scratch/wine-build-dual}
-# Mach-O spells the arm64 arch arm64 and wine spells its directory aarch64-unix, so
-# both names are kept rather than derived from each other at every use.
 UNIX_ARCH=${UNIX_ARCH:-x86_64}
 case "$UNIX_ARCH" in
-	x86_64) unix_dir=x86_64-unix ;;
-	arm64) unix_dir=aarch64-unix ;;
+	x86_64 | arm64) ;;
 	*) echo "==> UNIX_ARCH is $UNIX_ARCH, expected x86_64 or arm64" >&2; exit 1 ;;
 esac
 # Relative because it lands in the debug info. Keep the default sibling layout so
