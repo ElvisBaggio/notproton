@@ -102,7 +102,7 @@ Logs a consultar: Steam `~/Library/Application Support/Steam/logs/` (`content_lo
 ## T12 — sessão, persistência e reabertura (2026-10-10, Agente: claude, opus)
 
 - Elvis jogou PEAK pela ferramenta `notproton-sikarugir-11.0-r0` (`-force-d3d11`), salvou, fechou jogo e Steam, reabriu e confirmou o progresso: **PASS** (relato do Elvis).
-- Rastros no prefixo `compatdata/3527290/pfx`: `AppData/LocalLow/LandCrab/PEAK/Player.log` + `Player-prev.log` (reabertura) e `steam_autocloud.vdf` (Steam Cloud ativo para o jogo via ferramenta de compatibilidade).
+- Rastros no prefixo `compatdata/3527290/pfx`: `AppData/LocalLow/LandCrab/PEAK/Player.log` + `Player-prev.log` (reabertura) e `steam_autocloud.vdf` (Steam Cloud ativo para o jogo via ferramenta de compatibilidade; o AutoCloud de 2026-10-11 00:18 achou 0 arquivos `*.peak`, ou seja, nada foi sincronizado).
 - Fora do aceite, ainda não testado: DX12 sem `-force-d3d11`.
 
 **Nota 2026-10-11 (claude, opus):** depois do rollback do T10, que removeu o depot Windows e exigiu re-download, o Elvis desinstalou o PEAK às 00:38:29 e o Steam apagou `compatdata/3527290` (ver `docs/evidence/deployment-rollback.md`, "Efeito colateral"). Os rastros acima (`Player.log`, `Player-prev.log`, `steam_autocloud.vdf`) não existem mais; o PASS do T12 se apoia no relato do Elvis. O PEAK não está instalado hoje.

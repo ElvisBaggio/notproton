@@ -11,7 +11,7 @@ Guia de uso para o Elvis, para seguir sem precisar do histórico das conversas. 
 | App | NotProton Sikarugir **1.1.1** (`/Applications/NotProton Sikarugir.app`) | `notproton/install-build.json` |
 | Motor | Sikarugir 11.0 revision 0, cópia em `notproton/runners/sikarugir-11.0-r0` | `wine/version` |
 | Ferramenta no Steam | `compatibilitytools.d/notproton-sikarugir-11.0-r0` | aparece em Propriedades → Compatibilidade |
-| Renderer | D3DMetal (D3D11/D3D12) | `Player.log`: `Direct3D 11.0 [level 11.1]`, `AMD Compatibility Mode` |
+| Renderer | D3DMetal, D3D11 (D3D12 não testado) | `Player.log`: `Direct3D 11.0 [level 11.1]`, `AMD Compatibility Mode` |
 
 Os hashes SHA-256 dos artefatos implantados em 2026-10-11 estão em `docs/evidence/acceptance.md`.
 
@@ -32,7 +32,7 @@ Testados: PEAK (3527290, T11/T12), GHPC (1705180, T11). Não funciona: Cities: S
 
 ## Saves
 
-Ficam dentro do prefixo do jogo (`compatdata/<appid>/pfx/drive_c/users/steamuser/…`). O Steam Cloud só sincroniza quando a regra Windows do jogo casa com o prefixo: o GHPC sincroniza, o PEAK não sincronizou. **Desinstalar um jogo apaga o `compatdata` dele.** Antes de desinstalar, copie a pasta de saves.
+Ficam dentro do prefixo do jogo (`compatdata/<appid>/pfx/drive_c/users/steamuser/…`). O Steam Cloud fica ativo pela ferramenta (`steam_autocloud.vdf` no prefixo), mas só sobe arquivos que casam com a regra Windows do jogo: o GHPC sincronizou saves; no PEAK o AutoCloud achou 0 arquivos `*.peak`. **Desinstalar um jogo apaga o `compatdata` dele.** Antes de desinstalar, copie a pasta de saves.
 
 ## Atualizações do Steam
 
@@ -42,7 +42,7 @@ O Install bloqueia a atualização do cliente (`BootStrapperInhibitUpdateOnLaunc
 
 Siga `docs/runbooks/recovery.md`, seção "Rollback vivo". Resumo:
 
-1. Copie `steamapps/compatdata/*` e `appmanifest_*.acf` dos jogos que usam a ferramenta (passo 3a). Sem a ferramenta, o Steam remove os depots Windows e exige baixar o conteúdo de novo.
+1. Faça o backup com `tools/rollback_snapshot.py … --games` (passos 2 e 3a), que inclui `steamapps/compatdata/*` e `appmanifest_*.acf`. Sem a ferramenta, o Steam remove os depots Windows e exige baixar o conteúdo de novo.
 2. Rode **Repair Steam** no app. Ele restaura o bundle assinado pela Valve.
 3. Mova `compatibilitytools.d/notproton-*` para o backup.
 4. **Não use "Remove"**: ele apaga a pasta de suporte, os runners e os templates.

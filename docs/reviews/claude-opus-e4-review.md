@@ -33,4 +33,6 @@ Data: 2026-10-11 · Revisor: Claude Code · Modelo efetivo: opus (claude-opus-5-
 | T11 (#15) | aprovar com ressalvas | biblioteca não isolada (desvio aceito); gameplay por relato aceito pelo Elvis |
 | T12 (#16) | aprovar com ressalvas | R1–R3; sessão e persistência só por relato (rastros do PEAK apagados na desinstalação) |
 
+**Correções (2026-10-11, claude/opus):** R1 → `tools/rollback_snapshot.py` versionado, com `--games`; runbook atualizado. R2 e R3 → texto do guia e de `game-launch.md` corrigido.
+
 Gate do E4: continua **aberto** até a revisão Sol 6.1/Astra (critério 15). R1 é a única correção que eu faria antes dela.
