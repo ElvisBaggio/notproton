@@ -5,11 +5,10 @@ Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
 **Estado.**
 - **E1–E4 concluídos.** O gate do E4 foi aceito com ressalvas pela Astra (`docs/reviews/astra-e4-gate.md`), e o `main` foi atualizado pelo PR #37. As issues #14, #15, #16 e #4 estão fechadas.
 - Jogos confirmados pela ferramenta: PEAK (T12) e GHPC (AppID 1705180, D3D11 via D3DMetal).
-- O fix 1.1.1 (Ubisoft Connect, #18) já está no código: `steam-shim/steam.cpp` e `dylib/version.h` = 1.1.1. Evidência: `docs/evidence/ubisoft-1.1.1.md`.
+- O fix 1.1.1 (Ubisoft Connect, #18) já está no código: `steam-shim/steam.cpp` e `dylib/version.h` = 1.1.1. Evidência: `docs/evidence/ubisoft-1.1.1.md`. #18 e os PRs superados #19/#20 foram fechados pelo Elvis em 2026-10-11.
 - **Cities II estacionado** (`docs/evidence/cities-launcher.md`). Retomar só com card próprio.
 
 **Próximo passo.**
-- Fechar no GitHub a issue #18 e os PRs #19/#20, que foram superados porque partem de branches antigas. O fechamento automático foi bloqueado por permissão, então fica para o Elvis.
 - Upstream já está em v1.1.6. Abrir um card para portar manualmente 1.1.2–1.1.6 (decisão do T09b).
 - Ressalvas do E4 (opcionais):
   - gameplay e saves aceitos só como "PASS por relato";
