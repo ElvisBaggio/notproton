@@ -8,7 +8,7 @@ Decisão do Elvis (opção b): rollback **100% original**, sem manter o bloqueio
 
 ## Manifesto e backup
 
-Script: `scratch/t10-backup/t10_snapshot.py` (ignorado). Manifesto privado `scratch/t10-backup/20261011-pre-rollback/manifest.json`, schemaVersion=1, modo 0600, com `steamClientBuild`, assinatura externa, `diskFreeBytes` e `touchedFiles[{path,existed,mode,sha256|treeSha256,backupPath}]`. Backup por clone APFS (`cp -Rc -P -p`), sem hard link; cada cópia conferida por hash/árvore e inode distinto.
+Script: `scratch/t10-backup/t10_snapshot.py` (ignorado; hoje versionado como `tools/rollback_snapshot.py`). Manifesto privado `scratch/t10-backup/20261011-pre-rollback/manifest.json`, schemaVersion=1, modo 0600, com `steamClientBuild`, assinatura externa, `diskFreeBytes` e `touchedFiles[{path,existed,mode,sha256|treeSha256,backupPath}]`. Backup por clone APFS (`cp -Rc -P -p`), sem hard link; cada cópia conferida por hash/árvore e inode distinto.
 
 Alvos (todos existiam antes):
 
