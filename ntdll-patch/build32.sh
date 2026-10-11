@@ -43,6 +43,7 @@ CFLAGS="-Os -fno-asynchronous-unwind-tables -ffreestanding -fno-stack-protector 
 # shellcheck disable=SC2086 # CFLAGS carries several flags and has to split
 "$CC" $target_flags -c $CFLAGS "$here/detour32.c" -o detour32_c.o \
   "-DFLAGS_SLOT=$NP_FLAGS_SLOT" "-DFLAGS_BIT=$NP_FLAGS_BIT" "-DLOAD_PATH_SLOT=$NP_LOAD_PATH"
+# shellcheck disable=SC2086 # target_flags carries several flags and has to split
 "$CC" $target_flags -c -x assembler-with-cpp "$here/shim32.S" -o shim32.o \
   "-DWM_REG=$NP_WM" "-DSTOLEN_HEAD_BYTES=$NP_STOLEN_HEAD_BYTES" \
   "-DSTOLE_BRANCH=${NP_STOLE_BRANCH:-0}"

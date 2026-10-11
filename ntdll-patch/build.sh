@@ -41,6 +41,7 @@ CFLAGS="-Os -fno-asynchronous-unwind-tables -ffreestanding -fno-stack-protector"
 
 # shellcheck disable=SC2086 # CFLAGS carries several flags and has to split
 "$CC" $target_flags -c $CFLAGS "$here/detour.c" -o detour_c.o
+# shellcheck disable=SC2086 # target_flags carries several flags and has to split
 "$CC" $target_flags -c -x assembler-with-cpp "$here/shim.S" -o shim.o \
   "-DWM_REG=$NP_WM" "-DSCRATCH_REG=$NP_SCRATCH" "-DLOAD_PATH_SLOT=$NP_LOAD_PATH" \
   "-DSTOLEN_BYTES=$NP_STOLEN_BYTES"

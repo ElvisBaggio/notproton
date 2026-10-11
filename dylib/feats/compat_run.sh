@@ -1052,6 +1052,7 @@ if [ "$foreground" = 0 ]; then
 fi
 
 # Keep the copied engine's relative layout.
+# shellcheck disable=SC2329 # the trap below invokes this
 terminate_sikarugir() {
   wine_exec "$WINESERVER" -k >> "$log" 2>&1 || true
 }

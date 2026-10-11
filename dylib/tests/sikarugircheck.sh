@@ -6,6 +6,7 @@ trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/tool" "$tmp/home"
 printf '%s\n' sikarugir-11.0-r0 > "$tmp/tool/build"
 # Execute the actual launcher setup without launching Wine.
+# shellcheck disable=SC2016 # the $ in the sed script matches a literal $ in compat_run.sh
 sed -n '/^np_support=/,/^if \[ -n "$STEAM_COMPAT_DATA_PATH" \]; then/{ /^if \[ -n "$STEAM_COMPAT_DATA_PATH" \]; then/d; p; }' "$SRC" > "$tmp/setup"
 cp "$tmp/setup" "$tmp/tool/run"
 HOME="$tmp/home"; STEAM_COMPAT_DATA_PATH="$tmp/prefix"; export HOME STEAM_COMPAT_DATA_PATH
@@ -29,6 +30,7 @@ sed -n '/^verify_runner() {/,/^}/p' "$SRC" > "$tmp/verify.sh"
 [ -s "$tmp/verify.sh" ] || { echo 'FAIL: verify_runner not found'; exit 1; }
 mkdir -p "$tmp/vr/bridge" "$tmp/vr/runner/lib/wine/x86_64-windows" "$tmp/vr/runner/lib/wine/x86_64-unix"
 : > "$tmp/vr/log"
+# shellcheck disable=SC1091,SC2034 # verify.sh is generated above and reads these variables
 (
   . "$tmp/verify.sh"
   bridge_src="$tmp/vr/bridge" np_build=test np_runner="$tmp/vr/runner"
