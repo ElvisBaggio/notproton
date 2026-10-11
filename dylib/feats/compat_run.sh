@@ -40,7 +40,9 @@ np_runner="$np_support/runners/$np_build/wine"
 wine_unix="$np_runner/lib/wine/x86_64-unix"
 export WINELOADER="$np_runner/bin/wine" WINESERVER="$np_runner/bin/wineserver"
 export SikarugirAppWine11=1 WINEARCH=win64
-export WINEDLLPATH="$np_runner/Frameworks/renderer/d3dmetal/wine"
+# Sikarugir ntdll prepends WINEDLLPATH_D3DMETAL to the builtin search path; plain WINEDLLPATH loses to wined3d.
+export WINEDLLPATH_D3DMETAL="$np_runner/Frameworks/renderer/d3dmetal/wine"
+export CX_D3DMETALPATH="$np_runner/Frameworks/renderer/d3dmetal/external"
 export CX_APPLEGPTK_LIBD3DSHARED_PATH="$np_runner/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
 export PATH="$np_runner/bin:$PATH"
 
@@ -1011,7 +1013,7 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
     export STEAM_COMPAT_CLIENT_INSTALL_PATH="$native_client"
   fi
   echo "=== bridge staged into $prefix_steam ===" >> "$log" 2>&1 || true
-  echo "WINEDLLPATH=$WINEDLLPATH" >> "$log" 2>&1 || true
+  echo "WINEDLLPATH_D3DMETAL=$WINEDLLPATH_D3DMETAL" >> "$log" 2>&1 || true
   echo "WINEDLLOVERRIDES=$WINEDLLOVERRIDES" >> "$log" 2>&1 || true
   echo "STEAM_COMPAT_CLIENT_INSTALL_PATH=$STEAM_COMPAT_CLIENT_INSTALL_PATH" >> "$log" 2>&1 || true
 fi

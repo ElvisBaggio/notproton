@@ -38,7 +38,7 @@ struct LaunchEnvTests {
 
     @Test("A launch option cannot shadow the runner's own dlls")
     func dllPathKeepsTheRunnerFirst() throws {
-        let line = try Self.line(containing: "export WINEDLLPATH=", "$np_runner/Frameworks")
+        let line = try Self.line(containing: "export WINEDLLPATH_D3DMETAL=", "$np_runner/Frameworks")
         #expect(
             !line.contains("${WINEDLLPATH"),
             "the runner's dll path is set outright, so a launch option cannot shadow it")

@@ -91,3 +91,10 @@ Logs a consultar: Steam `~/Library/Application Support/Steam/logs/` (`content_lo
 - `docs/evidence/d1-game-candidates.md` (decisão D1, API da loja de 2026-10-10); `docs/evidence/steam-api-probe.md` (T05).
 - Plano: `docs/superpowers/plans/2026-10-08-sikarugir-cities2-implementation.md`, cards T11 e T12.
 - PCGamingWiki: tentativa via API sem resposta utilizável em 2026-10-10 (não usada como fonte).
+
+## T11 — primeira abertura real (2026-10-10, Agente: claude, opus)
+
+- PEAK (3527290) instalado pelo Steam nativo do Mac, ferramenta `notproton-sikarugir-11.0-r0` forçada em Compatibilidade, opção `-force-d3d11`.
+- 1ª tentativa: Unity "Failed to initialize graphics" — `WINEDLLPATH` genérico perdia para o `d3d11` builtin (wined3d). Prova A/B rodando `PEAK.exe` direto: `WINEDLLPATH` → `d3d11: failed to create device`; `WINEDLLPATH_D3DMETAL` + `CX_D3DMETALPATH` → `Direct3D 11.0 [level 11.1]` via D3DMetal.
+- Com a correção no `compat_run.sh`: **o jogo abriu e o menu respondeu ao mouse** (relato do Elvis). O risco `EnableMouseInPointer` não se manifestou.
+- Pendente (T12): sessão ≥ 15 min, save, fechar jogo e Steam, reabrir e conferir persistência; testar DX12 sem `-force-d3d11`.

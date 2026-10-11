@@ -29,9 +29,9 @@ struct SikarugirPrefixTests {
         #expect(env["SikarugirAppWine11"] == "1" && env["WINEARCH"] == "win64")
         #expect(env["WINELOADER"] == runner.path + "/bin/wine")
         #expect(env["WINESERVER"] == runner.path + "/bin/wineserver")
-        #expect(env["WINEDLLPATH"] == runner.path + "/Frameworks/renderer/d3dmetal/wine")
+        #expect(env["WINEDLLPATH_D3DMETAL"] == runner.path + "/Frameworks/renderer/d3dmetal/wine")
         #expect(env["CX_APPLEGPTK_LIBD3DSHARED_PATH"] == runner.path + "/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib")
         #expect(env["WINEPREFIX"] == prefix.pfx.path)
-        #expect(!env.keys.contains { $0.hasPrefix("CX_") && $0 != "CX_APPLEGPTK_LIBD3DSHARED_PATH" })
+        #expect(!env.keys.contains { $0.hasPrefix("CX_") && !["CX_APPLEGPTK_LIBD3DSHARED_PATH", "CX_D3DMETALPATH"].contains($0) })
     }
 }
