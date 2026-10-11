@@ -9,6 +9,7 @@ FILES = {
     "steam.exe": "56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70",
     "x86_64-windows/lsteamclient.dll": "2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac",
     "x86_64-unix/lsteamclient.so": "d71f954cf1c1a2355e9dfd7e8de593d8a4d1274117d42626394d4e95c7379a9c",
+    "i386-windows/lsteamclient.dll": "bd277143ea313df40f2a7cb844051e34eb115c44ce1014920af89f1b5d5a549a",
 }
 
 def stage(source, destination):

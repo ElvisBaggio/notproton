@@ -10,10 +10,13 @@ enum RunnerPatcher {
         "steam.exe": "56979db411cb12b48610c09b8fc01db3c34bb3c7e31ea53f1b17dafaf7f98b70",
         "x86_64-windows/lsteamclient.dll": "2933ac86d886f1264fabfbb97f21f53967452fca2397f29ecdbd29f83616c7ac",
         "x86_64-unix/lsteamclient.so": "d71f954cf1c1a2355e9dfd7e8de593d8a4d1274117d42626394d4e95c7379a9c",
+        // 32-bit Steam clients reach lsteamclient.so through its wow64 thunks.
+        "i386-windows/lsteamclient.dll": "bd277143ea313df40f2a7cb844051e34eb115c44ce1014920af89f1b5d5a549a",
     ]
 
     static func builtins(for build: RunnerBuild, in root: URL) -> [(arch: String, name: String)] {
-        [("", "steam.exe"), ("x86_64-windows", "lsteamclient.dll"), ("x86_64-unix", "lsteamclient.so")]
+        [("", "steam.exe"), ("x86_64-windows", "lsteamclient.dll"), ("x86_64-unix", "lsteamclient.so"),
+         ("i386-windows", "lsteamclient.dll")]
     }
 
     static func bridgeRoot(for build: RunnerBuild, in bridge: URL) -> URL {

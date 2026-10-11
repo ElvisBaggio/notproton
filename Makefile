@@ -585,7 +585,7 @@ app: sikarugir-payload-check $(ICON_CAR)
 app-sikarugir: app
 
 sikarugir-payload-check: app-payload
-	@for f in steam.exe x86_64-windows/lsteamclient.dll x86_64-unix/lsteamclient.so; do \
+	@for f in steam.exe x86_64-windows/lsteamclient.dll x86_64-unix/lsteamclient.so i386-windows/lsteamclient.dll; do \
 		[ -s "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f" ] || { \
 			echo "app: $(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f is missing; run: $(MAKE) bridge-sikarugir && $(MAKE) app-payload" >&2; exit 1; }; \
 	done

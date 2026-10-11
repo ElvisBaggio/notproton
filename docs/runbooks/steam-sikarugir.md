@@ -51,6 +51,7 @@ Para reimplantar, rode **Install** de novo.
 
 ## Problemas conhecidos
 
-- O helper `legacycompat/iscriptevaluator.exe` falha sempre (`helper exited status=1`), mas o Steam segue e lança o jogo mesmo assim.
+- O helper `legacycompat/iscriptevaluator.exe` falha sempre (`helper exited status=1`) e o Steam segue para o jogo, mas o `installscript.vdf` não roda: jogos que dependem dele (ex.: Ghost Recon Wildlands, que instala o Uplay) abrem sem os componentes (#41).
+- A ponte cobre processos 32-bit (#42): o prefixo recebe o gatilho Valve `steamclient.dll` i386 e o runner o `lib/wine/i386-windows/lsteamclient.dll`, que usa os thunks wow64 do `lsteamclient.so` x86_64. Depois de atualizar o app, rode **Set Up/Repair** do runner para instalar o arquivo novo.
 - Janelas Electron/Chromium, como o Paradox Launcher, ficam brancas no Sikarugir 11.0 r0.
 - O CI `app` falha fora do Mac do Elvis, porque a ponte é local (`scratch/sikarugir/bridge`).

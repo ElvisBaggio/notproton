@@ -100,13 +100,15 @@ struct RunnerPatcherTests {
         #expect(outcome.wroteNothing)
     }
 
-    @Test("The Sikarugir builtins are the steam.exe launcher and the x86_64 lsteamclient pair")
+    @Test("The Sikarugir builtins are the steam.exe launcher, the x86_64 lsteamclient pair and the i386 PE half")
     func builtinsAreThePinnedSet() {
         let root = URL(filePath: "/unused")
         let builtins = RunnerPatcher.builtins(for: SupportedRunners.sikarugir, in: root)
         #expect(builtins.map { RunnerPatcher.builtinPath($0) }.sorted()
-            == ["steam.exe", "x86_64-unix/lsteamclient.so", "x86_64-windows/lsteamclient.dll"])
+            == ["i386-windows/lsteamclient.dll", "steam.exe", "x86_64-unix/lsteamclient.so",
+                "x86_64-windows/lsteamclient.dll"])
         #expect(RunnerPatcher.builtinDestination(builtins[0], in: root).path == "/unused/bin/steam.exe")
         #expect(RunnerPatcher.builtinDestination(builtins[1], in: root).path == "/unused/lib/wine/x86_64-windows/lsteamclient.dll")
+        #expect(RunnerPatcher.builtinDestination(builtins[3], in: root).path == "/unused/lib/wine/i386-windows/lsteamclient.dll")
     }
 }

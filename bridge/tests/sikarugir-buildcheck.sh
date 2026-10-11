@@ -67,6 +67,14 @@ try:
         symbols = subprocess.check_output(["nm", "-gU", str(so)], text=True)
         assert "___wine_unix_call_funcs" in symbols, "tabela Unix ausente"
         assert (bridge / "lsteamclient.dll").read_bytes() == pe_paths[1].read_bytes(), "cópia PE flat diverge"
+        pe32 = bridge / "i386-windows/lsteamclient.dll"
+        output = subprocess.check_output([str(tc / "llvm-objdump"), "-p", str(pe32)], text=True)
+        assert "file format coff-i386" in output, f"PE não i386: {pe32}"
+        imports32 = sorted(re.findall(r"DLL Name: (\S+)", output))
+        imports64 = sorted(re.findall(r"DLL Name: (\S+)", subprocess.check_output([str(tc / "llvm-objdump"), "-p", str(pe_paths[1])], text=True)))
+        assert imports32 == imports64, f"imports i386 divergem do x86_64: {imports32}"
+        assert "___wine_unix_call_wow64_funcs" in symbols, "lsteamclient.so sem thunks wow64 para o PE i386"
+        print(f"{pe32.name} (i386) imports: {', '.join(imports32)}")
     print("sikarugir-buildcheck: PASS")
 except (AssertionError, KeyError, OSError, ValueError, subprocess.CalledProcessError) as exc:
     sys.exit(f"sikarugir-buildcheck: {exc}")

@@ -911,7 +911,7 @@ verify_runner() {
       echo "=== runner $arch ntdll is not the patched copy, set up the runner in NotProton ===" >> "$log" 2>&1 || true
     fi
   done
-  for arch in x86_64-windows "${wine_unix##*/}"; do
+  for arch in x86_64-windows i386-windows "${wine_unix##*/}"; do
     case "$arch" in
       *-unix) name="lsteamclient.so" ;;
       *) name="lsteamclient.dll" ;;
@@ -920,7 +920,9 @@ verify_runner() {
     echo "=== runner is missing $arch/$name, set up the runner in NotProton ===" >> "$log" 2>&1 || true
   done
 }
-bridge_files="steamclient64.dll lsteamclient.dll lsteamclient.so steam.exe"
+# steamclient.dll is the Valve i386 trigger: 32-bit Steam clients (Ubisoft Connect) load it and
+# the patched i386 ntdll swaps in the runner's i386 lsteamclient.dll.
+bridge_files="steamclient64.dll steamclient.dll lsteamclient.dll lsteamclient.so steam.exe"
 # A clone cannot cross drives, so a prefix on another drive clones from a copy of the
 # bridge kept beside that drive's templates.
 bridge_origin() {

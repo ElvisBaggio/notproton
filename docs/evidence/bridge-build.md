@@ -154,3 +154,14 @@ Runtime (Steam do Mac aberto e logado, tudo em `scratch/b42/`):
 | **i386** | **ok** | **460930** | **yes** | **0** |
 
 Pendente no card: staging pelo app/`compat_run.sh` (`lib/wine/i386-windows/lsteamclient.dll` no runner; `steamclient.dll` no prefixo), `build-sikarugir.sh`/manifesto com o i386 e prova no Wildlands (Ubisoft Connect sem o erro de `steamclient.dll`, 3559 na conta, `GRW.exe` iniciado).
+
+### #42 — integração (2026-10-11, claude)
+
+- `bridge/build-sikarugir.sh`: segunda árvore `scratch/sikarugir/wine-build-i386` (`--enable-archs=i386,x86_64`, configurada só na primeira vez) para o PE i386; strip; manifesto com `i386-windows/lsteamclient.dll`. A árvore x86_64 do T03 não muda: numa árvore dual-arch o PE x86_64 sai diferente do fixado.
+- `sikarugir-buildcheck.sh --artifacts`: PE i386 (`coff-i386`), imports iguais aos do x86_64 e `___wine_unix_call_wow64_funcs` no `.so`.
+- Pins: `RunnerPatcher.sikarugirBridge`, `stage-sikarugir-payload.py` e `payload.manifest` ganham `i386-windows/lsteamclient.dll` = `bd277143ea313df40f2a7cb844051e34eb115c44ce1014920af89f1b5d5a549a`. O Set Up/Repair do runner instala em `lib/wine/i386-windows/`.
+- `compat_run.sh`: `bridge_files` inclui o gatilho Valve `steamclient.dll` (i386, `e9e961c9…`, já no payload); `verify_runner` avisa se faltar `i386-windows/lsteamclient.dll` no runner.
+- Testes: `bridgecheck` (5 arquivos), `sikarugircheck` (aviso i386), `PayloadManifestTests`/`BridgePayloadTests`/`RunnerPatcherTests`/`RunnerLifecycleTests`. `make app-tests` (com `--manifest-cache none`, depois do `app-payload`): **452/452**. As suítes shell da CI passam. Os 4 testes de reparo com clone real são pulados enquanto o runner instalado não tiver o i386 (dependem de um clone "saudável").
+- `make bridge-sikarugir` completo nesta checkout: rc=0, `sikarugir-buildcheck: PASS`, i386 = `bd277143…`.
+
+**Achado: a reprodutibilidade dos PEs depende do caminho.** O `steam.exe` e o `lsteamclient.dll` x86_64 compilados nesta checkout deram `a41205e7…`/`5efccfbb…`, e não os pins `56979db4…`/`2933ac86…`. Os PEs embutem o caminho absoluto do fonte (strings `__FILE__`, ex.: `…/scratch/worktrees/t03-bridge/scratch/sikarugir/wine/dlls/lsteamclient/steam_input_manual.c`), então o T03 só se reproduz no caminho original. A ponte local usa as três peças x86_64 fixadas do T03 mais a i386 nova (o i386 se reproduz desde que compilado a partir de `scratch/sikarugir/wine`). Correção sugerida em card próprio: `-ffile-prefix-map` no build, com novos pins validados em runtime.

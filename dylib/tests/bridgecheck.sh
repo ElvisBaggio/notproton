@@ -22,9 +22,10 @@ trap 'rm -rf "$work"' EXIT
 
 # The pinned Sikarugir bridge lives under bridge/<build>, the Valve client beside it.
 build=sikarugir-fixture
-files="steamclient64.dll lsteamclient.dll lsteamclient.so steam.exe"
+files="steamclient64.dll steamclient.dll lsteamclient.dll lsteamclient.so steam.exe"
 mkdir -p "$work/bridge/$build/x86_64-windows" "$work/bridge/$build/x86_64-unix"
 printf 'bridge steamclient64.dll\n' > "$work/bridge/steamclient64.dll"
+printf 'bridge steamclient.dll\n' > "$work/bridge/steamclient.dll"
 printf 'bridge steam.exe\n' > "$work/bridge/$build/steam.exe"
 printf 'bridge lsteamclient.dll\n' > "$work/bridge/$build/x86_64-windows/lsteamclient.dll"
 printf 'x86_64-unix bridge\n' > "$work/bridge/$build/x86_64-unix/lsteamclient.so"
@@ -52,6 +53,7 @@ stage() {
 source_of() {
 	case "$1" in
 		steamclient64.dll) echo "$work/bridge/steamclient64.dll" ;;
+		steamclient.dll) echo "$work/bridge/steamclient.dll" ;;
 		steam.exe) echo "$work/bridge/$build/steam.exe" ;;
 		lsteamclient.dll) echo "$work/bridge/$build/x86_64-windows/lsteamclient.dll" ;;
 		lsteamclient.so) echo "$work/bridge/$build/x86_64-unix/lsteamclient.so" ;;
@@ -66,7 +68,7 @@ staged() {
 echo "== a fresh prefix gets the whole bridge"
 stage
 is "the launch goes on past staging" reached "$(cat "$work/out")"
-is "every file is copied" 4 "$(staged)"
+is "every file is copied" 5 "$(staged)"
 is "the unix library is staged beside the DLL" "x86_64-unix bridge" "$(cat "$steam/lsteamclient.so" 2>/dev/null)"
 unlogged "nothing claims to be staged already" "=== bridge already staged ==="
 
@@ -89,7 +91,7 @@ touch -r "$work/stamp" "$work/bridge/$build/steam.exe"
 is "the metadata still matches" "$(stat -f '%z %m' "$steam/steam.exe")" "$(stat -f '%z %m' "$work/bridge/$build/steam.exe")"
 stage
 unlogged "matching metadata does not hide changed contents" "=== bridge already staged ==="
-is "the prefix receives the changed bytes" 4 "$(staged)"
+is "the prefix receives the changed bytes" 5 "$(staged)"
 
 echo "== a DLL the bridge no longer ships is pruned"
 printf 'old\n' > "$steam/old.dll"
@@ -103,7 +105,7 @@ printf 'bridge steamclient64.dll, newer build\n' > "$work/bridge/steamclient64.d
 stage
 is "the launch goes on" reached "$(cat "$work/out")"
 unlogged "the old copy is not taken as current" "=== bridge already staged ==="
-is "every file matches the bridge" 4 "$(staged)"
+is "every file matches the bridge" 5 "$(staged)"
 
 echo "== a bridge missing a file stops the launch after staging the rest"
 rm -rf "$prefix"
@@ -112,7 +114,7 @@ stage
 is "the launch stops" "" "$(grep -x reached "$work/out")"
 logged "the missing file is logged" "=== bridge missing steam.exe ==="
 logged "the player is told" "alert: Steam files could not be copied"
-is "the other files are copied" 3 "$(staged)"
+is "the other files are copied" 4 "$(staged)"
 printf 'bridge steam.exe\n' > "$work/bridge/$build/steam.exe"
 
 echo "== a prefix on the same drive clones from the bridge itself"
@@ -120,7 +122,7 @@ rm -rf "$prefix"
 compat="$work/library/compatdata/1"
 cache="$work/library/compatdata/notproton-template/bridge/$build"
 stage
-is "every file is copied" 4 "$(staged)"
+is "every file is copied" 5 "$(staged)"
 is "no copy of the bridge is made" no "$([ -e "$cache" ] && echo yes || echo no)"
 
 echo "== a prefix on another drive clones from that drive's copy"
@@ -128,7 +130,7 @@ rm -rf "$prefix"
 cross=1
 stage
 is "the launch goes on" reached "$(cat "$work/out")"
-is "every file is copied" 4 "$(staged)"
+is "every file is copied" 5 "$(staged)"
 is "the drive keeps a copy of steam.exe" "bridge steam.exe" "$(cat "$cache/steam.exe" 2>/dev/null)"
 is "the drive keeps the unix library under its architecture" "updated x86_64 bridge" \
 	"$(cat "$cache/x86_64-unix/lsteamclient.so" 2>/dev/null)"
@@ -145,7 +147,7 @@ rm -rf "$prefix" "$cache"
 mkdir -p "$work/elsewhere"
 ln -s "$work/elsewhere" "$cache"
 stage
-is "every file is copied" 4 "$(staged)"
+is "every file is copied" 5 "$(staged)"
 is "nothing is written through the link" "" "$(ls "$work/elsewhere")"
 rm "$cache"
 
@@ -156,7 +158,7 @@ chmod 500 "${cache%/*}"
 stage
 chmod 700 "${cache%/*}"
 is "the launch goes on" reached "$(cat "$work/out")"
-is "every file is copied" 4 "$(staged)"
+is "every file is copied" 5 "$(staged)"
 
 echo "== a file that cannot be staged stops the launch"
 cross=""
@@ -170,7 +172,7 @@ is "the reason is logged" yes "$(grep -q 'Permission denied' "$work/log" && echo
 logged "the player is told" "alert: Steam files could not be copied"
 stage
 is "the next launch stages it" reached "$(cat "$work/out")"
-is "every file is copied" 4 "$(staged)"
+is "every file is copied" 5 "$(staged)"
 
 [ "$fails" -eq 0 ] || { echo "==> bridgecheck: $fails failure(s)"; exit 1; }
 echo "==> bridgecheck: the bridge stages on fresh, current, stale and incomplete prefixes"

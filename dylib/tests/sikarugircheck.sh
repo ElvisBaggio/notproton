@@ -28,7 +28,7 @@ echo 'sikarugircheck: launcher isolation/layout PASS'
 # verify_runner: a Sikarugir clone is patched in place, so there is no bridge/wine/<build> notice.
 sed -n '/^verify_runner() {/,/^}/p' "$SRC" > "$tmp/verify.sh"
 [ -s "$tmp/verify.sh" ] || { echo 'FAIL: verify_runner not found'; exit 1; }
-mkdir -p "$tmp/vr/bridge" "$tmp/vr/runner/lib/wine/x86_64-windows" "$tmp/vr/runner/lib/wine/x86_64-unix"
+mkdir -p "$tmp/vr/bridge" "$tmp/vr/runner/lib/wine/x86_64-windows" "$tmp/vr/runner/lib/wine/x86_64-unix" "$tmp/vr/runner/lib/wine/i386-windows"
 : > "$tmp/vr/log"
 # shellcheck disable=SC1091,SC2034 # verify.sh is generated above and reads these variables
 (
@@ -39,5 +39,5 @@ mkdir -p "$tmp/vr/bridge" "$tmp/vr/runner/lib/wine/x86_64-windows" "$tmp/vr/runn
 )
 if grep -q 'no patched ntdll' "$tmp/vr/log"; then echo 'FAIL: the bridge ntdll notice came back'; exit 1; fi
 grep -q 'missing x86_64-windows/lsteamclient.dll' "$tmp/vr/log" || { echo 'FAIL: the builtin check is gone'; exit 1; }
-if grep -q 'i386-windows' "$tmp/vr/log"; then echo 'FAIL: the shim expects an i386 bridge'; exit 1; fi
+grep -q 'missing i386-windows/lsteamclient.dll' "$tmp/vr/log" || { echo 'FAIL: the i386 builtin check is gone'; exit 1; }
 echo 'sikarugircheck: verify_runner PASS'
