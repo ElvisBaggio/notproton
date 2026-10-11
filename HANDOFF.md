@@ -1,6 +1,6 @@
 # Handoff
 
-Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/e4-accept-1-3`.
+Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Branch: `claude/e4-opus-review`.
 
 **Estado.**
 - Fechados por decisão do Elvis em 2026-10-10: #1 [E1] e #3 [E3].
@@ -16,7 +16,7 @@ Atualizado: 2026-10-11 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
 - **Cities II estacionado** por decisão do Elvis em 2026-10-11 (`docs/evidence/cities-launcher.md`, PR #25). A janela do Paradox Launcher fica branca até no Sikarugir original. Abrir o `Cities2.exe` direto cai numa `IOException` do Mono. Retomar só com card próprio.
 
 **Próximo passo.**
-- Revisão do T10 por Claude Code Opus 5.5 e por Astra.
+- Revisão Opus de T10–T12 feita (`docs/reviews/claude-opus-e4-review.md`): aprovar com ressalvas; não é independente (mesmo cliente executou). Falta a revisão Sol 6.1/Astra (critério 15). Correção sugerida antes dela: R1 (versionar o script de snapshot).
 - **T11 (#15) PASS por decisão do Elvis** com GHPC (1705180) na biblioteca padrão (desvio aceito). Depot Windows, D3D11 via D3DMetal, API Steam, saída limpa e Cloud comprovados por log; gameplay pelo relato dele (log mostra só o menu). Evidência em `docs/evidence/game-launch.md`. Aguarda revisão.
 - **T12 (#16): documentos publicados**: `docs/runbooks/steam-sikarugir.md` (guia) e `docs/evidence/acceptance.md` (15 critérios). Em 2026-10-11 o Elvis aceitou o 3 (FAIL parcial, correção documental) e os PASS por relato (10–12); o 13 passou (wrapper atual abriu). **O gate do E4 só depende da revisão independente (15).**
 - Opcional: apagar as opções SwiftShader do Cities II no Steam.
