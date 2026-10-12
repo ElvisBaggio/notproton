@@ -127,3 +127,60 @@ Reconstrução **do zero**: removidos somente `scratch/sikarugir/wine-build/` (i
 Nenhum runtime Wine, Steam, prefixo, wrapper, engine instalada, NotProton ou save foi usado/alterado. Build e prova de layout não liberam T05. Persistem para T05 a disponibilidade efetiva da extensão pública de conversão de caminhos, o comportamento de CP_UNIXCP/NT flags, a comunicação Steam real e a influência do `apply_binary_patches`/HideWineExports da Sikarugir. i386 permanece ausente até haver consumidor que o exija; OpenVR Linux não é suportado pelo shim PE.
 
 Revisão independente **solicitada para Claude Code Opus 5.5**, com registro do modelo efetivo esperado no parecer. Issue #7 deve continuar aberta e Project In Progress até revisão/aceite; nenhuma revisão independente foi executada por este cliente nesta retomada.
+
+## #42 — lsteamclient i386 (wow64) para o Sikarugir 11.0 r0 (2026-10-11) — Agente: claude · Modelo efetivo: opus (claude-opus-5-5)
+
+Motivo: o Ubisoft Connect (32-bit, exigido por Ghost Recon Wildlands 460930) falha com `Failed to load module 'C:\Program Files (x86)\Steam\steamclient.dll'` e não ativa a compra do Steam. O consumidor i386 previsto acima apareceu.
+
+Build (sem tocar no worktree do T03 nem em nada instalado):
+- Fonte: clone APFS de `scratch/worktrees/t03-bridge/scratch/sikarugir/wine` → `scratch/sikarugir/wine` (`db11d0fe6a169c457e23d007e20404643d067aa8`, `lsteamclient` registrado pelo `register-lsteamclient-11.0.diff`).
+- Build dir novo `scratch/sikarugir/wine-build-i386`: mesmas `CONFIGURE_OPTS` do T03 (`build-env.sh`), trocando só `--enable-archs=x86_64` por `--enable-archs=i386,x86_64`; llvm-mingw 20260826 (`i686-windows`), `SOURCE_DATE_EPOCH=1767916800`, flags PE iguais às do T03 (`-g -O2`).
+- `make dlls/lsteamclient/i386-windows/lsteamclient.dll` → `llvm-strip --strip-all`.
+- **Metade unix não muda:** o `lsteamclient.so` x86_64 distribuído já exporta `___wine_unix_call_wow64_funcs` e os thunks `wow64_*`.
+
+Artefato `i386-windows/lsteamclient.dll` (strip): PE i386, 2.076.672 bytes, marcador `Wine builtin DLL` em 0x40, 74 exports (igual ao x86_64, incluindo `CreateInterface`/`Steam_BGetCallback`/`Breakpad_*`), imports `kernel32`/`ntdll`/`ucrtbase`/`user32`/`ws2_32` (iguais ao x86_64). Hash normalizado (`pe-info.py`, timestamp/checksum zerados): `16299d034712121a`.
+
+Reprodutibilidade: um segundo configure+build em `scratch/sikarugir/wine-build-i386-rebuild` dá, depois do strip, um arquivo **byte a byte idêntico** (`cmp` = 0). Os binários com debug diferem só pelo caminho do build dir no DWARF.
+
+Runtime (Steam do Mac aberto e logado, tudo em `scratch/b42/`):
+- Motor: clone APFS do runner instalado (`ntdll` i386 `60c6a031…` e x86_64 `ef8e9971…` já patchados pelo T04) + `lib/wine/i386-windows/lsteamclient.dll`.
+- Prefixo novo (`wineboot -i`) + gatilhos Valve em `Program Files (x86)\Steam`: `steamclient.dll` i386 `e9e961c9…` e `steamclient64.dll` `caba4826…`, ambos conferidos contra `valve-packages.manifest`.
+- `bridge/tests/steam-api-probe.c` agora compila para i386 (`__thiscall`, `LoadLibraryA("steamclient.dll")`); `run-steam-api-probe.sh` passa `steamclient=n;steamclient64=n;lsteamclient=b`, igual ao `compat_run.sh`.
+- `+loaddll` 32-bit: `steam-api-probe32.exe` native → `C:\windows\system32\lsteamclient.dll` **builtin (i386)** → `Program Files (x86)\Steam\steamclient.dll` native. O detour i386 do T04 entrega a ponte.
+
+| Probe (AppID 460930) | STEAM_INIT | APP_ID | AUTHENTICATED | rc |
+|---|---|---|---|---|
+| x86_64 (controle) | ok | 460930 | yes | 0 |
+| **i386** | **ok** | **460930** | **yes** | **0** |
+
+Pendente no card: staging pelo app/`compat_run.sh` (`lib/wine/i386-windows/lsteamclient.dll` no runner; `steamclient.dll` no prefixo), `build-sikarugir.sh`/manifesto com o i386 e prova no Wildlands (Ubisoft Connect sem o erro de `steamclient.dll`, 3559 na conta, `GRW.exe` iniciado).
+
+### #42 — integração (2026-10-11, claude)
+
+- `bridge/build-sikarugir.sh`: segunda árvore `scratch/sikarugir/wine-build-i386` (`--enable-archs=i386,x86_64`, configurada só na primeira vez) para o PE i386; strip; manifesto com `i386-windows/lsteamclient.dll`. A árvore x86_64 do T03 não muda: numa árvore dual-arch o PE x86_64 sai diferente do fixado.
+- `sikarugir-buildcheck.sh --artifacts`: PE i386 (`coff-i386`), imports iguais aos do x86_64 e `___wine_unix_call_wow64_funcs` no `.so`.
+- Pins: `RunnerPatcher.sikarugirBridge`, `stage-sikarugir-payload.py` e `payload.manifest` ganham `i386-windows/lsteamclient.dll` = `bd277143ea313df40f2a7cb844051e34eb115c44ce1014920af89f1b5d5a549a`. O Set Up/Repair do runner instala em `lib/wine/i386-windows/`.
+- `compat_run.sh`: `bridge_files` inclui o gatilho Valve `steamclient.dll` (i386, `e9e961c9…`, já no payload); `verify_runner` avisa se faltar `i386-windows/lsteamclient.dll` no runner.
+- Testes: `bridgecheck` (5 arquivos), `sikarugircheck` (aviso i386), `PayloadManifestTests`/`BridgePayloadTests`/`RunnerPatcherTests`/`RunnerLifecycleTests`. `make app-tests` (com `--manifest-cache none`, depois do `app-payload`): **452/452**. As suítes shell da CI passam. Os 4 testes de reparo com clone real são pulados enquanto o runner instalado não tiver o i386 (dependem de um clone "saudável").
+- `make bridge-sikarugir` completo nesta checkout: rc=0, `sikarugir-buildcheck: PASS`, i386 = `bd277143…`.
+
+**Achado: a reprodutibilidade dos PEs depende do caminho.** O `steam.exe` e o `lsteamclient.dll` x86_64 compilados nesta checkout deram `a41205e7…`/`5efccfbb…`, e não os pins `56979db4…`/`2933ac86…`. Os PEs embutem o caminho absoluto do fonte (strings `__FILE__`, ex.: `…/scratch/worktrees/t03-bridge/scratch/sikarugir/wine/dlls/lsteamclient/steam_input_manual.c`), então o T03 só se reproduz no caminho original. A ponte local usa as três peças x86_64 fixadas do T03 mais a i386 nova (o i386 se reproduz desde que compilado a partir de `scratch/sikarugir/wine`). Correção sugerida em card próprio: `-ffile-prefix-map` no build, com novos pins validados em runtime.
+
+### #42 — prefixo antigo sem `syswow64/lsteamclient.dll` (2026-10-11, claude)
+
+Sintoma no Wildlands depois do Install/Repair (runner com o i386, prefixo com `steamclient.dll`): o Ubisoft Connect continuou com `Failed to load module 'C:\Program Files (x86)\Steam\steamclient.dll'` e o Wine registrou `import_dll Library tier0_s.dll / vstdlib_s.dll (which is needed by …\Steam\steamclient.dll) not found`.
+
+Isolamento com `scratch/b42/loadmodes.c` (i386; carrega o gatilho como launchers fazem: nome, caminho completo, `LOAD_WITH_ALTERED_SEARCH_PATH`, `LOAD_LIBRARY_SEARCH_*`, `SetDefaultDllDirectories`):
+- motor de scratch + prefixo de scratch: os 6 modos carregam, ponte ativa;
+- sem `WINEDLLOVERRIDES`/`WINEPATH`: caminho completo ainda carrega;
+- **runner real + clone APFS do prefixo real: falha (tier0_s.dll)**; motor de scratch + prefixo real: falha; runner real + prefixo de scratch: carrega. **A variável é o prefixo.**
+- Diferença: o prefixo de scratch, criado por `wineboot` com o runner já com o i386, tem `windows/syswow64/lsteamclient.dll`. O do Wildlands, criado antes, não tem. O Wine 11 só acha o builtin quando existe esse arquivo em `system32`/`syswow64`; sem ele, o `resolve_lsteam` do detour i386 falha, o detour desiste e os imports da Valve são resolvidos.
+- Copiar o builtin i386 do runner para `syswow64` no clone do prefixo real fez a ponte assumir.
+
+Correção: `compat_run.sh` `place_wow64_lsteamclient` (depois do `verify_runner`) copia `runner/lib/wine/i386-windows/lsteamclient.dll` para `drive_c/windows/syswow64/` quando falta ou difere; teste em `sikarugircheck.sh` (cópia e idempotência). Suítes shell e 452/452 Swift passam. `shellcheck` não está instalado nesta máquina (fica para a CI).
+
+### #42 — prova no Wildlands (2026-10-11 19:15, claude)
+
+App com `84640e6` instalado, Install feito, prefixo 460930 com `syswow64/lsteamclient.dll`. `notproton-run.log` sem erros `tier0_s.dll`/`vstdlib_s.dll`; `game_starter_log.txt` sem `Failed to initialize Steam API` (antes: 17:06, 18:53, 19:03). `launcher_log.txt` 19:16:00: `Login Type: ticket, platform: Steam` → `AccountsNotLinked` / `BusLoginSteam, Cannot login without a linked Steam account`. O Ubisoft Connect (32-bit) obteve o ticket da sessão Steam pela ponte i386 e a Ubisoft o recebeu. A recusa é de conta (Steam não vinculada à conta Ubisoft), não do runtime. Ativação do 3559 e `GRW.exe` dependem do vínculo da conta (ação do usuário).
+
+**19:23 — jogo iniciado.** O 401 das tentativas por credenciais era a senha (tecla morta `^` do teclado do Mac chegando como outro caractere no Wine; confirmado pelo usuário). Com a senha correta: `Login Type: credentials` → `User: …` → `Play session (1) successfully started for game 3559` → `Game with process id 1248 has been started with product id 3559` / `connected (API version: 1.0.0)`; processo `S:\steamapps\common\Wildlands\GRW.exe -uplay_steam_mode` rodando. Gameplay/save ainda não comprovados.

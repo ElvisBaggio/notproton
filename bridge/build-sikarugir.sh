@@ -29,15 +29,35 @@ cp "$WINE_BUILD/dlls/lsteamclient/lsteamclient.so" "$BRIDGE_DIR/x86_64-unix/"
 cp "$WINE_BUILD/dlls/lsteamclient/x86_64-windows/lsteamclient.dll" "$BRIDGE_DIR/x86_64-windows/"
 "$LLVM_MINGW/bin/llvm-strip" --strip-all "$BRIDGE_DIR/x86_64-windows/lsteamclient.dll"
 cp "$BRIDGE_DIR/x86_64-windows/lsteamclient.dll" "$BRIDGE_DIR/lsteamclient.dll"
+# 32-bit Steam clients (launchers such as Ubisoft Connect) need the i386 PE half; the x86_64
+# lsteamclient.so already carries the wow64 thunks. It gets its own tree because a dual-arch
+# tree builds an x86_64 PE that differs from the pinned one.
+# ponytail: configures a second tree on first run; reuse WINE_BUILD if T03 ever goes dual-arch.
+WINE_BUILD_I386="${WINE_BUILD_I386:-$repo/scratch/sikarugir/wine-build-i386}"
+if [ ! -f "$WINE_BUILD_I386/Makefile" ]; then
+  mkdir -p "$WINE_BUILD_I386"
+  i386_opts=$(echo "$CONFIGURE_OPTS" | sed 's/--enable-archs=x86_64/--enable-archs=i386,x86_64/')
+  case "$i386_opts" in
+    *--enable-archs=i386,x86_64*) ;;
+    *) echo "build-sikarugir: CONFIGURE_OPTS has no --enable-archs=x86_64 to widen" >&2; exit 1 ;;
+  esac
+  # shellcheck disable=SC2086 # i386_opts is a list of options
+  ( cd "$WINE_BUILD_I386" && "$WINE_SRC/configure" $i386_opts \
+      --host="$HOST" CC="$HOST_CC" CXX="$HOST_CXX" )
+fi
+make -C "$WINE_BUILD_I386" dlls/lsteamclient/i386-windows/lsteamclient.dll
+mkdir -p "$BRIDGE_DIR/i386-windows"
+cp "$WINE_BUILD_I386/dlls/lsteamclient/i386-windows/lsteamclient.dll" "$BRIDGE_DIR/i386-windows/"
+"$LLVM_MINGW/bin/llvm-strip" --strip-all "$BRIDGE_DIR/i386-windows/lsteamclient.dll"
 steam-shim/build.sh
 sh bridge/tests/sikarugir-buildcheck.sh --artifacts
 python3 - <<'MANIFEST'
 import hashlib, json, os
 from pathlib import Path
 root = Path(os.environ["BRIDGE_DIR"])
-files = ["steam.exe", "x86_64-windows/lsteamclient.dll", "x86_64-unix/lsteamclient.so"]
+files = ["steam.exe", "x86_64-windows/lsteamclient.dll", "x86_64-unix/lsteamclient.so", "i386-windows/lsteamclient.dll"]
 manifest = {"wineCommit": os.environ["WINE_COMMIT"],
-    "architecture": "x86_64", "files": {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files}}
+    "architecture": "x86_64+i386-windows", "files": {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files}}
 (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 print(json.dumps(manifest, indent=2))
 MANIFEST

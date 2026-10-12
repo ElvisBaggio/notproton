@@ -162,7 +162,7 @@ rc=0
 for name in $(env | sed -En 's/^(DYLD_[A-Za-z0-9_]*|WINEDLLPATH[A-Za-z0-9_]*|CX_[A-Za-z0-9_]*)=.*/\1/p'); do unset "$name"; done
 WINEPREFIX=$prefix_r WINEARCH=win64 WINEDEBUG=${WINEDEBUG:--all} SteamAppId=$appid SteamGameId=$appid \
     STEAM_COMPAT_CLIENT_INSTALL_PATH="$steam_client_r" \
-    WINEPATH="C:\\Program Files (x86)\\Steam" WINEDLLOVERRIDES="steamclient64=n;lsteamclient=b" \
+    WINEPATH="C:\\Program Files (x86)\\Steam" WINEDLLOVERRIDES="steamclient=n;steamclient64=n;lsteamclient=b" \
     arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$engine_r/Frameworks:/usr/lib" SikarugirAppWine11=1 "$engine_r/$loader" "$probe" --appid "$appid" >"$raw" 2>&1 || rc=$?
 tr -d '\r' <"$raw" | grep -E '^(STEAM_INIT|APP_ID|AUTHENTICATED)=[A-Za-z0-9]{1,10}$' >"$out" || true
 cat "$out"

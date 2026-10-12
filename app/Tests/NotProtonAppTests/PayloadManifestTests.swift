@@ -10,8 +10,8 @@ struct PayloadManifestTests {
     func shippedManifestIsComplete() throws {
         let manifest = try PayloadManifest.bundled()
 
-        #expect(manifest.entries.count == 15)
-        #expect(manifest.paths(origin: .built).count == 3)
+        #expect(manifest.entries.count == 17)
+        #expect(manifest.paths(origin: .built).count == 5)
         #expect(manifest.paths(origin: .patched).count == 2)
         #expect(manifest.paths(origin: .valve).count == 10)
 
@@ -89,10 +89,10 @@ struct PayloadInspectionTests {
 
         let state = PayloadInspector.inspect(bridge: bridge, builds: [SupportedRunners.sikarugir])
         #expect(state.manifestProblem == nil)
-        #expect(state.expected == 15)
+        #expect(state.expected == 17)
         #expect(state.present == 10)
         #expect(state.missing(origin: .valve).isEmpty)
-        #expect(state.missing(origin: .built).count == 3)
+        #expect(state.missing(origin: .built).count == 5)
         #expect(state.missing(origin: .patched).count == 2)
         #expect(!state.isComplete)
     }

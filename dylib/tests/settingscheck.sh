@@ -40,13 +40,14 @@ settings() {
 		'[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\AeDebug]' '"Auto"="0"' '' \
 		'[HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\AeDebug]' '"Auto"="0"' '' \
 		'[HKEY_CURRENT_USER\Software\Wine\WineDbg]' '"ShowCrashDialog"=dword:00000000' '' \
-		'[HKEY_CURRENT_USER\Software\Wine\Mac Driver]' "$1" '' \
+		'[HKEY_CURRENT_USER\Software\Wine\Mac Driver]' "$1" "${2:-\"CaptureDisplaysForFullscreen\"=-}" '' \
 		'[HKEY_LOCAL_MACHINE\Software\Classes\steam]' '"URL Protocol"=""' '' \
 		'[HKEY_LOCAL_MACHINE\Software\Classes\steam\shell\open\command]' \
 		'@="\"C:\\Program Files (x86)\\Steam\\steam.exe\" \"%1\""' ''
 }
 settings '"RetinaMode"=-' > "$work/retina-off"
 settings '"RetinaMode"="y"' > "$work/retina-on"
+settings '"RetinaMode"=-' '"CaptureDisplaysForFullscreen"="y"' > "$work/capture-on"
 
 fails=0
 ok() { printf '  ok    %s\n' "$1"; }
@@ -75,6 +76,7 @@ launch() {
 }
 run_in() {
 	env WINEPREFIX="$case_dir/pfx" WINELOADER="$work/wine" NOTPROTON_RETINA="$1" \
+		NOTPROTON_CAPTURE_DISPLAYS="${CAPTURE-}" \
 		WINESERVER="$work/wineserver" STEAM_COMPAT_DATA_PATH="$case_dir" \
 		SDL_GAMECONTROLLER_IGNORE_DEVICES="${IGNORE-}" \
 		SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT="${EXCEPT-}" \
@@ -101,6 +103,11 @@ same_file "Retina on sets RetinaMode to y" "$work/retina-on" "$case_dir/imported
 
 launch 0 0
 same_file "Retina off deletes RetinaMode" "$work/retina-off" "$case_dir/imported"
+
+CAPTURE=1
+launch "" 0
+CAPTURE=
+same_file "capture opt-in sets CaptureDisplaysForFullscreen" "$work/capture-on" "$case_dir/imported"
 
 echo "== failures"
 launch "" 1

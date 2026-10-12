@@ -9,6 +9,7 @@ struct BridgePayloadTests {
 
     private static let layout = [
         "steam.exe", "x86_64-windows/lsteamclient.dll", "x86_64-unix/lsteamclient.so",
+        "i386-windows/lsteamclient.dll",
     ]
 
     // Stand-in files for the pinned Sikarugir bridge, with pins computed from their content.

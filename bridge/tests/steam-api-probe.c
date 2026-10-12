@@ -16,6 +16,7 @@
  *   steam-api-probe.exe --selftest      decision-table check, no Steam needed
  *
  * Build PE:   x86_64-w64-mingw32-clang -O2 -o steam-api-probe.exe steam-api-probe.c
+ * Build i386: i686-w64-mingw32-clang -O2 -o steam-api-probe32.exe steam-api-probe.c (loads steamclient.dll)
  * Build host: cc -DPROBE_NATIVE -o probe-native steam-api-probe.c  (no Steam => fail)
  */
 #include <stdio.h>
@@ -30,8 +31,13 @@
 #define UTILS_VERSION  "SteamUtils010"
 #define USER_VERSION   "SteamUser023"
 
-#ifdef _WIN32
+/* i386 Steam interfaces are MSVC C++ virtuals: thiscall, self in ecx. */
+#if defined(_WIN32) && !defined(_WIN64)
+#define CALLCONV __thiscall
+#define CLIENT_DLL "steamclient.dll"
+#elif defined(_WIN32)
 #define CALLCONV __cdecl
+#define CLIENT_DLL "steamclient64.dll"
 #else
 #define CALLCONV
 #endif
@@ -70,7 +76,7 @@ static void run_probe(struct result *r)
         create_interface_fn create;
         void *client, *utils, *user;
         int pipe, huser;
-        HMODULE mod = LoadLibraryA("steamclient64.dll");
+        HMODULE mod = LoadLibraryA(CLIENT_DLL);
 
         if (!mod) return;
         create = (create_interface_fn)GetProcAddress(mod, "CreateInterface");

@@ -1,6 +1,8 @@
 built    sikarugir-11.0-r0/steam.exe
 built    sikarugir-11.0-r0/x86_64-windows/lsteamclient.dll
 built    sikarugir-11.0-r0/x86_64-unix/lsteamclient.so
+built    sikarugir-11.0-r0/i386-windows/lsteamclient.dll
+built    sikarugir-11.0-r0/notproton-rawmouse.dylib
 patched  wine/i386-windows/ntdll.dll
 patched  wine/x86_64-windows/ntdll.dll
 valve    steamclient.dll

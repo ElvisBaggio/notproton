@@ -46,9 +46,11 @@ export CX_D3DMETALPATH="$np_runner/Frameworks/renderer/d3dmetal/external"
 export CX_APPLEGPTK_LIBD3DSHARED_PATH="$np_runner/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
 export PATH="$np_runner/bin:$PATH"
 
-# arch strips inherited DYLD variables; set the copied Frameworks after it.
+# arch strips inherited DYLD variables; set the copied Frameworks (and np_insert) after it.
+np_insert=""
 wine_exec() {
-  /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" "$@"
+  /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" \
+    ${np_insert:+"DYLD_INSERT_LIBRARIES=$np_insert"} "$@"
 }
 
 # Keeps Wine from inheriting the prefix and template locks (fd 8 and 9).
@@ -425,6 +427,13 @@ import_prefix_settings() {
   else
     retina_line='"RetinaMode"=-'
   fi
+  # Capturing every display for a fullscreen game blanks the other monitors; the raw mouse library
+  # already keeps the cursor on the game (#44), so it is opt-in: NOTPROTON_CAPTURE_DISPLAYS=1.
+  if [ "$NOTPROTON_CAPTURE_DISPLAYS" = "1" ]; then
+    capture_line='"CaptureDisplaysForFullscreen"="y"'
+  else
+    capture_line='"CaptureDisplaysForFullscreen"=-'
+  fi
   controllers_planned=0
   if plan_hidden_controllers 2>/dev/null; then
     controllers_planned=1
@@ -440,7 +449,7 @@ import_prefix_settings() {
       '[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\AeDebug]' '"Auto"="0"' '' \
       '[HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\AeDebug]' '"Auto"="0"' '' \
       '[HKEY_CURRENT_USER\Software\Wine\WineDbg]' '"ShowCrashDialog"=dword:00000000' '' \
-      '[HKEY_CURRENT_USER\Software\Wine\Mac Driver]' "$retina_line" '' \
+      '[HKEY_CURRENT_USER\Software\Wine\Mac Driver]' "$retina_line" "$capture_line" '' \
       '[HKEY_LOCAL_MACHINE\Software\Classes\steam]' '"URL Protocol"=""' '' \
       '[HKEY_LOCAL_MACHINE\Software\Classes\steam\shell\open\command]' \
       '@="\"C:\\Program Files (x86)\\Steam\\steam.exe\" \"%1\""' '' \
@@ -886,7 +895,7 @@ if [ -n "$STEAM_COMPAT_DATA_PATH" ]; then
     show_alert "Saved-game folders need attention" "NotProton left the conflicting files in place. Open this prefix's notproton-run.log for details before trying again."
     exit 1
   fi
-  echo "video: RetinaMode=${NOTPROTON_RETINA:-0}" >> "$log" 2>&1 || true
+  echo "video: RetinaMode=${NOTPROTON_RETINA:-0} CaptureDisplays=${NOTPROTON_CAPTURE_DISPLAYS:-0}" >> "$log" 2>&1 || true
   stage_step="game drive"
   map_game_drive
   stage_step="prefix settings"
@@ -911,7 +920,7 @@ verify_runner() {
       echo "=== runner $arch ntdll is not the patched copy, set up the runner in NotProton ===" >> "$log" 2>&1 || true
     fi
   done
-  for arch in x86_64-windows "${wine_unix##*/}"; do
+  for arch in x86_64-windows i386-windows "${wine_unix##*/}"; do
     case "$arch" in
       *-unix) name="lsteamclient.so" ;;
       *) name="lsteamclient.dll" ;;
@@ -920,7 +929,48 @@ verify_runner() {
     echo "=== runner is missing $arch/$name, set up the runner in NotProton ===" >> "$log" 2>&1 || true
   done
 }
-bridge_files="steamclient64.dll lsteamclient.dll lsteamclient.so steam.exe"
+# steamclient.dll is the Valve i386 trigger: 32-bit Steam clients (Ubisoft Connect) load it and
+# the patched i386 ntdll swaps in the runner's i386 lsteamclient.dll.
+# Wine 11 only finds a builtin it has a file for under system32/syswow64. wineboot leaves those
+# files behind, so a prefix made before the runner carried the i386 lsteamclient never gets one,
+# and the i386 trigger then falls back to Valve's imports (tier0_s.dll) and fails.
+# Copies beside the target and renames over it, so a process that has the old file mapped keeps it.
+replace_file() {
+  if { cp -c -f "$1" "$2.np$$" 2>/dev/null || cp -f "$1" "$2.np$$" 2>> "$log"; } && mv -f "$2.np$$" "$2"; then
+    return 0
+  fi
+  rm -f "$2.np$$"
+  return 1
+}
+place_wow64_lsteamclient() {
+  src="$np_runner/lib/wine/i386-windows/lsteamclient.dll"
+  dst="$WINEPREFIX/drive_c/windows/syswow64/lsteamclient.dll"
+  [ -f "$src" ] && [ -d "${dst%/*}" ] || return 0
+  cmp -s "$src" "$dst" && return 0
+  replace_file "$src" "$dst" || return 0
+  echo "=== placed syswow64/lsteamclient.dll ===" >> "$log" 2>&1 || true
+}
+# Steam runs a game's installscript.vdf (Uplay, VC++ and the like) through the compat tool
+# with legacycompat/iscriptevaluator.exe from the client folder, which the Mac client ships
+# empty, so the Valve files fetched into the payload go there.
+install_legacycompat() {
+  src="$bridge_src/legacycompat"
+  dst="$STEAM_COMPAT_CLIENT_INSTALL_PATH/legacycompat"
+  # Only into a client folder that exists, never one made up from the environment.
+  [ -d "$src" ] && [ -n "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] && [ -d "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] || return 0
+  mkdir -p "$dst" || return 0
+  for f in "$src"/*; do
+    [ -f "$f" ] || continue
+    b=$(basename "$f")
+    cmp -s "$f" "$dst/$b" && continue
+    if replace_file "$f" "$dst/$b"; then
+      echo "=== installed legacycompat/$b ===" >> "$log" 2>&1 || true
+    else
+      echo "=== could not copy legacycompat/$b to $dst/$b ===" >> "$log" 2>&1 || true
+    fi
+  done
+}
+bridge_files="steamclient64.dll steamclient.dll lsteamclient.dll lsteamclient.so steam.exe"
 # A clone cannot cross drives, so a prefix on another drive clones from a copy of the
 # bridge kept beside that drive's templates.
 bridge_origin() {
@@ -1004,6 +1054,7 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
     esac
   done
   verify_runner
+  place_wow64_lsteamclient
   export WINEPATH="C:\\Program Files (x86)\\Steam"
   # If the same DLL appears twice in WINEDLLOVERRIDES, the last entry wins.
   export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:+$WINEDLLOVERRIDES;}steamclient=n;steamclient64=n;lsteamclient=b"
@@ -1012,11 +1063,19 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
     native_client="$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS"
     export STEAM_COMPAT_CLIENT_INSTALL_PATH="$native_client"
   fi
+  install_legacycompat
   echo "=== bridge staged into $prefix_steam ===" >> "$log" 2>&1 || true
   echo "WINEDLLPATH_D3DMETAL=$WINEDLLPATH_D3DMETAL" >> "$log" 2>&1 || true
   echo "WINEDLLOVERRIDES=$WINEDLLOVERRIDES" >> "$log" 2>&1 || true
   echo "STEAM_COMPAT_CLIENT_INSTALL_PATH=$STEAM_COMPAT_CLIENT_INSTALL_PATH" >> "$log" 2>&1 || true
 fi
+
+# Raw mouse counts for mouselook games instead of winemac's accelerated, whole-point cursor
+# deltas (#44). The library stays inert unless the runner has the winemac.so it was made for.
+if [ "${NOTPROTON_RAW_MOUSE:-1}" != 0 ] && [ -f "$bridge_src/$np_build/notproton-rawmouse.dylib" ]; then
+  np_insert="$bridge_src/$np_build/notproton-rawmouse.dylib"
+fi
+echo "rawmouse: ${np_insert:-off}" >> "$log" 2>&1 || true
 
 export WINEDEBUG="${WINEDEBUG:-err+all,fixme-all}"
 exec 8>&-

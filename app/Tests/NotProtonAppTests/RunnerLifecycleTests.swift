@@ -107,8 +107,9 @@ struct RunnerLifecycleTests {
         defer { try? FileManager.default.removeItem(at: work) }
         let build = SupportedRunners.sikarugir
         #expect(RunnerPatcher.bridgeRoot(for: build, in: work) == work.appending(path: build.id))
-        #expect(RunnerPatcher.builtins(for: build, in: work).map { RunnerPatcher.builtinPath($0) }.sorted() == RunnerPatcher.sikarugirBridge.keys.sorted())
-        #expect(RunnerPatcher.builtins(for: build, in: work).allSatisfy { !$0.arch.hasPrefix("i386") && !$0.arch.hasPrefix("aarch64") })
+        // notproton-rawmouse.dylib is loaded by run, not installed into the runner.
+        #expect(RunnerPatcher.builtins(for: build, in: work).map { RunnerPatcher.builtinPath($0) }.sorted() == RunnerPatcher.sikarugirBridge.keys.filter { $0 != "notproton-rawmouse.dylib" }.sorted())
+        #expect(RunnerPatcher.builtins(for: build, in: work).allSatisfy { $0.arch != "i386-unix" && !$0.arch.hasPrefix("aarch64") })
         // A file straight in the bridge folder is not what the install reads.
         let shared = work.appending(path: "x86_64-windows/lsteamclient.dll")
         try write("unrelated", at: shared)
