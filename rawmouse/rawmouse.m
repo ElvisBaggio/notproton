@@ -34,7 +34,7 @@ typedef void *(*create_event_fn)(int, id);
 typedef void (*release_event_fn)(void *);
 static create_event_fn create_event;
 static release_event_fn release_event;
-static IMP original_handleMouseMove;
+static IMP original_handleMouseMove, original_setCursorPosition;
 static ptrdiff_t wants_hidden_offset;
 static double scale = 1, residual_x, residual_y;
 static BOOL raw_active;
@@ -55,7 +55,8 @@ static BOOL file_matches(const char *path, const char *hex) {
 
 // The game window, while the app is frontmost and the Windows cursor is hidden.
 static NSWindow *mouselook_window(id controller) {
-    if (!controller || !NSApp.isActive) return nil;
+    // Without a GCMouse nothing would replace the moves winemac's are dropped for.
+    if (!controller || !NSApp.isActive || !GCMouse.mice.count) return nil;
     if (!*((BOOL *)((char *)(__bridge void *)controller + wants_hidden_offset))) return nil;
     NSWindow *key = NSApp.keyWindow;
     return [key isKindOfClass:objc_getClass("WineWindow")] ? key : nil;
@@ -70,7 +71,13 @@ static NSWindow *update_raw_state(id ctl) {
     if (!!window != raw_active) {
         raw_active = !!window;
         residual_x = residual_y = 0;
-        // ponytail: the macOS cursor stays where mouselook began; winemac resyncs it on the next move.
+        if (raw_active) {
+            // Park the frozen cursor on the game, so clicks cannot land in another window or monitor.
+            NSRect frame = window.frame;
+            CGFloat top = NSMaxY(NSScreen.screens.firstObject.frame);
+            CGWarpMouseCursorPosition(CGPointMake(NSMidX(frame), top - NSMidY(frame)));
+        }
+        // ponytail: leaving mouselook, winemac resyncs the Windows cursor on the next move.
         CGAssociateMouseAndMouseCursorPosition(!raw_active);
         say(raw_active ? "mouselook on" : "mouselook off", NULL);
     }
@@ -106,15 +113,28 @@ static void handleMouseMove(id self, SEL _cmd, NSEvent *event) {
     ((void (*)(id, SEL, NSEvent *))original_handleMouseMove)(self, _cmd, event);
 }
 
+// winemac reassociates the cursor after each warp (SetCursorPos); keep it frozen in mouselook.
+static BOOL setCursorPosition(id self, SEL _cmd, CGPoint pos) {
+    BOOL ret = ((BOOL (*)(id, SEL, CGPoint))original_setCursorPosition)(self, _cmd, pos);
+    if (raw_active) CGAssociateMouseAndMouseCursorPosition(false);
+    return ret;
+}
+
+static void release_cursor(void) {
+    if (raw_active) CGAssociateMouseAndMouseCursorPosition(true);
+}
+
 static void watch(GCMouse *mouse) {
+    mouse.handlerQueue = dispatch_get_main_queue();  // raw_moved keeps its state on the main thread
     mouse.mouseInput.mouseMovedHandler = ^(__unused GCMouseInput *input, float dx, float dy) { raw_moved(dx, dy); };
 }
 
 static void install(void *base) {
     Class cls = objc_getClass("WineApplicationController");
     Method move = class_getInstanceMethod(cls, sel_registerName("handleMouseMove:"));
+    Method warp = class_getInstanceMethod(cls, sel_registerName("setCursorPosition:"));
     Ivar ivar = class_getInstanceVariable(cls, "clientWantsCursorHidden");
-    if (!move || !ivar || !class_getInstanceMethod(cls, sel_registerName("ticksForEventTime:"))) {
+    if (!move || !warp || !ivar || !class_getInstanceMethod(cls, sel_registerName("ticksForEventTime:"))) {
         say("winemac does not have the expected classes, staying off", NULL);
         return;
     }
@@ -122,6 +142,8 @@ static void install(void *base) {
     release_event = (release_event_fn)((char *)base + kReleaseEvent);
     wants_hidden_offset = ivar_getOffset(ivar);
     original_handleMouseMove = method_setImplementation(move, (IMP)handleMouseMove);
+    original_setCursorPosition = method_setImplementation(warp, (IMP)setCursorPosition);
+    atexit(release_cursor);
     for (GCMouse *mouse in GCMouse.mice) watch(mouse);
     [NSNotificationCenter.defaultCenter addObserverForName:GCMouseDidConnectNotification object:nil
         queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { watch(note.object); }];

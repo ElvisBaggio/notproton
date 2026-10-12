@@ -47,6 +47,7 @@ export CX_APPLEGPTK_LIBD3DSHARED_PATH="$np_runner/Frameworks/renderer/d3dmetal/e
 export PATH="$np_runner/bin:$PATH"
 
 # arch strips inherited DYLD variables; set the copied Frameworks (and np_insert) after it.
+np_insert=""
 wine_exec() {
   /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" \
     ${np_insert:+"DYLD_INSERT_LIBRARIES=$np_insert"} "$@"
@@ -933,12 +934,17 @@ verify_runner() {
 # Wine 11 only finds a builtin it has a file for under system32/syswow64. wineboot leaves those
 # files behind, so a prefix made before the runner carried the i386 lsteamclient never gets one,
 # and the i386 trigger then falls back to Valve's imports (tier0_s.dll) and fails.
+# Copies beside the target and renames over it, so a process that has the old file mapped keeps it.
+replace_file() {
+  { cp -c -f "$1" "$2.np$$" 2>/dev/null || cp -f "$1" "$2.np$$" 2>> "$log"; } && mv -f "$2.np$$" "$2" \
+    || { rm -f "$2.np$$"; return 1; }
+}
 place_wow64_lsteamclient() {
   src="$np_runner/lib/wine/i386-windows/lsteamclient.dll"
   dst="$WINEPREFIX/drive_c/windows/syswow64/lsteamclient.dll"
   [ -f "$src" ] && [ -d "${dst%/*}" ] || return 0
   cmp -s "$src" "$dst" && return 0
-  cp -c -f "$src" "$dst" 2>/dev/null || cp -f "$src" "$dst" 2>> "$log" || return 0
+  replace_file "$src" "$dst" || return 0
   echo "=== placed syswow64/lsteamclient.dll ===" >> "$log" 2>&1 || true
 }
 # Steam runs a game's installscript.vdf (Uplay, VC++ and the like) through the compat tool
@@ -947,13 +953,14 @@ place_wow64_lsteamclient() {
 install_legacycompat() {
   src="$bridge_src/legacycompat"
   dst="$STEAM_COMPAT_CLIENT_INSTALL_PATH/legacycompat"
-  [ -d "$src" ] && [ -n "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] || return 0
+  # Only into a client folder that exists, never one made up from the environment.
+  [ -d "$src" ] && [ -n "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] && [ -d "$STEAM_COMPAT_CLIENT_INSTALL_PATH" ] || return 0
   mkdir -p "$dst" || return 0
   for f in "$src"/*; do
     [ -f "$f" ] || continue
     b=$(basename "$f")
     cmp -s "$f" "$dst/$b" && continue
-    if cp -c -f "$f" "$dst/$b" 2>/dev/null || cp -f "$f" "$dst/$b" 2>> "$log"; then
+    if replace_file "$f" "$dst/$b"; then
       echo "=== installed legacycompat/$b ===" >> "$log" 2>&1 || true
     else
       echo "=== could not copy legacycompat/$b to $dst/$b ===" >> "$log" 2>&1 || true
@@ -1062,7 +1069,6 @@ fi
 
 # Raw mouse counts for mouselook games instead of winemac's accelerated, whole-point cursor
 # deltas (#44). The library stays inert unless the runner has the winemac.so it was made for.
-np_insert=""
 if [ "${NOTPROTON_RAW_MOUSE:-1}" != 0 ] && [ -f "$bridge_src/$np_build/notproton-rawmouse.dylib" ]; then
   np_insert="$bridge_src/$np_build/notproton-rawmouse.dylib"
 fi

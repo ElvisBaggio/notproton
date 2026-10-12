@@ -24,7 +24,7 @@ Latência macOS→Wine medida no trace `+cursor`: p50 7 ms, p99 15 ms.
 - Só arma se o `winemac.so` carregado tiver o hash fixado; usa as funções internas desse build (`macdrv_create_event` `+0x11210`, `macdrv_release_event` `+0x106c0`, tipo relativo `0xc`, campos `+0x18/+0x1c/+0x20/+0x28`), lidas por disassembly e pelo runtime ObjC.
 - Com o app ativo e o cursor do Windows escondido (`clientWantsCursorHidden`), troca `-[WineApplicationController handleMouseMove:]` (swizzle) e posta os deltas do `GCMouse` (contagens do sensor, sem aceleração) como eventos relativos do winemac; prende o cursor do macOS (`CGAssociateMouseAndMouseCursorPosition`). Cmd+Tab solta.
 - `NOTPROTON_RAW_MOUSE=0` desliga; `NOTPROTON_RAW_MOUSE_SCALE` multiplica os deltas; `NOTPROTON_RAW_MOUSE_DEBUG=1` loga no stderr.
-- Build reproduzível (`make out/notproton-rawmouse.dylib`, `-install_name` fixo): `0cb160ea44f5dc3c42e114e526d2385312afe1e26384850ae4bbeeff508137d9`, igual em outro diretório; fixado em `RunnerPatcher.sikarugirBridge` e no `payload.manifest`.
+- Build reproduzível (`make out/notproton-rawmouse.dylib`, `-install_name` fixo): `39d6aeed240a9169582cdf9389e34a6cdfc74c682d4f0272737a5e4cfdc5fac8` (após a revisão), igual em outro diretório; o `make` recusa um build cujo hash não seja o pin; fixado em `RunnerPatcher.sikarugirBridge` e no `payload.manifest`.
 
 **Prova.**
 - Viabilidade: dylib injetada no Wine (Rosetta) enxerga os mouses no `GCMouse` e recebe deltas inteiros do sensor.
@@ -47,3 +47,16 @@ Prova (Wildlands, 2026-10-11):
 - com a chave `Uninstall\Uplay` renomeada (`Uplay-np41-bak`, backup em `scratch/wildlands/reg-before-41-rename/`), o avaliador recriou `Uninstall\Uplay` ("Uplay"=1) em ~5 s; sem arquivos novos do launcher (instalador provavelmente viu o Uplay presente).
 
 Pendente para o aceite: prefixo novo instalado do zero; PEAK/GHPC sem script seguem iguais.
+
+## Revisão (2026-10-12)
+
+Revisor: Claude Code, modelo efetivo `claude-opus-5-5` (agente independente, sem o contexto da implementação). Veredito: aprovar com ajustes nas três branches; a pilha é mergeada inteira (o opt-in da captura está no topo).
+
+Ajustes aplicados:
+- rawmouse só arma com pelo menos um `GCMouse` (sem ele a câmera morreria); reafirma a dissociação depois de cada warp do winemac (`setCursorPosition:`, retorna `BOOL`); estaciona o cursor no centro da janela ao armar; reassocia no `atexit`; `handlerQueue` fixado no main queue.
+- `run`: `np_insert` zerado no topo; `replace_file` (copia ao lado e renomeia) para `syswow64/lsteamclient.dll` e `legacycompat/*`; `install_legacycompat` só escreve numa pasta de cliente que já exista (coberto no `sikarugircheck`).
+- `make` confere o hash da dylib contra o pin do `RunnerPatcher`.
+
+Mudanças de escopo registradas nos cards: #41 usa o avaliador da Valve baixado pelo app (não interpretador próprio); #44 injeta uma dylib em vez de patch no `winemac.drv` (sem fonte, D3DMetal). Aceites com ressalva por decisão do Elvis: #41 sem prefixo novo; #42 save "PASS por relato".
+
+Não feitos (sugestões): rebuild da árvore i386 quando `CONFIGURE_OPTS` mudar; restringir a cópia do `legacycompat` só ao avaliador; trace `+dinput` pós-correção no Wildlands.

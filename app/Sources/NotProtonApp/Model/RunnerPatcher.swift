@@ -13,7 +13,7 @@ enum RunnerPatcher {
         // 32-bit Steam clients reach lsteamclient.so through its wow64 thunks.
         "i386-windows/lsteamclient.dll": "bd277143ea313df40f2a7cb844051e34eb115c44ce1014920af89f1b5d5a549a",
         // Raw mouse for mouselook games (#44); run loads it into Wine, it is not a runner builtin.
-        "notproton-rawmouse.dylib": "0cb160ea44f5dc3c42e114e526d2385312afe1e26384850ae4bbeeff508137d9",
+        "notproton-rawmouse.dylib": "39d6aeed240a9169582cdf9389e34a6cdfc74c682d4f0272737a5e4cfdc5fac8",
     ]
 
     static func builtins(for build: RunnerBuild, in root: URL) -> [(arch: String, name: String)] {

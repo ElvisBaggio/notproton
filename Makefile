@@ -493,6 +493,9 @@ $(RAWMOUSE): rawmouse/rawmouse.m
 	$(CC) -arch x86_64 -mmacosx-version-min=$(MIN_VER) -dynamiclib -O2 -Wall -Wextra -fobjc-arc \
 		-framework AppKit -framework GameController -install_name notproton-rawmouse.dylib -o $@ $<
 	codesign -fs - $@
+	@pin=$$(sed -n 's/.*"notproton-rawmouse.dylib": "\([0-9a-f]*\)".*/\1/p' app/Sources/NotProtonApp/Model/RunnerPatcher.swift); \
+	got=$$(shasum -a 256 $@ | cut -d' ' -f1); [ "$$got" = "$$pin" ] || { \
+		echo "$@: sha256 $$got is not the pin $$pin in RunnerPatcher.swift (other toolchain?)" >&2; exit 1; }
 
 app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO) $(RAWMOUSE)
 	@mkdir -p "$(APP_PAYLOAD)/signatures/macos.arm64"

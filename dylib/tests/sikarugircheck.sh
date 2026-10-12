@@ -43,7 +43,7 @@ grep -q 'missing i386-windows/lsteamclient.dll' "$tmp/vr/log" || { echo 'FAIL: t
 echo 'sikarugircheck: verify_runner PASS'
 
 # place_wow64_lsteamclient: a prefix older than the i386 builtin gets its syswow64 file.
-sed -n '/^place_wow64_lsteamclient() {/,/^}/p' "$SRC" > "$tmp/wow.sh"
+sed -n '/^replace_file() {/,/^}/p; /^place_wow64_lsteamclient() {/,/^}/p' "$SRC" > "$tmp/wow.sh"
 [ -s "$tmp/wow.sh" ] || { echo 'FAIL: place_wow64_lsteamclient not found'; exit 1; }
 mkdir -p "$tmp/wow/runner/lib/wine/i386-windows" "$tmp/wow/pfx/drive_c/windows/syswow64"
 printf 'i386 builtin\n' > "$tmp/wow/runner/lib/wine/i386-windows/lsteamclient.dll"
@@ -61,7 +61,7 @@ cmp -s "$tmp/wow/runner/lib/wine/i386-windows/lsteamclient.dll" "$tmp/wow/pfx/dr
 echo 'sikarugircheck: wow64 lsteamclient PASS'
 
 # install_legacycompat: the Mac client folder gets the evaluator Steam runs installscript.vdf with.
-sed -n '/^install_legacycompat() {/,/^}/p' "$SRC" > "$tmp/lc.sh"
+sed -n '/^replace_file() {/,/^}/p; /^install_legacycompat() {/,/^}/p' "$SRC" > "$tmp/lc.sh"
 [ -s "$tmp/lc.sh" ] || { echo 'FAIL: install_legacycompat not found'; exit 1; }
 mkdir -p "$tmp/lc/bridge/legacycompat" "$tmp/lc/client"
 printf 'evaluator\n' > "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe"
@@ -76,4 +76,10 @@ printf 'evaluator\n' > "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe"
 cmp -s "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe" "$tmp/lc/client/legacycompat/iscriptevaluator.exe" \
   || { echo 'FAIL: iscriptevaluator.exe was not installed'; exit 1; }
 [ "$(grep -c 'installed legacycompat' "$tmp/lc/log")" = 1 ] || { echo 'FAIL: legacycompat copy is not idempotent'; exit 1; }
+(
+  . "$tmp/lc.sh"
+  bridge_src="$tmp/lc/bridge" STEAM_COMPAT_CLIENT_INSTALL_PATH="$tmp/lc/missing" log="$tmp/lc/log"
+  install_legacycompat
+)
+[ ! -e "$tmp/lc/missing" ] || { echo 'FAIL: legacycompat made up a client folder'; exit 1; }
 echo 'sikarugircheck: legacycompat PASS'
