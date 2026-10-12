@@ -36,8 +36,13 @@ cp "$BRIDGE_DIR/x86_64-windows/lsteamclient.dll" "$BRIDGE_DIR/lsteamclient.dll"
 WINE_BUILD_I386="${WINE_BUILD_I386:-$repo/scratch/sikarugir/wine-build-i386}"
 if [ ! -f "$WINE_BUILD_I386/Makefile" ]; then
   mkdir -p "$WINE_BUILD_I386"
-  # shellcheck disable=SC2086 # CONFIGURE_OPTS is a list of options
-  ( cd "$WINE_BUILD_I386" && "$WINE_SRC/configure" $(echo "$CONFIGURE_OPTS" | sed 's/--enable-archs=x86_64/--enable-archs=i386,x86_64/') \
+  i386_opts=$(echo "$CONFIGURE_OPTS" | sed 's/--enable-archs=x86_64/--enable-archs=i386,x86_64/')
+  case "$i386_opts" in
+    *--enable-archs=i386,x86_64*) ;;
+    *) echo "build-sikarugir: CONFIGURE_OPTS has no --enable-archs=x86_64 to widen" >&2; exit 1 ;;
+  esac
+  # shellcheck disable=SC2086 # i386_opts is a list of options
+  ( cd "$WINE_BUILD_I386" && "$WINE_SRC/configure" $i386_opts \
       --host="$HOST" CC="$HOST_CC" CXX="$HOST_CXX" )
 fi
 make -C "$WINE_BUILD_I386" dlls/lsteamclient/i386-windows/lsteamclient.dll
