@@ -426,12 +426,12 @@ import_prefix_settings() {
   else
     retina_line='"RetinaMode"=-'
   fi
-  # Fullscreen games capture every display, so the cursor cannot slip onto another monitor and
-  # take focus away (winemac's cursor clipping alone lets it escape). NOTPROTON_CAPTURE_DISPLAYS=0 opts out.
-  if [ "$NOTPROTON_CAPTURE_DISPLAYS" = "0" ]; then
-    capture_line='"CaptureDisplaysForFullscreen"=-'
-  else
+  # Capturing every display for a fullscreen game blanks the other monitors; the raw mouse library
+  # already keeps the cursor on the game (#44), so it is opt-in: NOTPROTON_CAPTURE_DISPLAYS=1.
+  if [ "$NOTPROTON_CAPTURE_DISPLAYS" = "1" ]; then
     capture_line='"CaptureDisplaysForFullscreen"="y"'
+  else
+    capture_line='"CaptureDisplaysForFullscreen"=-'
   fi
   controllers_planned=0
   if plan_hidden_controllers 2>/dev/null; then
@@ -894,7 +894,7 @@ if [ -n "$STEAM_COMPAT_DATA_PATH" ]; then
     show_alert "Saved-game folders need attention" "NotProton left the conflicting files in place. Open this prefix's notproton-run.log for details before trying again."
     exit 1
   fi
-  echo "video: RetinaMode=${NOTPROTON_RETINA:-0} CaptureDisplays=${NOTPROTON_CAPTURE_DISPLAYS:-1}" >> "$log" 2>&1 || true
+  echo "video: RetinaMode=${NOTPROTON_RETINA:-0} CaptureDisplays=${NOTPROTON_CAPTURE_DISPLAYS:-0}" >> "$log" 2>&1 || true
   stage_step="game drive"
   map_game_drive
   stage_step="prefix settings"
