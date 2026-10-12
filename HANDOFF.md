@@ -10,11 +10,13 @@ Atualizado: 2026-10-12 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
 - App instalado: `/Applications/NotProton Sikarugir.app` = build desta branch; backup `/Applications/-bak-a4087cb-NotProton Sikarugir.app`. Cada rebuild pede religar "Gerenciamento de apps" e rodar Install.
 - **Cities II estacionado** (`docs/evidence/cities-launcher.md`; #40).
 
-**Próximo passo.**
-- Revisão Claude Code Opus 5.5 / Astra das três branches; PRs em ordem #42 → #41 → #44.
-- #41: aceite com prefixo novo do Wildlands; conferir PEAK/GHPC.
-- #44: conferir PEAK/GHPC (menus e cursor) com a dylib.
-- Abertos: #43 (update pendente do Steam), card de reprodutibilidade dos PEs (`-ffile-prefix-map`), teclas mortas do Wine (`^`), porte do upstream 1.1.2–1.1.6.
+**Próximo passo.** Tudo está em cards no Project 8:
+- **#45** aceite, revisão e merge da pilha #42 → #41 → #44 (checklist: Install/tela preta, PEAK/GHPC, save, prefixo novo, revisão Opus 5.5/Astra, PRs).
+- **#46** `WINEDEBUG` padrão de baixo custo (log de ~33 MB/s com o Ubisoft Connect).
+- **#43** update pendente do Steam aplicado apesar do bloqueio.
+- **#47** porte manual do upstream 1.1.2 → 1.1.6.
+- **#48** build reproduzível dos PEs da ponte; **#49** teclas mortas (`^`); **#50** frame pacing/renderer real; **#51** D3D12 e saves (ressalvas do E4).
+- **#40** Cities II estacionado (decisão do Elvis entre motor Wine 11 + DXMT, reportar ao Sikarugir ou deixar parado).
 
 **Bloqueios / limites.**
 - Prefixo 460930 tem a chave de teste `Uninstall\Uplay-np41-bak` (inofensiva); backups do registro em `scratch/wildlands/`.
