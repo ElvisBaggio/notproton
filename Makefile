@@ -486,7 +486,15 @@ deploy: $(TARGET) dylib-install sigdb-install helpers-install
 bridge-sikarugir:
 	bridge/build-sikarugir.sh
 
-app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO)
+# Raw mouse for mouselook games under Sikarugir's winemac (#44); loaded into Wine (x86_64) by run.
+RAWMOUSE := $(OUT_DIR)/notproton-rawmouse.dylib
+$(RAWMOUSE): rawmouse/rawmouse.m
+	@mkdir -p $(OUT_DIR)
+	$(CC) -arch x86_64 -mmacosx-version-min=$(MIN_VER) -dynamiclib -O2 -Wall -Wextra -fobjc-arc \
+		-framework AppKit -framework GameController -install_name notproton-rawmouse.dylib -o $@ $<
+	codesign -fs - $@
+
+app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO) $(RAWMOUSE)
 	@mkdir -p "$(APP_PAYLOAD)/signatures/macos.arm64"
 	@mkdir -p "$(APP_PAYLOAD)/bridge"
 	cp -f $(TARGET) "$(APP_PAYLOAD)/notproton.dylib"
@@ -500,6 +508,7 @@ app-payload: $(TARGET) $(OVERLAY_SHIM) $(ICONMAKER) $(APPINFO)
 	elif [ ! -s "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/steam.exe" ]; then \
 		echo "app-payload: scratch/sikarugir/bridge is missing and nothing is staged, run: $(MAKE) bridge-sikarugir" >&2; exit 1; \
 	fi
+	cp -f $(RAWMOUSE) "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/notproton-rawmouse.dylib"
 	@stamp="$$(git log -1 --format=%ct 2>/dev/null)"; \
 	if [ -z "$$stamp" ]; then echo "build-time needs a git checkout" >&2; exit 1; fi; \
 	echo "$$stamp" > "$(APP_PAYLOAD)/build-time"
@@ -585,7 +594,7 @@ app: sikarugir-payload-check $(ICON_CAR)
 app-sikarugir: app
 
 sikarugir-payload-check: app-payload
-	@for f in steam.exe x86_64-windows/lsteamclient.dll x86_64-unix/lsteamclient.so i386-windows/lsteamclient.dll; do \
+	@for f in steam.exe x86_64-windows/lsteamclient.dll x86_64-unix/lsteamclient.so i386-windows/lsteamclient.dll notproton-rawmouse.dylib; do \
 		[ -s "$(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f" ] || { \
 			echo "app: $(APP_PAYLOAD)/bridge/sikarugir-11.0-r0/$$f is missing; run: $(MAKE) bridge-sikarugir && $(MAKE) app-payload" >&2; exit 1; }; \
 	done

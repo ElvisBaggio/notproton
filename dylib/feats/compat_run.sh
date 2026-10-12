@@ -46,9 +46,10 @@ export CX_D3DMETALPATH="$np_runner/Frameworks/renderer/d3dmetal/external"
 export CX_APPLEGPTK_LIBD3DSHARED_PATH="$np_runner/Frameworks/renderer/d3dmetal/external/libd3dshared.dylib"
 export PATH="$np_runner/bin:$PATH"
 
-# arch strips inherited DYLD variables; set the copied Frameworks after it.
+# arch strips inherited DYLD variables; set the copied Frameworks (and np_insert) after it.
 wine_exec() {
-  /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" "$@"
+  /usr/bin/arch -x86_64 /usr/bin/env DYLD_FALLBACK_LIBRARY_PATH="$np_runner/Frameworks:/usr/lib" \
+    ${np_insert:+"DYLD_INSERT_LIBRARIES=$np_insert"} "$@"
 }
 
 # Keeps Wine from inheriting the prefix and template locks (fd 8 and 9).
@@ -1058,6 +1059,14 @@ if [ -d "$bridge_src" ] && [ -n "$WINEPREFIX" ]; then
   echo "WINEDLLOVERRIDES=$WINEDLLOVERRIDES" >> "$log" 2>&1 || true
   echo "STEAM_COMPAT_CLIENT_INSTALL_PATH=$STEAM_COMPAT_CLIENT_INSTALL_PATH" >> "$log" 2>&1 || true
 fi
+
+# Raw mouse counts for mouselook games instead of winemac's accelerated, whole-point cursor
+# deltas (#44). The library stays inert unless the runner has the winemac.so it was made for.
+np_insert=""
+if [ "${NOTPROTON_RAW_MOUSE:-1}" != 0 ] && [ -f "$bridge_src/$np_build/notproton-rawmouse.dylib" ]; then
+  np_insert="$bridge_src/$np_build/notproton-rawmouse.dylib"
+fi
+echo "rawmouse: ${np_insert:-off}" >> "$log" 2>&1 || true
 
 export WINEDEBUG="${WINEDEBUG:-err+all,fixme-all}"
 exec 8>&-
