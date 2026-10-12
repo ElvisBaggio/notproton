@@ -76,6 +76,7 @@ printf 'evaluator\n' > "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe"
 cmp -s "$tmp/lc/bridge/legacycompat/iscriptevaluator.exe" "$tmp/lc/client/legacycompat/iscriptevaluator.exe" \
   || { echo 'FAIL: iscriptevaluator.exe was not installed'; exit 1; }
 [ "$(grep -c 'installed legacycompat' "$tmp/lc/log")" = 1 ] || { echo 'FAIL: legacycompat copy is not idempotent'; exit 1; }
+# shellcheck disable=SC1091,SC2034 # lc.sh is generated above and reads these variables
 (
   . "$tmp/lc.sh"
   bridge_src="$tmp/lc/bridge" STEAM_COMPAT_CLIENT_INSTALL_PATH="$tmp/lc/missing" log="$tmp/lc/log"
