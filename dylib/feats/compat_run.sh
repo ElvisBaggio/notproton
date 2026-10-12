@@ -936,8 +936,11 @@ verify_runner() {
 # and the i386 trigger then falls back to Valve's imports (tier0_s.dll) and fails.
 # Copies beside the target and renames over it, so a process that has the old file mapped keeps it.
 replace_file() {
-  { cp -c -f "$1" "$2.np$$" 2>/dev/null || cp -f "$1" "$2.np$$" 2>> "$log"; } && mv -f "$2.np$$" "$2" \
-    || { rm -f "$2.np$$"; return 1; }
+  if { cp -c -f "$1" "$2.np$$" 2>/dev/null || cp -f "$1" "$2.np$$" 2>> "$log"; } && mv -f "$2.np$$" "$2"; then
+    return 0
+  fi
+  rm -f "$2.np$$"
+  return 1
 }
 place_wow64_lsteamclient() {
   src="$np_runner/lib/wine/i386-windows/lsteamclient.dll"
