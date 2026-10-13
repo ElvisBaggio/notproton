@@ -24,6 +24,7 @@ struct StatusSnapshot: Sendable {
     var orphanedRunners: [String] = []
     var damagedRunners: [String] = []
     var installContent: DeploymentContent.Status = .unchecked
+    var unsupportedSteamBuild: UInt64? = nil
 
     static func capture(bundledVersion: String) -> StatusSnapshot {
         let runner = RunnerStore.state()
@@ -39,7 +40,10 @@ struct StatusSnapshot: Sendable {
             installedRunners: installed,
             orphanedRunners: RunnerStore.orphanedClones(),
             damagedRunners: RunnerStore.damagedClones(),
-            installContent: DeploymentContent.current(version: bundledVersion)
+            installContent: DeploymentContent.current(version: bundledVersion),
+            unsupportedSteamBuild: SteamInstaller.unsupportedClientBuild(
+                profiles: (try? InstallPayload.locate())?.signatures ?? []
+            )
         )
     }
 }

@@ -223,6 +223,16 @@ enum SteamInstaller {
         return build
     }
 
+    // The manifest moves to a new build as soon as Steam downloads it, before the
+    // bootstrapper applies it on the next start, even with updates blocked (#43).
+    // So this covers both a client already updated and one about to be.
+    static func unsupportedClientBuild(
+        in root: URL = SupportPaths.Steam.innerClient, profiles: [URL]
+    ) -> UInt64? {
+        guard !profiles.isEmpty, let build = try? activeClientBuild(in: root) else { return nil }
+        return (try? requireSignatureProfile(activeBuild: build, profiles: profiles)) == nil ? build : nil
+    }
+
     static func requireSignatureProfile(activeBuild: UInt64, profiles: [URL]) throws {
         struct Profile: Decodable { let steam_build: UInt64 }
         var matches = 0

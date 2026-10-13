@@ -296,6 +296,13 @@ struct StatusView: View {
                     )
                 }
                 updateBlockRow(snapshot.updateBlocked)
+                if let build = snapshot.unsupportedSteamBuild {
+                    StatusRow(
+                        title: "Steam build \(build) is not supported",
+                        value: "Steam has either installed this build or downloaded it to install on its next start, even with updates blocked. NotProton has no profile for it, so games will not reach Steam. Wait for a NotProton update before restarting Steam.",
+                        tone: .warning
+                    )
+                }
                 StatusRow(
                     title: "Controller permission",
                     value: "Clear Steam's controller permission so macOS asks for it again.",
