@@ -95,3 +95,47 @@ Conclusão: **Cities II estacionado.** A ferramenta não é a causa (PEAK passou
 5. **Referência**: `macgameport/cities-skylines-2-macos` documenta essa classe (Wine deixa `GetLastError` lixo nos caminhos de falha de diretório → Mono gera `IOException`). Stack que funciona lá: Wine 11 + **DXMT** + Steam Windows no prefixo + **10 patches binários nos arquivos do jogo** (`mscorlib`, `Colossal.IO`, `PDX.SDK.dll`…); no Wine 10, 17 patches incluindo bypass de licença do Coherent Gameface (não publicado). Conflita com a regra de preservar a biblioteca (só seria viável em cópia) e é port específico do jogo.
 
 Estado: nada alterado no repo/tool; prefixo 949230 sem mudanças além das do próprio launcher/jogo (logs, `chromium-data`, `Player.log`); opções de inicialização SwiftShader ainda no Steam (podem ser apagadas); nenhum processo rodando. Para retomar: card "Cities II: patches em cópia + DXMT", com revisão.
+
+## B1 — causa raiz da `IOException` (2026-10-11) — Agente: claude · Modelo efetivo: opus (claude-opus-5-5) · Card #40
+
+**Conclusão:** o Sikarugir 11.0 (r0 e r1) não troca o `gsbase` para o TEB ao entrar em código PE no macOS. Ele usa o esquema antigo de slots TSD do pthread, em que só `gs:[0x30]` (TEB Self) e `gs:[0x58]` são emulados. O JIT do Mono do Unity lê o last-error **inline** em `gs:[0x68]` (`TEB->LastErrorValue`), sem chamar `GetLastError()`. Sob o Sikarugir ele recebe lixo, `LongDirectory.EnumerateFileSystemIterator` (Colossal.IO) cai no `throw` de `IL_0165` (`GetLastWin32Error() != 18` depois de `FindNextFile`) e o jogo morre em `ContentHelper.ListContent`. O Wine 11.0 upstream chama `_thread_set_tsd_base(NtCurrentTeb())` e não tem o problema.
+
+Cadeia confirmada:
+
+1. `Player.log`: `LongDirectory+<EnumerateFileSystemIterator>d__15.MoveNext () [0x00165]` ← `ListContent [0x00057]` = `LongDirectory.EnumerateDirectories(kContentPath)` sobre `Cities2_Data/Content`.
+2. IL (`dnfile`/`dncil`): `IL_0144 FindNextFile` → `IL_014e Marshal.GetLastWin32Error` → `!= 18` → `IL_0165 throw`. O P/Invoke está correto (`FindNextFileW`, `SetLastError=true`, Unicode); o bug não está no jogo.
+3. `tools/cities-b1/b1probe.c` carrega o Mono do jogo (`mono-2.0-bdwgc.dll`) e chama `LongDirectory.GetFiles` do `Colossal.IO.dll` real, em prefixo novo no scratch, sem Steam e sem tocar na biblioteca. Também faz `FindFirstFileW`/`FindNextFileW` puro no mesmo processo.
+4. `+relay`: o Wine define 18 nas duas cadeias (`NtQueryDirectoryFile` → `80000006` → `RtlNtStatusToDosError` = `0x12`); depois do `FindNextFileW` do Mono **não existe chamada a `GetLastError`**, ou seja, a leitura é inline.
+5. `tools/cities-b1/gsprobe.c`: `SetLastError(n)` e depois `GetLastError()` vs `mov %gs:0x68`.
+
+| Motor | `ntdll.so` importa `_thread_set_tsd_base` | `gs:[0x68]` | `GetLastError` puro | `LongDirectory.GetFiles` (Mono do jogo) |
+|---|---|---|---|---|
+| runner notproton = `WS12WineSikarugir11.0` (r0, `ntdll.so` `c9948aab…`) | não | lixo `0x30f8140` | 18 | **IOException 5/5** |
+| motor original do wrapper Sikarugir (sem patch T04) | não | — | 18 | **IOException 5/5** |
+| `WS12WineSikarugir11.0_1` (r1, `f51a9828…`) | não | lixo `0xc24080` | 18 | **IOException 5/5** |
+| Wine stable 11.0_1 stock (Gcenx, tar `b50dc50e…`) | **sim** | **18/19/20 OK** | 18 | **OK 5/5** |
+
+Descartados: patch ntdll do T04, ponte/`lsteamclient`, `compat_run.sh`, prefixo, Steam (o probe não usa nenhum deles), camada Win32 do Wine. Também explica a medição da macgameport ("Wine 11.0 corrige; 0x5af040a0 com cara de ponteiro"): o build de 11.0 deles tem o swap de gsbase.
+
+Alcance: afeta **qualquer jogo Unity/Mono** neste runner que dependa de `Marshal.GetLastWin32Error()` depois de um P/Invoke que falha. PEAK/GHPC passaram porque não seguem esse caminho na inicialização.
+
+Reproduzir (`R` = diretório do motor com `bin/wine`; `FW` = Frameworks, opcional):
+
+```sh
+T=<llvm-mingw>/bin; $T/x86_64-w64-mingw32-clang -O1 -o gsprobe.exe tools/cities-b1/gsprobe.c
+$T/x86_64-w64-mingw32-clang -O1 -o b1probe.exe tools/cities-b1/b1probe.c
+tools/cities-b1/run.sh "$R" <prefixo-scratch> 'Z:\…\gsprobe.exe'
+tools/cities-b1/run.sh "$R" <prefixo-scratch> 'Z:\…\b1probe.exe' "$G" "$G\Cities2_Data\Content"   # G = pasta do jogo (Windows)
+```
+
+Motores baixados para A/B: `scratch/sikarugir/engines-b1/` (ignorado).
+
+Em aberto: por que o Sikarugir não usa o swap de gsbase (compatibilidade com D3DMetal/GPTK? desempenho no Rosetta?). Sem fonte do build 11.0 publicado não dá para confirmar.
+
+Pesquisa de motores do Sikarugir Creator (mesmo probe, 2026-10-11): `WS12WineSikarugir10.0_8` (`2a6bcf2a…`), `WS12WineCX24.0.7_7` (`203f9e9f…`) e `WS12WineGPTK1.1_3` (`e6efcbf0…`) **também falham**: nenhum importa `_thread_set_tsd_base`, `gs:[0x68]` é lixo e `LongDirectory` lança exceção. Com `WINEMSYNC=1` o resultado não muda. Nenhuma opção do wrapper (aba Options/Advanced) altera o `gs`. Até agora, só o Wine stock passa.
+
+### Caminho 1 (espelhar o last-error em `gs:[0x68]`): verificação de segurança REPROVADA (2026-10-11, claude)
+
+- No Sikarugir o `gsbase` em código PE é o TSD do pthread do macOS. `gs:[0x68]` = slot 13 = `__PTK_LIBC_GMTIME_KEY` (`libpthread/private/pthread/tsd_private.h`), o ponteiro do buffer por thread do `gmtime()` da libc. Os slots que o Sikarugir usa (6 → `gs:0x30` TEB, 11 → `gs:0x58`) são livres; o 13 não.
+- O `ntdll.so` do runner importa `_gmtime`/`_localtime`/`_ctime`/`_asctime` (`nm -u`). Upstream `dlls/ntdll/unix/system.c` (wine-11.0) chama `gmtime()` no cálculo de fuso horário (linhas 2705, 2907, 2963, 2984, 3226), alcançável de qualquer thread PE.
+- Gravar um código de erro (≠0) no slot 13 faz o próximo `gmtime()` daquela thread escrever no endereço do código (ex.: `0x12`): crash. **Espelhamento ingênuo descartado.**
