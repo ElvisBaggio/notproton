@@ -19,6 +19,8 @@ Atualizado: 2026-10-12 · Agente: claude · Modelo efetivo: opus (claude-opus-5-
 - **#40**: aguardar a resposta do Sikarugir (#289).
 
 **Bloqueios / limites.**
+- Limpeza de 2026-10-13: saíram os worktrees de agentes (`.claude/worktrees`), os worktrees de probe T05–T09b e `prof92380`, `scratch/t10-backup`, `scratch/b42`, `scratch/sikarugir/engines-b1` e as branches locais já mergeadas. Os docs de evidência desses gates citam caminhos que não existem mais (histórico). **Não apagar** `scratch/worktrees/t03-bridge` e `t04-close` (usados por `bridge/tests/stage-sikarugir-engine.sh`), `scratch/proton-lsc` (`lsteamclient/fetch.sh`) e `scratch/sikarugir/{bridge,wine,wine-build*}`.
+- O toolchain fica em `scratch/toolchain/`: llvm-mingw 20260826 e 20261006, bison 3.8.2 e m4 1.4.19 (downloads com hash conferido contra `docs/evidence/engine-baseline.md`, em `scratch/toolchain/downloads/`) e `venv-capstone` (capstone 5.0.7). Recriado depois que a limpeza apagou a cópia antiga, que ficava dentro de um worktree de agente. `LLVM_MINGW=$PWD/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal`; com `ENGINE_LOCK=scratch/worktrees/t03-bridge/scratch/sikarugir/engine-lock.json`, `sikarugir-buildcheck.sh --artifacts` dá PASS. O `scratch/sikarugir/engine-lock.json` do repo principal ainda está em schemaVersion 1 (anterior ao T01).
 - Prefixo 460930 limpo dos testes (chave do Uplay restaurada); backups do registro em `scratch/wildlands/`.
 - A dylib de mouse depende do `winemac.so` fixado do sikarugir-11.0-r0; outro build exige refazer os offsets (fica inerte).
 - O Ubisoft Connect (wined3d) gera erros de OpenGL sem parar; com o `WINEDEBUG` padrão o log do jogo cresce ~33 MB/s. Resolvido no código pelo #56; vale depois de instalar o app novo.
