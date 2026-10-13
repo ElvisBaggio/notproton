@@ -1077,7 +1077,11 @@ if [ "${NOTPROTON_RAW_MOUSE:-1}" != 0 ] && [ -f "$bridge_src/$np_build/notproton
 fi
 echo "rawmouse: ${np_insert:-off}" >> "$log" 2>&1 || true
 
-export WINEDEBUG="${WINEDEBUG:-err+all,fixme-all}"
+# Off by default, like Proton: with err on, a GL loop in the Ubisoft Connect's wined3d logged
+# ~33 MB/s (#46). NOTPROTON_LOG=1 brings the errors back; a WINEDEBUG of the user's still wins.
+if [ "${NOTPROTON_LOG:-0}" = 1 ]; then np_winedebug="err+all,fixme-all"; else np_winedebug="-all"; fi
+export WINEDEBUG="${WINEDEBUG:-$np_winedebug}"
+echo "winedebug: $WINEDEBUG" >> "$log" 2>&1 || true
 exec 8>&-
 trap - EXIT
 printf 'launch_args=%s\n' "$launch_args" >> "$log" 2>&1 || true
