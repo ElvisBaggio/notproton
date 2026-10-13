@@ -54,6 +54,7 @@ Para reimplantar, rode **Install** de novo.
 - O `installscript.vdf` roda pelo `legacycompat/iscriptevaluator.exe` da Valve, que o `run` copia do payload para a pasta do cliente a cada launch (#41). O log mostra `helper exited status=0`.
 - Mouse em jogos com mira (#44): com o cursor do Windows escondido, o `run` carrega `notproton-rawmouse.dylib`, que entrega as contagens do sensor (sem aceleração do macOS) e prende o cursor do Mac; Cmd+Tab solta. `NOTPROTON_RAW_MOUSE=0` desliga, `NOTPROTON_RAW_MOUSE_SCALE=<n>` ajusta a sensibilidade. Detalhes: `docs/evidence/raw-mouse.md`.
 - Capturar todas as telas em tela cheia (`CaptureDisplaysForFullscreen`) apaga os outros monitores; é opt-in com `NOTPROTON_CAPTURE_DISPLAYS=1`.
+- O log do Wine vem desligado (`WINEDEBUG=-all`, como no Proton). Com os erros ligados, o Ubisoft Connect chegava a gravar ~33 MB/s (#46). Para diagnóstico, use `NOTPROTON_LOG=1 %command%` (volta a `err+all,fixme-all`). Um `WINEDEBUG=…` nas opções de inicialização tem precedência. O valor efetivo aparece no `notproton-run.log` (`winedebug:`).
 - A ponte cobre processos 32-bit (#42): o prefixo recebe o gatilho Valve `steamclient.dll` i386 e o runner o `lib/wine/i386-windows/lsteamclient.dll`, que usa os thunks wow64 do `lsteamclient.so` x86_64. Depois de atualizar o app, rode **Set Up/Repair** do runner para instalar o arquivo novo.
 - Janelas Electron/Chromium, como o Paradox Launcher, ficam brancas no Sikarugir 11.0 r0.
 - O CI `app` falha fora do Mac do Elvis, porque a ponte é local (`scratch/sikarugir/bridge`).

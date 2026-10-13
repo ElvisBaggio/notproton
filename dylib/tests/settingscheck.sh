@@ -221,6 +221,14 @@ again "" 0
 same_file "a linked tracking file writes no controller keys" "$work/retina-off" "$case_dir/imported"
 is "a linked tracking file is logged" "=== could not track the hidden controllers, leaving them as they are ===" "$(cat "$case_dir/log")"
 
+echo "== WINEDEBUG"
+debug=$(sed -n '/^if \[ "${NOTPROTON_LOG:-0}" = 1 \]/,/^export WINEDEBUG=/p' "$SRC")
+[ -n "$debug" ] || { echo "FAIL: WINEDEBUG default not found in $SRC"; exit 1; }
+winedebug() { env -u WINEDEBUG "$@" debug="$debug" sh -ec 'eval "$debug"; printf %s "$WINEDEBUG"'; }
+is "logging is off by default" "-all" "$(winedebug)"
+is "NOTPROTON_LOG=1 brings the errors back" "err+all,fixme-all" "$(winedebug NOTPROTON_LOG=1)"
+is "a WINEDEBUG in the launch options wins" "+seh" "$(winedebug WINEDEBUG=+seh NOTPROTON_LOG=1)"
+
 if [ "$fails" -eq 0 ]; then
 	echo "==> settingscheck: all assertions hold"
 else
