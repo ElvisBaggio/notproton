@@ -63,10 +63,12 @@ enum Uninstall {
         }
 
         report(.removing)
-        let removed = try remove(
+        var removed = try remove(
             legacyCompat: legacyCompat, compatTools: compatTools, directories: directories
         )
-        let templateFailures = RunnerInstaller.removePrefixTemplates(keeping: [], libraries: libraries)
+        removed += try removeSteamDLLLinks(to: legacyCompat, in: libraries)
+        let templateFailures = RunnerInstaller.removePrefixTemplates(
+            keeping: [], libraries: libraries, removingFolder: true)
         if !templateFailures.isEmpty {
             throw StepFailure(step: step, detail: templateFailures.map(\.detail).joined(separator: "\n"))
         }
@@ -120,6 +122,21 @@ enum Uninstall {
             guard files.fileExists(atPath: path) else { continue }
             try WriteRefused.catching(path) { try files.removeItem(at: target) }
             removed.append(target.lastPathComponent)
+        }
+        return removed
+    }
+
+    // Links the run script made point at legacycompat. Anything else at that name is left alone.
+    static func removeSteamDLLLinks(to legacyCompat: URL, in libraries: [SteamLibrary]) throws -> [String] {
+        let files = FileManager.default
+        let target = legacyCompat.appending(path: "Steam.dll").path(percentEncoded: false)
+        var removed: [String] = []
+        for library in libraries {
+            let link = library.steamapps.appending(path: "common/Steam.dll")
+            let path = link.path(percentEncoded: false)
+            guard (try? files.destinationOfSymbolicLink(atPath: path)) == target else { continue }
+            try WriteRefused.catching(path) { try files.removeItem(at: link) }
+            removed.append(link.lastPathComponent)
         }
         return removed
     }
