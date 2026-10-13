@@ -83,8 +83,8 @@ O ld.lld PE não suporta os scripts GNU `link.ld`/`link32.ld`. O caminho LLVM co
 
 ```sh
 rtk proxy sh -c '
-  export LLVM_MINGW=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal
-  export PYTHON=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/venv-capstone/bin/python3
+  export LLVM_MINGW=/Users/elvisoliveira/_dev/notproton/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal
+  export PYTHON=/Users/elvisoliveira/_dev/notproton/scratch/toolchain/venv-capstone/bin/python3
   base="$PWD/scratch/sikarugir"
   BUILD_DIR="$base/payload/x86_64-windows" sh ntdll-patch/build.sh "$base/orig/x86_64-windows/ntdll.dll" sikarugir
   BUILD_DIR="$base/payload/i386-windows" sh ntdll-patch/build32.sh "$base/orig/i386-windows/ntdll.dll" sikarugir

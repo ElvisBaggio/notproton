@@ -79,8 +79,8 @@ Pré-condições: lock copiado de T01 e clone privado Wine 11.0 em `scratch/sika
 
 ```sh
 rtk proxy sh -c '
-  export LLVM_MINGW=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal
-  export PATH=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/toolchain/bison/bin:/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/toolchain/m4/bin:$PATH
+  export LLVM_MINGW=/Users/elvisoliveira/_dev/notproton/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal
+  export PATH=/Users/elvisoliveira/_dev/notproton/scratch/toolchain/bison/bin:/Users/elvisoliveira/_dev/notproton/scratch/toolchain/m4/bin:$PATH
   make bridge-sikarugir
 '
 rtk proxy sh bridge/tests/sikarugir-negativecheck.sh

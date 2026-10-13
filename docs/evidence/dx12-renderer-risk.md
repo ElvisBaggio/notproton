@@ -121,7 +121,7 @@ Objetivo: separar "D3DMetal/Wine 11 r0 entrega D3D12" de "PEAK/Unity roda", sem 
 Compilar com llvm-mingw x86_64, que tem `d3d12.h` e `dxgi.h`:
 
 ```sh
-T=/Users/elvisoliveira/_dev/notproton/.claude/worktrees/agent-a0056ab92dea8e784/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal/bin
+T=/Users/elvisoliveira/_dev/notproton/scratch/toolchain/llvm-mingw-20260826-ucrt-macos-universal/bin
 "$T/x86_64-w64-mingw32-g++" -O2 -municode d3d12probe.cpp -ld3d12 -ldxgi -luuid -o scratch/dx12/d3d12probe.exe
 ```
 
