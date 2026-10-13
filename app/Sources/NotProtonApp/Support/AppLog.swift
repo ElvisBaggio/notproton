@@ -27,7 +27,8 @@ enum AppLog {
     static func note(_ snapshot: StatusSnapshot) {
         var lines = [
             "state steam=\(describe(snapshot.steam))",
-            "state steamRunning=\(snapshot.steamRunning) updatesBlocked=\(snapshot.updateBlocked)",
+            "state steamRunning=\(snapshot.steamRunning) updatesBlocked=\(snapshot.updateBlocked)"
+                + " unsupportedSteamBuild=\(snapshot.unsupportedSteamBuild.map(String.init) ?? "none")",
             "state runner=\(describe(snapshot.runner))",
             "state installContent=\(snapshot.installContent)",
         ]

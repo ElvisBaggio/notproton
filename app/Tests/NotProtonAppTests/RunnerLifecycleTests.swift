@@ -202,6 +202,20 @@ struct RunnerLifecycleTests {
         #expect(refuses { try SteamInstaller.requireSignatureProfile(activeBuild: 100, profiles: []) })
     }
 
+    @Test("A downloaded build without a profile is reported before Steam applies it")
+    func unsupportedClientBuildReportsPendingBuild() throws {
+        let work = try temporary()
+        defer { try? FileManager.default.removeItem(at: work) }
+        let profile = work.appending(path: "100.json")
+        try write("{\"steam_build\":100}", at: profile)
+        try write("publicbeta", at: work.appending(path: "package/beta"))
+        try write("\"version\" \"100\"", at: work.appending(path: "package/steam_client_publicbeta_signed-2_osx.manifest"))
+        #expect(SteamInstaller.unsupportedClientBuild(in: work, profiles: [profile]) == nil)
+        try write("\"version\" \"200\"", at: work.appending(path: "package/steam_client_publicbeta_signed-2_osx.manifest"))
+        #expect(SteamInstaller.unsupportedClientBuild(in: work, profiles: [profile]) == 200)
+        #expect(SteamInstaller.unsupportedClientBuild(in: work, profiles: []) == nil)
+    }
+
     @Test func testSteamMismatchRefusedBeforeHooks() throws {
         let work = try temporary()
         defer { try? FileManager.default.removeItem(at: work) }
